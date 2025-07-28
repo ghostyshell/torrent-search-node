@@ -68,13 +68,19 @@ app.use('/api/:website/:query/:page?', (req, res, next) => {
   let query = req.params.query;
   let page = req.params.page;
 
+  // Extract query parameters for filtering options
+  const options = {
+    minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
+    maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
+  };
+
   if (website == 'all') {
-    combo(query, page).then((v) => {
+    combo(query, page, options).then((v) => {
       console.log(v);
       res.json(v);
     });
   } else if (torrents[website]) {
-    torrents[website](query, page).then((v) => {
+    torrents[website](query, page, options).then((v) => {
       console.log(v);
       res.json(v);
     });

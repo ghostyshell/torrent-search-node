@@ -1,7 +1,7 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
 
-async function limeTorrent(query, page = '1') {
+async function limeTorrent(query, page = '1', options = {}) {
   var ALLTORRENT = [];
   const url = `https://www.limetorrents.pro/search/all/${query}/date/${page}/`;
   let html;

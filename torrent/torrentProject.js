@@ -1,7 +1,7 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
 
-async function torrentProject(query, page = '0') {
+async function torrentProject(query, page = '0', options = {}) {
   var ALLTORRENT = [];
   var ALLURL = [];
   const url = `https://torrentproject2.com/?t=${query}&p=${page}&orderby=created&order=desc`;

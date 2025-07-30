@@ -1,12 +1,409 @@
 const express = require('express');
 const combo = require('./torrent/COMBO');
 const path = require('path');
+const SQLiteCache = require('./cache/sqliteCache');
 
 let torrents = require('./torrent/torrents')();
 
 const app = express();
 
+// Initialize SQLite cache (async initialization)
+let cache = null;
+const initializeCache = async () => {
+  try {
+    cache = new SQLiteCache();
+    await cache.initializeDatabase();
+    console.log('✅ Cache initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize cache:', error);
+    // Continue without cache - graceful degradation
+  }
+};
+
+// Initialize cache on startup
+initializeCache();
+
+// Middleware for parsing JSON bodies
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(express.static(path.join(__dirname, 'public')));
+
+// === CACHE API ENDPOINTS ===
+
+// Get cache statistics
+app.get('/api/cache/stats', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const stats = await cache.getStats();
+    res.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cache statistics',
+      message: error.message,
+    });
+  }
+});
+
+// Clear all caches
+app.post('/api/cache/clear', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    await cache.clearAll();
+    res.json({
+      success: true,
+      message: 'All caches cleared successfully',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear caches',
+      message: error.message,
+    });
+  }
+});
+
+// Store cover image
+app.post('/api/cache/cover-image', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { torrent, imageUrl, imageData } = req.body;
+
+    if (!torrent || !imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: torrent, imageUrl',
+      });
+    }
+
+    // Convert base64 image data to buffer if provided
+    let imageBuffer = null;
+    if (imageData) {
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+    }
+
+    const success = await cache.setCoverImage(torrent, imageUrl, imageBuffer);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Cover image cached successfully',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to cache cover image',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cache cover image',
+      message: error.message,
+    });
+  }
+});
+
+// Get cover image
+app.get('/api/cache/cover-image/:torrentKey', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const torrentKey = req.params.torrentKey;
+    const torrent = { Name: torrentKey }; // Simplified torrent object
+
+    const imageData = await cache.getCoverImage(torrent);
+
+    if (imageData) {
+      if (imageData.type === 'blob') {
+        res.setHeader('Content-Type', imageData.mimeType || 'image/jpeg');
+        res.send(imageData.data);
+      } else {
+        res.json({
+          success: true,
+          imageUrl: imageData.imageUrl,
+          type: 'url',
+        });
+      }
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Cover image not found',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cover image',
+      message: error.message,
+    });
+  }
+});
+
+// Store stream URL
+app.post('/api/cache/stream-url', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { magnetLink, streamData } = req.body;
+
+    if (!magnetLink || !streamData || !streamData.streamUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: magnetLink, streamData.streamUrl',
+      });
+    }
+
+    const success = await cache.setStreamUrl(magnetLink, streamData);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Stream URL cached successfully',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to cache stream URL',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cache stream URL',
+      message: error.message,
+    });
+  }
+});
+
+// Get stream URL
+app.get('/api/cache/stream-url/:magnetHash', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const magnetHash = req.params.magnetHash; // This is just the hash now
+    const streamData = await cache.getStreamUrlByHash(magnetHash);
+
+    if (streamData) {
+      res.json({
+        success: true,
+        ...streamData,
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Stream URL not found',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stream URL',
+      message: error.message,
+    });
+  }
+});
+
+// Add favorite
+app.post('/api/cache/favorites', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { torrent } = req.body;
+
+    if (!torrent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: torrent',
+      });
+    }
+
+    const success = await cache.addFavorite(torrent);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Favorite added successfully',
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to add favorite',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add favorite',
+      message: error.message,
+    });
+  }
+});
+
+// Get favorites
+app.get('/api/cache/favorites', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const favorites = await cache.getFavorites();
+    res.json({
+      success: true,
+      favorites,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get favorites',
+      message: error.message,
+    });
+  }
+});
+
+// Remove favorite
+app.delete('/api/cache/favorites', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { torrent } = req.body;
+
+    if (!torrent) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: torrent',
+      });
+    }
+
+    const success = await cache.removeFavorite(torrent);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Favorite removed successfully',
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Favorite not found',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove favorite',
+      message: error.message,
+    });
+  }
+});
+
+// === END CACHE API ENDPOINTS ===
 
 // New endpoint for torrent details (must come before the general search route)
 app.get('/api/torrent-details/:website/:torrentUrl', (req, res) => {
@@ -102,3 +499,24 @@ app.use('/', (req, res) => {
 const PORT = process.env.PORT || 3001;
 console.log('Listening on PORT : ', PORT);
 app.listen(PORT);
+
+// Cleanup on server shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Server shutting down...');
+  cache.cleanup();
+  cache.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Server terminating...');
+  cache.cleanup();
+  cache.close();
+  process.exit(0);
+});
+
+// Run cleanup every hour
+setInterval(() => {
+  console.log('⏰ Running scheduled cache cleanup...');
+  cache.cleanup();
+}, 60 * 60 * 1000); // 1 hour

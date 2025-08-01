@@ -94,6 +94,17 @@ class SQLiteCache {
           torrent_data TEXT NOT NULL, -- JSON serialized torrent object
           added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
         )`,
+
+        // Cached links table
+        `CREATE TABLE IF NOT EXISTS cached_links (
+          id TEXT PRIMARY KEY,
+          url TEXT NOT NULL,
+          title TEXT,
+          date_added TEXT NOT NULL,
+          stream_url TEXT,
+          is_streaming BOOLEAN DEFAULT 0,
+          error TEXT
+        )`,
       ];
 
       const indexes = [
@@ -102,6 +113,7 @@ class SQLiteCache {
         'CREATE INDEX IF NOT EXISTS idx_images_torrent ON images(torrent_key)',
         'CREATE INDEX IF NOT EXISTS idx_images_type ON images(image_type)',
         'CREATE INDEX IF NOT EXISTS idx_stream_accessed ON stream_urls(last_accessed_at)',
+        'CREATE INDEX IF NOT EXISTS idx_cached_links_date ON cached_links(date_added)',
       ];
 
       // Execute all table creation queries
@@ -641,6 +653,148 @@ class SQLiteCache {
     });
   }
 
+  // === CACHED LINKS METHODS ===
+
+  addCachedLink(cachedLink) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT OR REPLACE INTO cached_links (id, url, title, date_added, stream_url, is_streaming, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      this.db.run(
+        sql,
+        [
+          cachedLink.id,
+          cachedLink.url,
+          cachedLink.title,
+          cachedLink.dateAdded,
+          cachedLink.streamUrl || null,
+          cachedLink.isStreaming || 0,
+          cachedLink.error || null,
+        ],
+        function (err) {
+          if (err) {
+            console.error('Error adding cached link:', err);
+            reject(err);
+            return;
+          }
+
+          console.log(`🔗 Added cached link: ${cachedLink.title}`);
+          resolve(true);
+        }
+      );
+    });
+  }
+
+  removeCachedLink(id) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'DELETE FROM cached_links WHERE id = ?',
+        [id],
+        function (err) {
+          if (err) {
+            console.error('Error removing cached link:', err);
+            reject(err);
+            return;
+          }
+
+          if (this.changes > 0) {
+            console.log(`🗑️ Removed cached link: ${id}`);
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        }
+      );
+    });
+  }
+
+  getCachedLinks() {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT id, url, title, date_added, stream_url, is_streaming, error 
+        FROM cached_links 
+        ORDER BY date_added DESC
+      `;
+
+      this.db.all(sql, [], (err, rows) => {
+        if (err) {
+          console.error('Error getting cached links:', err);
+          reject(err);
+          return;
+        }
+
+        try {
+          const cachedLinks = rows.map((row) => ({
+            id: row.id,
+            url: row.url,
+            title: row.title,
+            dateAdded: row.date_added,
+            streamUrl: row.stream_url,
+            isStreaming: !!row.is_streaming,
+            error: row.error,
+          }));
+          resolve(cachedLinks);
+        } catch (parseErr) {
+          console.error('Error parsing cached links:', parseErr);
+          resolve([]);
+        }
+      });
+    });
+  }
+
+  updateCachedLink(id, updates) {
+    return new Promise((resolve, reject) => {
+      // Build dynamic update query
+      const updateFields = [];
+      const updateValues = [];
+
+      if (updates.title !== undefined) {
+        updateFields.push('title = ?');
+        updateValues.push(updates.title);
+      }
+      if (updates.streamUrl !== undefined) {
+        updateFields.push('stream_url = ?');
+        updateValues.push(updates.streamUrl);
+      }
+      if (updates.isStreaming !== undefined) {
+        updateFields.push('is_streaming = ?');
+        updateValues.push(updates.isStreaming ? 1 : 0);
+      }
+      if (updates.error !== undefined) {
+        updateFields.push('error = ?');
+        updateValues.push(updates.error);
+      }
+
+      if (updateFields.length === 0) {
+        resolve(false);
+        return;
+      }
+
+      updateValues.push(id); // Add id for WHERE clause
+
+      const sql = `UPDATE cached_links SET ${updateFields.join(
+        ', '
+      )} WHERE id = ?`;
+
+      this.db.run(sql, updateValues, function (err) {
+        if (err) {
+          console.error('Error updating cached link:', err);
+          reject(err);
+          return;
+        }
+
+        if (this.changes > 0) {
+          console.log(`🔄 Updated cached link: ${id}`);
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      });
+    });
+  }
+
   // === UTILITY METHODS ===
 
   detectMimeType(buffer) {
@@ -725,6 +879,10 @@ class SQLiteCache {
         { key: 'images', sql: 'SELECT COUNT(*) as count FROM images' },
         { key: 'streamUrls', sql: 'SELECT COUNT(*) as count FROM stream_urls' },
         { key: 'favorites', sql: 'SELECT COUNT(*) as count FROM favorites' },
+        {
+          key: 'cachedLinks',
+          sql: 'SELECT COUNT(*) as count FROM cached_links',
+        },
       ];
 
       let completed = 0;
@@ -767,7 +925,13 @@ class SQLiteCache {
     return new Promise((resolve, reject) => {
       console.log('🗑️ Clearing all caches...');
 
-      const tables = ['cache', 'images', 'stream_urls', 'favorites'];
+      const tables = [
+        'cache',
+        'images',
+        'stream_urls',
+        'favorites',
+        'cached_links',
+      ];
       let completed = 0;
       const total = tables.length;
 

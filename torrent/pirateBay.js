@@ -5,7 +5,7 @@ const { extractImageLinks } = require('./imageExtractors');
 async function pirateBay(query, page = '1', options = {}) {
   const allTorrents = [];
   const url =
-    'https://thehiddenbay.com/search/' + query + '/' + page + '/3/507';
+    'https://thehiddenbay.com/search/' + query + '/' + page + '/3/570'; // seeder-sort/uhd //+ '/7/507'; // date-sort/uhd //+ '/3/507';
   let html;
   try {
     html = await axios.get(url);

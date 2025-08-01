@@ -27,18 +27,34 @@ initializeCache();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Enhanced CORS middleware for video streaming and screenshot capture
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
+  );
+  res.header(
+    'Access-Control-Expose-Headers',
+    'Content-Range, Accept-Ranges, Content-Length, Content-Type'
+  );
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // === CACHE API ENDPOINTS ===
 
 // Get cache statistics
 app.get('/api/cache/stats', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
-  );
-
   if (!cache) {
     return res.status(503).json({
       success: false,
@@ -402,6 +418,209 @@ app.delete('/api/cache/favorites', async (req, res) => {
     });
   }
 });
+
+// === CACHED LINKS API ENDPOINTS ===
+
+// Add cached link
+app.post('/api/cache/cached-links', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { url, title } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: url',
+      });
+    }
+
+    const cachedLink = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      url,
+      title: title || extractTitleFromUrl(url),
+      dateAdded: new Date().toISOString(),
+    };
+
+    const success = await cache.addCachedLink(cachedLink);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Link cached successfully',
+        cachedLink,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to cache link',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cache link',
+      message: error.message,
+    });
+  }
+});
+
+// Get cached links
+app.get('/api/cache/cached-links', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const cachedLinks = await cache.getCachedLinks();
+    res.json({
+      success: true,
+      cachedLinks,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get cached links',
+      message: error.message,
+    });
+  }
+});
+
+// Remove cached link
+app.delete('/api/cache/cached-links/:id', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: id',
+      });
+    }
+
+    const success = await cache.removeCachedLink(id);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Cached link removed successfully',
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Cached link not found',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to remove cached link',
+      message: error.message,
+    });
+  }
+});
+
+// Update cached link
+app.put('/api/cache/cached-links/:id', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+
+  if (!cache) {
+    return res.status(503).json({
+      success: false,
+      error: 'Cache not available',
+    });
+  }
+
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: id',
+      });
+    }
+
+    const success = await cache.updateCachedLink(id, updates);
+
+    if (success) {
+      res.json({
+        success: true,
+        message: 'Cached link updated successfully',
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Cached link not found',
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update cached link',
+      message: error.message,
+    });
+  }
+});
+
+// Helper function to extract title from URL
+function extractTitleFromUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.replace('www.', '');
+    const path = urlObj.pathname;
+
+    if (path && path !== '/') {
+      const pathParts = path.split('/').filter(Boolean);
+      const lastPart = pathParts[pathParts.length - 1];
+      if (lastPart) {
+        return `${hostname}/${lastPart}`;
+      }
+    }
+
+    return hostname;
+  } catch {
+    return 'Cached Link';
+  }
+}
 
 // === END CACHE API ENDPOINTS ===
 

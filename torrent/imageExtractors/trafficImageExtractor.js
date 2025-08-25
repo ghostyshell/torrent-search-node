@@ -35,7 +35,7 @@ async function getTrafficImageDirectUrl(url) {
 
     return null;
   } catch (error) {
-    console.error(`Error extracting from trafficimage.club: ${error.message}`);
+
     return null;
   }
 }

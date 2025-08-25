@@ -3,3 +3,5 @@ package-lock.json
 .netlify
 .vscode
 torrent_cache.db
+tsearch-*
+.env

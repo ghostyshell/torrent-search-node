@@ -43,7 +43,7 @@ async function extractImageLinks(description) {
         });
       }
     } catch (error) {
-      console.error(`Error processing image URL ${url}:`, error.message);
+
       // Still add the original URL in case it's already a direct link
       if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
         imageLinks.push({
@@ -86,7 +86,7 @@ async function getDirectImageUrl(url) {
 
     return null;
   } catch (error) {
-    console.error(`Error getting direct URL for ${url}:`, error.message);
+
     return null;
   }
 }

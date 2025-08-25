@@ -22,7 +22,7 @@ async function getPostimgDirectUrl(url) {
 
     return null;
   } catch (error) {
-    console.error(`Error extracting from postimg.cc: ${error.message}`);
+
     return null;
   }
 }

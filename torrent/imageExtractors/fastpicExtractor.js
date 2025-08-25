@@ -92,9 +92,7 @@ async function getFastpicDirectUrl(url) {
           return await getFastpicDirectUrl(fullviewUrl);
         }
       } catch (scrapingError) {
-        console.log(
-          `Scraping failed for ${url}, trying URL pattern parsing: ${scrapingError.message}`
-        );
+
       }
 
       // Fallback: Try to convert view URL to direct URL by parsing the URL structure
@@ -138,7 +136,7 @@ async function getFastpicDirectUrl(url) {
 
     return null;
   } catch (error) {
-    console.error(`Error extracting from fastpic.org: ${error.message}`);
+
     return null;
   }
 }

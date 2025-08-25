@@ -23,7 +23,7 @@ async function getImgurDirectUrl(url) {
 
     return directUrl; // Return default .jpg if none work
   } catch (error) {
-    console.error(`Error extracting from imgur.com: ${error.message}`);
+
     return null;
   }
 }

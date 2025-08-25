@@ -21,7 +21,7 @@ async function getImgbbDirectUrl(url) {
 
     return null;
   } catch (error) {
-    console.error(`Error extracting from imgbb.com: ${error.message}`);
+
     return null;
   }
 }

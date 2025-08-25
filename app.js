@@ -1,7 +1,11 @@
+// Load environment variables
+require('dotenv').config();
+
 const express = require('express');
 const combo = require('./torrent/COMBO');
 const path = require('path');
 const SQLiteCache = require('./cache/sqliteCache');
+const googleImagesService = require('./services/googleImagesService');
 
 let torrents = require('./torrent/torrents')();
 
@@ -13,9 +17,7 @@ const initializeCache = async () => {
   try {
     cache = new SQLiteCache();
     await cache.initializeDatabase();
-    console.log('✅ Cache initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize cache:', error);
     // Continue without cache - graceful degradation
   }
 };
@@ -635,14 +637,6 @@ app.get('/api/torrent-details/:website/:torrentUrl', (req, res) => {
   const website = req.params.website.toLowerCase();
   const torrentUrl = decodeURIComponent(req.params.torrentUrl);
 
-  console.log(`Fetching details for ${website}: ${torrentUrl}`);
-  console.log('Available torrents:', Object.keys(torrents));
-  console.log('Torrent module for', website, ':', torrents[website]);
-  console.log(
-    'Has getDetails?',
-    torrents[website] && typeof torrents[website].getDetails === 'function'
-  );
-
   if (
     website === 'piratebay' &&
     torrents[website] &&
@@ -651,11 +645,9 @@ app.get('/api/torrent-details/:website/:torrentUrl', (req, res) => {
     torrents[website]
       .getDetails(torrentUrl)
       .then((details) => {
-        console.log('Details fetched successfully');
         res.json(details);
       })
       .catch((error) => {
-        console.error('Error fetching details:', error);
         res.status(500).json({
           error: 'Failed to fetch torrent details',
           message: error.message,
@@ -669,6 +661,62 @@ app.get('/api/torrent-details/:website/:torrentUrl', (req, res) => {
         hasModule: !!torrents[website],
         hasGetDetails: !!(torrents[website] && torrents[website].getDetails),
       },
+    });
+  }
+});
+
+// Google Images search endpoint
+app.get('/api/google-images/search', async (req, res) => {
+  try {
+    const { q: query, limit = 20 } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        error: 'Query parameter "q" is required',
+      });
+    }
+
+    const results = await googleImagesService.searchImages(
+      query,
+      parseInt(limit)
+    );
+
+    res.json({
+      success: true,
+      query: query,
+      results: results,
+      count: results.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Google Images search suggestions endpoint
+app.get('/api/google-images/suggestions', (req, res) => {
+  try {
+    const { q: query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        error: 'Query parameter "q" is required',
+      });
+    }
+
+    const suggestions = googleImagesService.generateSearchSuggestions(query);
+
+    res.json({
+      success: true,
+      query: query,
+      suggestions: suggestions,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 });
@@ -692,12 +740,10 @@ app.use('/api/:website/:query/:page?', (req, res, next) => {
 
   if (website == 'all') {
     combo(query, page, options).then((v) => {
-      console.log(v);
       res.json(v);
     });
   } else if (torrents[website]) {
     torrents[website](query, page, options).then((v) => {
-      console.log(v);
       res.json(v);
     });
   } else {
@@ -716,19 +762,16 @@ app.use('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-console.log('Listening on PORT : ', PORT);
 app.listen(PORT);
 
 // Cleanup on server shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Server shutting down...');
   cache.cleanup();
   cache.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Server terminating...');
   cache.cleanup();
   cache.close();
   process.exit(0);
@@ -736,6 +779,5 @@ process.on('SIGTERM', () => {
 
 // Run cleanup every hour
 setInterval(() => {
-  console.log('⏰ Running scheduled cache cleanup...');
   cache.cleanup();
 }, 60 * 60 * 1000); // 1 hour

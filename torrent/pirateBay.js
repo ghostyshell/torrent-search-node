@@ -82,9 +82,8 @@ async function pirateBayDetails(torrentUrl) {
       'No description available';
 
     // Extract image links from description
-    console.log('Extracting image links from description...');
+
     const imageLinks = await extractImageLinks(description);
-    console.log(`Found ${imageLinks.length} image links`);
 
     // Extract additional details
     const details = {
@@ -124,7 +123,7 @@ async function pirateBayDetails(torrentUrl) {
 
     return details;
   } catch (error) {
-    console.error('Error fetching torrent details:', error);
+
     return {
       description: 'Failed to load description',
       files: [],

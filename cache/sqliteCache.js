@@ -24,22 +24,18 @@ class SQLiteCache {
     this.dbPath = dbPath;
     this.db = null;
     this.initializeDatabase();
-
-    console.log('📁 SQLite cache initialized at:', dbPath);
   }
 
   initializeDatabase() {
     return new Promise((resolve, reject) => {
       this.db = new sqlite3.Database(this.dbPath, (err) => {
         if (err) {
-          console.error('Error opening database:', err);
           reject(err);
           return;
         }
 
         this.initializeTables()
           .then(() => {
-            console.log('✅ SQLite database initialized');
             this.printStats();
             resolve();
           })
@@ -121,7 +117,6 @@ class SQLiteCache {
         tables.forEach((sql) => {
           this.db.run(sql, (err) => {
             if (err) {
-              console.error('Error creating table:', err);
               reject(err);
               return;
             }
@@ -131,7 +126,6 @@ class SQLiteCache {
         indexes.forEach((sql) => {
           this.db.run(sql, (err) => {
             if (err) {
-              console.error('Error creating index:', err);
             }
           });
         });
@@ -181,16 +175,10 @@ class SQLiteCache {
         [key, valueStr, type, expiresAt, metadataStr],
         function (err) {
           if (err) {
-            console.error('Error setting cache:', err);
             reject(err);
             return;
           }
 
-          console.log(
-            `💾 Cached: ${key} (type: ${type}, ttl: ${
-              ttlSeconds || 'permanent'
-            }s)`
-          );
           resolve(true);
         }
       );
@@ -206,23 +194,19 @@ class SQLiteCache {
 
       this.db.get(sql, [key], (err, row) => {
         if (err) {
-          console.error('Error getting cache:', err);
           reject(err);
           return;
         }
 
         if (!row) {
-          console.log(`🔍 Cache miss: ${key}`);
           resolve(defaultValue);
           return;
         }
 
-        console.log(`✅ Cache hit: ${key}`);
         try {
           const value = row.type === 'json' ? JSON.parse(row.value) : row.value;
           resolve(value);
         } catch (parseErr) {
-          console.error('Error parsing cached value:', parseErr);
           resolve(defaultValue);
         }
       });
@@ -233,12 +217,10 @@ class SQLiteCache {
     return new Promise((resolve, reject) => {
       this.db.run('DELETE FROM cache WHERE key = ?', [key], function (err) {
         if (err) {
-          console.error('Error deleting cache:', err);
           reject(err);
           return;
         }
 
-        console.log(`🗑️ Deleted cache: ${key} (affected: ${this.changes})`);
         resolve(this.changes > 0);
       });
     });
@@ -270,12 +252,10 @@ class SQLiteCache {
           ],
           function (err) {
             if (err) {
-              console.error('Error storing cover image:', err);
               reject(err);
               return;
             }
 
-            console.log(`💾 Stored cover image for: ${torrent.Name}`);
             resolve(true);
           }
         );
@@ -308,15 +288,11 @@ class SQLiteCache {
 
       this.db.get(blobSql, [torrentKey], async (err, row) => {
         if (err) {
-          console.error('Error getting cover image blob:', err);
           reject(err);
           return;
         }
 
         if (row) {
-          console.log(
-            `✅ Found cached cover image (blob) for: ${torrent.Name}`
-          );
           resolve({
             data: row.image_data,
             mimeType: row.mime_type,
@@ -330,13 +306,11 @@ class SQLiteCache {
         try {
           const urlData = await this.get(`cover_url_${torrentKey}`);
           if (urlData) {
-            console.log(`✅ Found cached cover URL for: ${torrent.Name}`);
             resolve({ ...urlData, type: 'url' });
           } else {
             resolve(null);
           }
         } catch (urlErr) {
-          console.error('Error getting cover URL:', urlErr);
           resolve(null);
         }
       });
@@ -403,14 +377,10 @@ class SQLiteCache {
         ],
         function (err) {
           if (err) {
-            console.error('Error caching stream URL:', err);
             reject(err);
             return;
           }
 
-          console.log(
-            `💾 Cached stream URL for: ${streamData.filename || magnetHash}`
-          );
           // Note: cleanupOldStreamUrls would need to be called separately
           resolve(true);
         }
@@ -426,7 +396,6 @@ class SQLiteCache {
 
       this.db.get(sql, [magnetHash], (err, row) => {
         if (err) {
-          console.error('Error getting stream URL:', err);
           reject(err);
           return;
         }
@@ -438,13 +407,9 @@ class SQLiteCache {
           `;
           this.db.run(updateSql, [magnetHash], (updateErr) => {
             if (updateErr) {
-              console.warn('Could not update last accessed time:', updateErr);
             }
           });
 
-          console.log(
-            `✅ Found cached stream URL for: ${row.filename || magnetHash}`
-          );
           resolve({
             streamUrl: row.stream_url,
             filename: row.filename,
@@ -466,7 +431,6 @@ class SQLiteCache {
 
       this.db.get(sql, [magnetHash], (err, row) => {
         if (err) {
-          console.error('Error getting stream URL by hash:', err);
           reject(err);
           return;
         }
@@ -478,16 +442,10 @@ class SQLiteCache {
             [magnetHash],
             (updateErr) => {
               if (updateErr) {
-                console.error('Error updating last_accessed_at:', updateErr);
               }
             }
           );
 
-          console.log(
-            `✅ Found cached stream URL by hash for: ${
-              row.filename || magnetHash
-            }`
-          );
           resolve({
             streamUrl: row.stream_url,
             filename: row.filename,
@@ -552,7 +510,6 @@ class SQLiteCache {
               return;
             }
 
-            console.log(`🧹 Cleaned up ${this.changes} old stream URLs`);
             resolve(this.changes);
           });
         }
@@ -573,12 +530,10 @@ class SQLiteCache {
 
       this.db.run(sql, [torrentKey, JSON.stringify(torrent)], function (err) {
         if (err) {
-          console.error('Error adding favorite:', err);
           reject(err);
           return;
         }
 
-        console.log(`⭐ Added favorite: ${torrent.Name}`);
         resolve(true);
       });
     });
@@ -593,13 +548,11 @@ class SQLiteCache {
         [torrentKey],
         function (err) {
           if (err) {
-            console.error('Error removing favorite:', err);
             reject(err);
             return;
           }
 
           if (this.changes > 0) {
-            console.log(`💔 Removed favorite: ${torrent.Name}`);
             resolve(true);
           } else {
             resolve(false);
@@ -616,7 +569,6 @@ class SQLiteCache {
 
       this.db.all(sql, [], (err, rows) => {
         if (err) {
-          console.error('Error getting favorites:', err);
           reject(err);
           return;
         }
@@ -628,7 +580,6 @@ class SQLiteCache {
           }));
           resolve(favorites);
         } catch (parseErr) {
-          console.error('Error parsing favorites:', parseErr);
           resolve([]);
         }
       });
@@ -675,12 +626,10 @@ class SQLiteCache {
         ],
         function (err) {
           if (err) {
-            console.error('Error adding cached link:', err);
             reject(err);
             return;
           }
 
-          console.log(`🔗 Added cached link: ${cachedLink.title}`);
           resolve(true);
         }
       );
@@ -694,13 +643,11 @@ class SQLiteCache {
         [id],
         function (err) {
           if (err) {
-            console.error('Error removing cached link:', err);
             reject(err);
             return;
           }
 
           if (this.changes > 0) {
-            console.log(`🗑️ Removed cached link: ${id}`);
             resolve(true);
           } else {
             resolve(false);
@@ -720,7 +667,6 @@ class SQLiteCache {
 
       this.db.all(sql, [], (err, rows) => {
         if (err) {
-          console.error('Error getting cached links:', err);
           reject(err);
           return;
         }
@@ -737,7 +683,6 @@ class SQLiteCache {
           }));
           resolve(cachedLinks);
         } catch (parseErr) {
-          console.error('Error parsing cached links:', parseErr);
           resolve([]);
         }
       });
@@ -780,13 +725,11 @@ class SQLiteCache {
 
       this.db.run(sql, updateValues, function (err) {
         if (err) {
-          console.error('Error updating cached link:', err);
           reject(err);
           return;
         }
 
         if (this.changes > 0) {
-          console.log(`🔄 Updated cached link: ${id}`);
           resolve(true);
         } else {
           resolve(false);
@@ -815,8 +758,6 @@ class SQLiteCache {
 
   cleanup() {
     return new Promise((resolve, reject) => {
-      console.log('🧹 Running cache cleanup...');
-
       // Remove expired entries
       const expiredSql = `
         DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at <= strftime('%s', 'now')
@@ -824,12 +765,9 @@ class SQLiteCache {
 
       this.db.run(expiredSql, [], (err) => {
         if (err) {
-          console.error('Error removing expired entries:', err);
           reject(err);
           return;
         }
-
-        console.log(`✅ Removed ${this.changes} expired entries`);
 
         // Cleanup old stream URLs
         this.cleanupOldStreamUrls()
@@ -837,10 +775,8 @@ class SQLiteCache {
             // Vacuum database to reclaim space
             this.db.run('VACUUM', [], (vacuumErr) => {
               if (vacuumErr) {
-                console.warn('Could not vacuum database:', vacuumErr);
               }
 
-              console.log('✅ Cleanup completed');
               this.printStats();
               resolve();
             });
@@ -858,14 +794,10 @@ class SQLiteCache {
       { name: 'Favorites', sql: 'SELECT COUNT(*) as count FROM favorites' },
     ];
 
-    console.log('📊 Cache Statistics:');
-
     queries.forEach(({ name, sql }) => {
       this.db.get(sql, [], (err, row) => {
         if (err) {
-          console.log(`   ${name}: Error - ${err.message}`);
         } else {
-          console.log(`   ${name}: ${row.count} entries`);
         }
       });
     });
@@ -892,7 +824,6 @@ class SQLiteCache {
         this.db.get(sql, [], (err, row) => {
           if (err) {
             stats[key] = 0;
-            console.error(`Error getting ${key} stats:`, err);
           } else {
             stats[key] = row.count;
           }
@@ -923,8 +854,6 @@ class SQLiteCache {
 
   clearAll() {
     return new Promise((resolve, reject) => {
-      console.log('🗑️ Clearing all caches...');
-
       const tables = [
         'cache',
         'images',
@@ -938,17 +867,14 @@ class SQLiteCache {
       tables.forEach((table) => {
         this.db.run(`DELETE FROM ${table}`, [], (err) => {
           if (err) {
-            console.error(`Error clearing ${table}:`, err);
           }
 
           completed++;
           if (completed === total) {
             this.db.run('VACUUM', [], (vacuumErr) => {
               if (vacuumErr) {
-                console.warn('Could not vacuum after clear:', vacuumErr);
               }
 
-              console.log('✅ All caches cleared');
               this.printStats();
               resolve();
             });
@@ -962,9 +888,7 @@ class SQLiteCache {
     if (this.db) {
       this.db.close((err) => {
         if (err) {
-          console.error('Error closing database:', err);
         } else {
-          console.log('🔒 SQLite cache database closed');
         }
       });
     }

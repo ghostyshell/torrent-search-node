@@ -87,10 +87,9 @@ async function getXxxwebdlxxxDirectUrl(url) {
       return imgSrc;
     }
 
-    console.log(`No direct image found for xxxwebdlxxx URL: ${url}`);
     return null;
   } catch (error) {
-    console.error(`Error extracting from xxxwebdlxxx: ${error.message}`);
+
     return null;
   }
 }

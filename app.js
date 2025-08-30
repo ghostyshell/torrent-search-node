@@ -721,6 +721,87 @@ app.get('/api/google-images/suggestions', (req, res) => {
   }
 });
 
+// Pixhost image upload proxy endpoint
+app.post('/api/pixhost/upload', async (req, res) => {
+  try {
+    const { imageUrl, imageData } = req.body;
+
+    if (!imageUrl && !imageData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Either imageUrl or imageData is required',
+      });
+    }
+
+    const fetch = require('node-fetch');
+    const FormData = require('form-data');
+
+    let imageBuffer;
+    
+    if (imageData) {
+      // Handle base64 encoded image data
+      const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+    } else {
+      // Fetch image from URL
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      imageBuffer = await response.buffer();
+    }
+
+    // Create form data for pixhost API
+    const form = new FormData();
+    form.append('img', imageBuffer, {
+      filename: 'image.jpg',
+      contentType: 'image/jpeg',
+    });
+    form.append('content_type', '0'); // 0 for SFW
+    form.append('max_th_size', '420');
+
+    // Upload to pixhost
+    const pixhostResponse = await fetch('https://api.pixhost.to/images', {
+      method: 'POST',
+      body: form,
+      headers: {
+        'Accept': 'application/json',
+        ...form.getHeaders(),
+      },
+    });
+
+    if (!pixhostResponse.ok) {
+      const errorText = await pixhostResponse.text();
+      throw new Error(`Pixhost API error: ${pixhostResponse.status} ${errorText}`);
+    }
+
+    const result = await pixhostResponse.json();
+
+    if (!result.show_url) {
+      throw new Error('Invalid response from pixhost API');
+    }
+
+    // Convert show URL to direct image URL
+    // https://pixhost.to/show/8325/636090636_image.jpg -> https://img1.pixhost.to/images/8325/636090636_image.jpg
+    const directImageUrl = result.show_url.replace('https://pixhost.to/show/', 'https://img1.pixhost.to/images/');
+
+    res.json({
+      success: true,
+      originalUrl: imageUrl,
+      pixhostUrl: directImageUrl,
+      pixhostShowUrl: result.show_url, // Keep original show URL for reference
+      thumbnailUrl: result.th_url,
+    });
+
+  } catch (error) {
+    console.error('Pixhost upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.use('/api/:website/:query/:page?', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header(

@@ -78,12 +78,41 @@ const realDebridProxy = async (req, res) => {
 
     // Handle the response
     const contentType = response.headers.get('content-type');
+    const contentLength = response.headers.get('content-length');
+    
+    // Handle empty responses (like 204 No Content or empty body)
+    if (contentLength === '0' || response.status === 204) {
+      res.status(response.status).json({});
+      return;
+    }
+
+    // Try to get response body
+    const responseText = await response.text();
+    
+    // Handle empty response body
+    if (!responseText || responseText.trim() === '') {
+      res.status(response.status).json({});
+      return;
+    }
+
+    // Try to parse as JSON if content type suggests it or if it looks like JSON
     if (contentType && contentType.includes('application/json')) {
-      const jsonData = await response.json();
-      res.json(jsonData);
+      try {
+        const jsonData = JSON.parse(responseText);
+        res.json(jsonData);
+      } catch (parseError) {
+        // If JSON parsing fails, return as text
+        logger.warn('Failed to parse JSON response from Real-Debrid', {
+          originalUrl: req.originalUrl,
+          responseText: responseText.substring(0, 200),
+          contentType,
+          parseError: parseError.message,
+        });
+        res.send(responseText);
+      }
     } else {
-      const textData = await response.text();
-      res.send(textData);
+      // Return as text for non-JSON responses
+      res.send(responseText);
     }
 
   } catch (error) {

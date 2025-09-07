@@ -71,7 +71,7 @@ const realDebridProxy = createProxyMiddleware({
     });
   },
   // Handle timeout
-  timeout: 30000, // 30 seconds
+  timeout: 300000,
 });
 
 // Create proxy middleware for other external APIs that might need proxying

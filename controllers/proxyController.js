@@ -6,12 +6,13 @@ const logger = require('../middleware/logger');
  * Handles proxying requests to Real-Debrid API to avoid CORS issues
  */
 
-// Create proxy middleware for Real-Debrid API
-const realDebridProxy = createProxyMiddleware({
+// Create proxy middleware for Real-Debrid API with explicit configuration
+const realDebridProxy = createProxyMiddleware('/api/proxy/real-debrid', {
   target: 'https://api.real-debrid.com',
   changeOrigin: true,
   secure: true,
   followRedirects: true,
+  logLevel: 'debug',
   pathRewrite: {
     '^/api/proxy/real-debrid': '/rest/1.0', // rewrite path
   },
@@ -20,11 +21,11 @@ const realDebridProxy = createProxyMiddleware({
       method: req.method,
       originalUrl: req.originalUrl,
       targetUrl: `https://api.real-debrid.com${proxyReq.path}`,
-      proxyHost: proxyReq.getHeader('host'),
+      targetHost: proxyReq.getHeader('host'),
       userAgent: req.get('User-Agent'),
     });
 
-    // Explicitly set the host header to prevent issues
+    // Explicitly set the host header to ensure it goes to Real-Debrid
     proxyReq.setHeader('Host', 'api.real-debrid.com');
 
     // Forward authorization header if present
@@ -65,7 +66,7 @@ const realDebridProxy = createProxyMiddleware({
 
     res.status(504).json({
       error: 'Real-Debrid API error',
-      message: `504 - Error occurred while trying to proxy: ${req.originalUrl}`,
+      message: `504 - Error occurred while trying to proxy to Real-Debrid API (${req.originalUrl} -> https://api.real-debrid.com${req.url.replace('/api/proxy/real-debrid', '/rest/1.0')})`,
       details: err.message,
     });
   },

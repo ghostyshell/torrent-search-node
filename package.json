@@ -1,11 +1,7 @@
 {
-  "name": "torrent-search-api",
+  "name": "media-search-api",
   "version": "1.0.0",
   "main": "app.js",
-  "scripts": {
-    "start": "nodemon app.js",
-    "start-server": "node app.js"
-  },
   "keywords": [],
   "contributors": [
     {
@@ -29,9 +25,42 @@
     "http-proxy-middleware": "^3.0.5",
     "node-fetch": "^2.7.0",
     "nodemon": "^2.0.4",
+    "pm2": "^5.4.3",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
-    "sqlite3": "^5.1.6"
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "aws-cdk-lib": "^2.121.1",
+    "constructs": "^10.0.0",
+    "serverless": "^3.38.0",
+    "serverless-dotenv-plugin": "^6.0.0"
+  },
+  "scripts": {
+    "start": "nodemon app_original_backup.js",
+    "start-server": "node app.js",
+    "start:prod": "NODE_ENV=production node app.js",
+    "validate-config": "node scripts/validate-config.js",
+    "test:db": "node database/test.js",
+    "db:verify": "node database/migrations/importToTurso.js verify",
+    "db:health": "node database/health-check.js",
+    "deploy:aws": "serverless deploy --stage prod",
+    "deploy:aws-dev": "serverless deploy --stage dev",
+    "remove:aws": "serverless remove --stage prod",
+    "logs:aws": "serverless logs -f api --stage prod",
+    "health:check": "curl -f http://localhost:3001/health || exit 1",
+    "health:detailed": "curl -f http://localhost:3001/health/detailed || exit 1",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop torrent-search-api",
+    "pm2:restart": "pm2 restart torrent-search-api",
+    "pm2:reload": "pm2 reload torrent-search-api",
+    "pm2:logs": "pm2 logs torrent-search-api",
+    "pm2:monit": "pm2 monit",
+    "pm2:status": "pm2 status",
+    "pm2:delete": "pm2 delete torrent-search-api",
+    "deploy:runcloud": "npm install --production && npm run pm2:restart",
+    "setup:runcloud": "cp env.production.runcloud.example .env.production && npm install && npm run pm2:start",
+    "logs:runcloud": "pm2 logs torrent-search-api --lines 100"
   },
   "description": ""
 }

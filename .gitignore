@@ -1,7 +1,26 @@
 /node_modules
-package-lock.json
+pnpm-lock.yaml
+yarn.lock
 .netlify
 .vscode
-torrent_cache.db
 tsearch-*
 .env
+.env.production
+.vercel
+
+# AWS CDK
+cdk.out/
+outputs.json
+
+# Database migration exports
+database/migrations/exports/
+database/migrations/backups/
+
+.serverless
+# RunCloud specific
+.env.production
+logs/
+tmp/
+uploads/
+*.log
+pm2.json

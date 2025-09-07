@@ -156,15 +156,15 @@ app.get(
 );
 app.get('/api/torrents', torrentController.getTorrentWebsites);
 
-// Main torrent search route (this should be last to avoid conflicts)
-app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-
-// Proxy routes for external APIs (to handle CORS issues)
+// Proxy routes for external APIs (to handle CORS issues) - MUST be before the catch-all route
 // Handle CORS preflight requests
 app.options('/api/proxy/*', proxyController.handleCorsOptions);
 
 // Real-Debrid API proxy
 app.use('/api/proxy/real-debrid', proxyController.realDebridProxy);
+
+// Main torrent search route (this should be last to avoid conflicts)
+app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
 
 // Error handling middleware
 app.use(notFoundHandler);

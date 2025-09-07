@@ -20,12 +20,12 @@ const realDebridProxy = createProxyMiddleware({
       targetUrl: `https://api.real-debrid.com${proxyReq.path}`,
       userAgent: req.get('User-Agent'),
     });
-    
+
     // Forward authorization header if present
     if (req.headers.authorization) {
       proxyReq.setHeader('Authorization', req.headers.authorization);
     }
-    
+
     // Set proper content-type for POST requests
     if (req.method === 'POST' && req.headers['content-type']) {
       proxyReq.setHeader('Content-Type', req.headers['content-type']);
@@ -36,11 +36,17 @@ const realDebridProxy = createProxyMiddleware({
       statusCode: proxyRes.statusCode,
       originalUrl: req.originalUrl,
     });
-    
+
     // Add CORS headers to the response
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+    res.header(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, DELETE, OPTIONS'
+    );
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
+    );
   },
   onError: (err, req, res) => {
     logger.error('Proxy error for Real-Debrid request', {
@@ -48,7 +54,7 @@ const realDebridProxy = createProxyMiddleware({
       originalUrl: req.originalUrl,
       stack: err.stack,
     });
-    
+
     res.status(500).json({
       error: 'Proxy Error',
       message: 'Failed to proxy request to Real-Debrid API',
@@ -71,7 +77,7 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
         originalUrl: req.originalUrl,
         target: targetUrl,
       });
-      
+
       // Forward common headers
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
@@ -83,8 +89,14 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
     onProxyRes: (proxyRes, req, res) => {
       // Add CORS headers
       res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+      res.header(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, OPTIONS'
+      );
+      res.header(
+        'Access-Control-Allow-Headers',
+        'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
+      );
     },
     onError: (err, req, res) => {
       logger.error('Generic proxy error', {
@@ -92,7 +104,7 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
         originalUrl: req.originalUrl,
         target: targetUrl,
       });
-      
+
       res.status(500).json({
         error: 'Proxy Error',
         message: 'Failed to proxy request',
@@ -107,8 +119,14 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
 const handleCorsOptions = (req, res, next) => {
   if (req.method === 'OPTIONS') {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+    res.header(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, DELETE, OPTIONS'
+    );
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
+    );
     res.status(200).end();
     return;
   }

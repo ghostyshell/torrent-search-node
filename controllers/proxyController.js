@@ -10,6 +10,8 @@ const logger = require('../middleware/logger');
 const realDebridProxy = createProxyMiddleware({
   target: 'https://api.real-debrid.com',
   changeOrigin: true,
+  secure: true,
+  followRedirects: true,
   pathRewrite: {
     '^/api/proxy/real-debrid': '/rest/1.0', // rewrite path
   },
@@ -18,8 +20,12 @@ const realDebridProxy = createProxyMiddleware({
       method: req.method,
       originalUrl: req.originalUrl,
       targetUrl: `https://api.real-debrid.com${proxyReq.path}`,
+      proxyHost: proxyReq.getHeader('host'),
       userAgent: req.get('User-Agent'),
     });
+
+    // Explicitly set the host header to prevent issues
+    proxyReq.setHeader('Host', 'api.real-debrid.com');
 
     // Forward authorization header if present
     if (req.headers.authorization) {
@@ -53,11 +59,13 @@ const realDebridProxy = createProxyMiddleware({
       error: err.message,
       originalUrl: req.originalUrl,
       stack: err.stack,
+      targetUrl: 'https://api.real-debrid.com',
+      headers: req.headers,
     });
 
-    res.status(500).json({
-      error: 'Proxy Error',
-      message: 'Failed to proxy request to Real-Debrid API',
+    res.status(504).json({
+      error: 'Real-Debrid API error',
+      message: `504 - Error occurred while trying to proxy: ${req.originalUrl}`,
       details: err.message,
     });
   },

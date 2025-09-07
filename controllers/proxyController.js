@@ -7,7 +7,7 @@ const logger = require('../middleware/logger');
  */
 
 // Create proxy middleware for Real-Debrid API with explicit configuration
-const realDebridProxy = createProxyMiddleware('/api/proxy/real-debrid', {
+const realDebridProxy = createProxyMiddleware({
   target: 'https://api.real-debrid.com',
   changeOrigin: true,
   secure: true,

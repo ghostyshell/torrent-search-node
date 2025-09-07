@@ -29,7 +29,7 @@ if (corsErrors.length > 0) {
 }
 
 const express = require('express');
-const combo = require('../torrent/COMBO');
+const combo = require('../torrent/Combo.js');
 const UnifiedCache = require('../database/UnifiedCache');
 const googleImagesService = require('../services/googleImagesService');
 

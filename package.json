@@ -37,7 +37,7 @@
     "serverless-dotenv-plugin": "^6.0.0"
   },
   "scripts": {
-    "start": "nodemon app_original_backup.js",
+    "start": "nodemon app.js",
     "start-server": "node app.js",
     "start:prod": "NODE_ENV=production node app.js",
     "validate-config": "node scripts/validate-config.js",

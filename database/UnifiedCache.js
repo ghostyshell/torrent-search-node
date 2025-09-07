@@ -115,9 +115,74 @@ class UnifiedCache {
     return blobSuccess || urlSuccess;
   }
 
+  async storeCoverImage(torrent, imageData, mimeType) {
+    const torrentKey = this.generateTorrentKey(torrent);
+    
+    const sql = `
+      INSERT OR REPLACE INTO images (torrent_key, image_type, image_data, torrent_name, mime_type)
+      VALUES (?, 'cover', ?, ?, ?)
+    `;
+
+    const result = await this.dbManager.run(sql, [
+      torrentKey,
+      imageData,
+      torrent.Name || 'Unknown',
+      mimeType || this.detectMimeType(imageData),
+    ]);
+
+    return result.changes > 0;
+  }
+
+  async storeCoverImageUrl(torrent, imageUrl) {
+    const torrentKey = this.generateTorrentKey(torrent);
+    
+    return await this.set(
+      `cover_url_${torrentKey}`,
+      {
+        imageUrl,
+        torrentName: torrent.Name,
+        originalUrl: imageUrl,
+      },
+      null,
+      'json',
+      { type: 'cover_image' }
+    );
+  }
+
   async getCoverImage(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 
+    // First try to get from blob storage
+    const blobSql = `
+      SELECT image_data, mime_type, original_url FROM images 
+      WHERE torrent_key = ? AND image_type = 'cover'
+    `;
+
+    const row = await this.dbManager.get(blobSql, [torrentKey]);
+
+    if (row) {
+      return {
+        data: row.image_data,
+        mimeType: row.mime_type,
+        originalUrl: row.original_url,
+        type: 'blob',
+      };
+    }
+
+    // Fallback to URL cache
+    try {
+      const urlData = await this.get(`cover_url_${torrentKey}`);
+      if (urlData) {
+        return { ...urlData, type: 'url' };
+      }
+    } catch (urlErr) {
+      // Ignore URL cache errors
+    }
+
+    return null;
+  }
+
+  async getCoverImageByKey(torrentKey) {
     // First try to get from blob storage
     const blobSql = `
       SELECT image_data, mime_type, original_url FROM images 
@@ -910,6 +975,18 @@ class UnifiedCache {
 
   generateTorrentKey(torrent) {
     if (typeof torrent === 'string') return torrent;
+    
+    // For cached links, use a more specific identifier (matching frontend logic)
+    if (torrent.isCachedLink && torrent.cachedLinkId) {
+      const key = `cached_link_${torrent.cachedLinkId}`;
+      console.log(
+        '🔑 [UnifiedCache] Generated key for cached link:',
+        key,
+        'from torrent:',
+        torrent.Name
+      );
+      return key;
+    }
     
     // Use name, source, and size to create a unique identifier (matching frontend logic)
     const identifier = `${torrent.Name}_${torrent.Source}_${torrent.Size}`;

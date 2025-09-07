@@ -146,9 +146,8 @@ const cacheController = {
 
     try {
       const torrentKey = req.params.torrentKey;
-      const torrent = { Name: torrentKey }; // Simplified torrent object
 
-      const imageData = await cache.getCoverImage(torrent);
+      const imageData = await cache.getCoverImageByKey(torrentKey);
 
       if (imageData) {
         if (imageData.type === 'blob') {

@@ -241,7 +241,7 @@ const cacheController = {
 
     try {
       const magnetHash = req.params.magnetHash;
-      const streamData = await cache.getStreamUrl(magnetHash);
+      const streamData = await cache.getStreamUrlByHash(magnetHash);
 
       if (streamData) {
         res.json({

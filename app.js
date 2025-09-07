@@ -160,8 +160,8 @@ app.get('/api/torrents', torrentController.getTorrentWebsites);
 // Handle CORS preflight requests
 app.options('/api/proxy/*', proxyController.handleCorsOptions);
 
-// Real-Debrid API proxy
-app.use('/api/proxy/real-debrid', proxyController.realDebridProxy);
+// Real-Debrid API proxy routes
+app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
 
 // Main torrent search route (this should be last to avoid conflicts)
 app.get('/api/:website/:query/:page?', torrentController.searchTorrents);

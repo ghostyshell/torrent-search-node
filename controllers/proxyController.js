@@ -1,78 +1,105 @@
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const logger = require('../middleware/logger');
+const fetch = require('node-fetch');
 
 /**
  * Real-Debrid API Proxy Controller
- * Handles proxying requests to Real-Debrid API to avoid CORS issues
+ * Custom implementation to handle Real-Debrid API calls directly
  */
 
-// Create proxy middleware for Real-Debrid API with explicit configuration
-const realDebridProxy = createProxyMiddleware({
-  target: 'https://api.real-debrid.com',
-  changeOrigin: true,
-  secure: true,
-  followRedirects: true,
-  logLevel: 'debug',
-  pathRewrite: {
-    '^/api/proxy/real-debrid': '/rest/1.0', // rewrite path
-  },
-  onProxyReq: (proxyReq, req, res) => {
+// Custom Real-Debrid proxy handler
+const realDebridProxy = async (req, res) => {
+  try {
+    // Extract the path after /api/proxy/real-debrid
+    const realDebridPath = req.originalUrl.replace('/api/proxy/real-debrid', '');
+    const targetUrl = `https://api.real-debrid.com/rest/1.0${realDebridPath}`;
+
     logger.info('Proxying request to Real-Debrid', {
       method: req.method,
       originalUrl: req.originalUrl,
-      targetUrl: `https://api.real-debrid.com${proxyReq.path}`,
-      targetHost: proxyReq.getHeader('host'),
-      userAgent: req.get('User-Agent'),
-    });
-
-    // Explicitly set the host header to ensure it goes to Real-Debrid
-    proxyReq.setHeader('Host', 'api.real-debrid.com');
-
-    // Forward authorization header if present
-    if (req.headers.authorization) {
-      proxyReq.setHeader('Authorization', req.headers.authorization);
-    }
-
-    // Set proper content-type for POST requests
-    if (req.method === 'POST' && req.headers['content-type']) {
-      proxyReq.setHeader('Content-Type', req.headers['content-type']);
-    }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    logger.info('Received response from Real-Debrid', {
-      statusCode: proxyRes.statusCode,
-      originalUrl: req.originalUrl,
-    });
-
-    // Add CORS headers to the response
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'GET, POST, PUT, DELETE, OPTIONS'
-    );
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
-    );
-  },
-  onError: (err, req, res) => {
-    logger.error('Proxy error for Real-Debrid request', {
-      error: err.message,
-      originalUrl: req.originalUrl,
-      stack: err.stack,
-      targetUrl: 'https://api.real-debrid.com',
+      targetUrl: targetUrl,
       headers: req.headers,
+    });
+
+    // Prepare headers
+    const headers = {
+      'Content-Type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
+      'User-Agent': req.headers['user-agent'] || 'TorrentSearch-Proxy/1.0',
+    };
+
+    // Forward authorization header
+    if (req.headers.authorization) {
+      headers.Authorization = req.headers.authorization;
+    }
+
+    // Prepare request options
+    const fetchOptions = {
+      method: req.method,
+      headers: headers,
+      timeout: 30000, // 30 seconds
+    };
+
+    // Handle POST body
+    if (req.method === 'POST' && req.body) {
+      if (req.headers['content-type'] === 'application/x-www-form-urlencoded') {
+        // Convert body object to URL-encoded string
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(req.body)) {
+          params.append(key, value);
+        }
+        fetchOptions.body = params.toString();
+      } else {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+    }
+
+    logger.info('Making request to Real-Debrid', {
+      targetUrl,
+      method: req.method,
+      headers: headers,
+      bodyLength: fetchOptions.body ? fetchOptions.body.length : 0,
+    });
+
+    // Make the request to Real-Debrid
+    const response = await fetch(targetUrl, fetchOptions);
+
+    logger.info('Received response from Real-Debrid', {
+      statusCode: response.status,
+      statusText: response.statusText,
+      originalUrl: req.originalUrl,
+    });
+
+    // Set CORS headers
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+
+    // Set response status
+    res.status(response.status);
+
+    // Handle the response
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const jsonData = await response.json();
+      res.json(jsonData);
+    } else {
+      const textData = await response.text();
+      res.send(textData);
+    }
+
+  } catch (error) {
+    logger.error('Real-Debrid proxy error', {
+      error: error.message,
+      originalUrl: req.originalUrl,
+      stack: error.stack,
     });
 
     res.status(504).json({
       error: 'Real-Debrid API error',
-      message: `504 - Error occurred while trying to proxy to Real-Debrid API (${req.originalUrl} -> https://api.real-debrid.com${req.url.replace('/api/proxy/real-debrid', '/rest/1.0')})`,
-      details: err.message,
+      message: `Error occurred while trying to proxy: ${req.get('host')}${req.originalUrl.replace('/api/proxy/real-debrid', '')}`,
+      details: error.message,
     });
-  },
-  // Handle timeout
-  timeout: 300000,
-});
+  }
+};
 
 // Create proxy middleware for other external APIs that might need proxying
 const createGenericProxy = (targetUrl, pathRewrite = {}) => {

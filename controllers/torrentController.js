@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const combo = require('../torrent/Combo');
+const combo = require('../torrent/Combo.js');
 
 // Import torrent modules directly
 const limeTorrent = require('../torrent/limeTorrent');

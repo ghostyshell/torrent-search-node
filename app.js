@@ -1,3 +1,7 @@
+// ===========================
+// IMPORTS AND ENVIRONMENT SETUP
+// ===========================
+
 // Load environment configuration
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
@@ -7,6 +11,24 @@ const {
   notFoundHandler,
   asyncHandler,
 } = require('./middleware/errorHandler');
+
+// Core dependencies
+const express = require('express');
+const path = require('path');
+const UnifiedCache = require('./database/UnifiedCache');
+const healthRoutes = require('./routes/health');
+
+// Controllers
+const cacheController = require('./controllers/cacheController');
+const favoritesController = require('./controllers/favoritesController');
+const torrentController = require('./controllers/torrentController');
+const imageController = require('./controllers/imageController');
+const videoController = require('./controllers/videoController');
+const proxyController = require('./controllers/proxyController');
+
+// ===========================
+// ENVIRONMENT VALIDATION
+// ===========================
 
 // Validate environment on startup
 const envErrors = validateEnvironment();
@@ -23,18 +45,9 @@ if (corsErrors.length > 0) {
   logger.warn('CORS configuration issues', { errors: corsErrors });
 }
 
-const express = require('express');
-const path = require('path');
-const UnifiedCache = require('./database/UnifiedCache');
-const healthRoutes = require('./routes/health');
-
-// Import controllers
-const cacheController = require('./controllers/cacheController');
-const favoritesController = require('./controllers/favoritesController');
-const torrentController = require('./controllers/torrentController');
-const imageController = require('./controllers/imageController');
-const videoController = require('./controllers/videoController');
-const proxyController = require('./controllers/proxyController');
+// ===========================
+// APPLICATION CONFIGURATION
+// ===========================
 
 const app = express();
 
@@ -42,6 +55,10 @@ const app = express();
 if (config.security.trustProxy) {
   app.set('trust proxy', 1);
 }
+
+// ===========================
+// DATABASE INITIALIZATION
+// ===========================
 
 // Initialize unified cache (supports both local SQLite and Turso cloud)
 let cache = null;
@@ -73,23 +90,31 @@ const initializeCache = async () => {
 // Initialize cache on startup
 initializeCache();
 
+// ===========================
+// MIDDLEWARE SETUP
+// ===========================
+
 // Request logging middleware
 app.use(logger.requestMiddleware());
 
-// Middleware for parsing JSON bodies
+// Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Enhanced CORS middleware with environment-specific configuration
+// CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
 
+// Static file serving
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ===========================
+// ROUTE DEFINITIONS
+// ===========================
 
 // Health check routes (before other routes)
 app.use('/', healthRoutes);
 
-// Controller routes with proper paths to match original API
-// Cache routes
+// --- CACHE ROUTES ---
 app.get('/api/cache/stats', cacheController.getStats);
 app.post('/api/cache/clear', cacheController.clearAll);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
@@ -104,7 +129,8 @@ app.post('/api/cache/set', cacheController.setCacheValue);
 app.get('/api/cache/get/:key', cacheController.getCacheValue);
 app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 
-// Favorites routes (keeping original cache paths for backward compatibility)
+// --- FAVORITES ROUTES ---
+// Note: Using /api/cache paths for backward compatibility
 app.post('/api/cache/favorites', favoritesController.addFavorite);
 app.get('/api/cache/favorites', favoritesController.getFavorites);
 app.delete('/api/cache/favorites', favoritesController.removeFavorite);
@@ -127,7 +153,7 @@ app.post(
 app.post('/api/favorites/check', favoritesController.checkFavorite);
 app.post('/api/favorites/entry', favoritesController.storeFavoriteEntry);
 
-// Image routes
+// --- IMAGE ROUTES ---
 app.get('/api/google-images/search', imageController.searchGoogleImages);
 app.get(
   '/api/google-images/suggestions',
@@ -137,7 +163,7 @@ app.post('/api/pixhost/upload', imageController.uploadToPixhost);
 app.get('/api/proxy/image', imageController.proxyImage);
 app.post('/api/images/batch-process', imageController.batchProcessImages);
 
-// Video routes
+// --- VIDEO ROUTES ---
 app.post('/api/video/screenshot', videoController.generateScreenshot);
 app.post('/api/video/screenshots', videoController.getCachedScreenshotsPost);
 app.get(
@@ -149,31 +175,38 @@ app.post(
   videoController.generateBatchScreenshots
 );
 
-// Torrent routes (more specific routes first)
+// --- TORRENT ROUTES ---
+// Note: More specific routes first to avoid conflicts
 app.get(
   '/api/torrent-details/:website/:torrentUrl',
   torrentController.getTorrentDetails
 );
 app.get('/api/torrents', torrentController.getTorrentWebsites);
 
-// Proxy routes for external APIs (to handle CORS issues) - MUST be before the catch-all route
-// Handle CORS preflight requests
+// --- PROXY ROUTES ---
+// Note: MUST be before the catch-all torrent search route
 app.options('/api/proxy/*', proxyController.handleCorsOptions);
-
-// Real-Debrid API proxy routes
 app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
 
-// Main torrent search route (this should be last to avoid conflicts)
+// --- MAIN SEARCH ROUTE ---
+// Note: This catch-all route should be last to avoid conflicts
 app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
 
-// Error handling middleware
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-// Static route handler for home page
+// --- STATIC ROUTES ---
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// ===========================
+// ERROR HANDLING MIDDLEWARE
+// ===========================
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// ===========================
+// SERVER STARTUP
+// ===========================
 
 const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
@@ -184,7 +217,11 @@ const server = app.listen(PORT, () => {
   });
 });
 
-// Graceful shutdown
+// ===========================
+// CLEANUP AND SHUTDOWN HANDLERS
+// ===========================
+
+// Graceful shutdown handler
 const gracefulShutdown = (signal) => {
   logger.info(`Received ${signal}, starting graceful shutdown`);
 
@@ -212,16 +249,39 @@ const gracefulShutdown = (signal) => {
   }, 30000);
 };
 
+// Register shutdown signal handlers
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Cleanup every hour
-if (cache) {
-  setInterval(() => {
-    cache.cleanup().catch((error) => {
+// Periodic cache cleanup handler
+const startPeriodicCacheCleanup = () => {
+  if (!cache) {
+    logger.warn('Cache not available - skipping periodic cleanup');
+    return;
+  }
+
+  const cleanupInterval = 60 * 60 * 1000; // 1 hour
+  logger.info('Starting periodic cache cleanup', {
+    intervalMinutes: cleanupInterval / (60 * 1000),
+    cleanupScope:
+      'Expired cache entries and old stream URLs (keeps 100 most recent)',
+  });
+
+  setInterval(async () => {
+    try {
+      logger.info('Running periodic cache cleanup', {
+        cleanupTypes: ['expired_cache_entries', 'old_stream_urls'],
+        note: 'Favorites, images, and non-expired data are preserved',
+      });
+      await cache.cleanup();
+      logger.info('Periodic cache cleanup completed successfully');
+    } catch (error) {
       logger.error('Error during scheduled cleanup', { error: error.message });
-    });
-  }, 60 * 60 * 1000); // 1 hour
-}
+    }
+  }, cleanupInterval);
+};
+
+// Initialize periodic cleanup
+startPeriodicCacheCleanup();
 
 module.exports = app;

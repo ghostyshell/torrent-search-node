@@ -224,20 +224,4 @@ test.describe('Cache API Endpoints', () => {
     }
   });
 
-  test('POST /api/cache/clear should clear all caches', async ({ request }) => {
-    const response = await request.post('/api/cache/clear');
-
-    expect([200, 503]).toContain(response.status());
-
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-
-    if (response.status() === 200) {
-      expect(data.success).toBe(true);
-      expect(data).toHaveProperty('message', 'All caches cleared successfully');
-    } else {
-      expect(data.success).toBe(false);
-      expect(data).toHaveProperty('error', 'Cache not available');
-    }
-  });
 });

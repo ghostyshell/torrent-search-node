@@ -116,7 +116,6 @@ app.use('/', healthRoutes);
 
 // --- CACHE ROUTES ---
 app.get('/api/cache/stats', cacheController.getStats);
-app.post('/api/cache/clear', cacheController.clearAll);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);

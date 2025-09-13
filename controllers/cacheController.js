@@ -30,36 +30,6 @@ const cacheController = {
     }
   },
 
-  // Clear all caches
-  clearAll: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
-    const cache = req.app.locals.cache;
-    if (!cache) {
-      return res.status(503).json({
-        success: false,
-        error: 'Cache not available',
-      });
-    }
-
-    try {
-      await cache.clearAll();
-      res.json({
-        success: true,
-        message: 'All caches cleared successfully',
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to clear caches',
-        message: error.message,
-      });
-    }
-  },
 
   // Store cover image
   storeCoverImage: async (req, res) => {
@@ -584,7 +554,6 @@ function extractTitleFromUrl(url) {
 // Export individual controller functions for direct route binding
 module.exports = {
   getStats: cacheController.getStats,
-  clearAll: cacheController.clearAll,
   storeCoverImage: cacheController.storeCoverImage,
   getCoverImage: cacheController.getCoverImage,
   storeStreamUrl: cacheController.storeStreamUrl,

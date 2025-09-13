@@ -1067,29 +1067,6 @@ class UnifiedCache {
     return this.dbManager.getStats();
   }
 
-  async clearAll() {
-    const tables = [
-      'cache',
-      'images',
-      'stream_urls',
-      'favorites',
-      'cached_links',
-      'favorite_entries',
-      'torrent_details',
-      'favorite_screenshots',
-    ];
-
-    for (const table of tables) {
-      await this.dbManager.run(`DELETE FROM ${table}`);
-    }
-
-    // Vacuum database to reclaim space (only works with local SQLite)
-    if (!this.dbManager.isCloudDatabase) {
-      await this.dbManager.run('VACUUM');
-    }
-
-    await this.printStats();
-  }
 
   async healthCheck() {
     return this.dbManager.healthCheck();

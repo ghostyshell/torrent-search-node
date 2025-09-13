@@ -1,0 +1,158 @@
+name: Backend E2E API Tests
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Torrent-Search-API/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'Torrent-Search-API/**'
+      - '.github/workflows/**'
+  workflow_dispatch: # Allow manual triggering
+
+defaults:
+  run:
+    working-directory: ./Torrent-Search-API
+
+jobs:
+  backend-e2e-tests:
+    name: Backend API E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Validate backend configuration
+        run: npm run validate-config
+        env:
+          NODE_ENV: test
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Run backend E2E tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          CI: true
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-playwright-report-node-${{ matrix.node-version }}
+          path: Torrent-Search-API/playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results-node-${{ matrix.node-version }}
+          path: Torrent-Search-API/test-results/
+          retention-days: 30
+
+  backend-health-check:
+    name: Backend API Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Backend database health check
+        run: node database/health-check.js
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+  backend-security-audit:
+    name: Backend Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run backend security audit
+        run: npm audit --audit-level high
+
+      - name: Run npm audit fix (dry run)
+        run: npm audit fix --dry-run
+
+  backend-test-summary:
+    name: Backend Test Summary
+    runs-on: ubuntu-latest
+    needs: [backend-e2e-tests, backend-health-check, backend-security-audit]
+    if: always()
+    
+    steps:
+      - name: Backend Test Results Summary
+        run: |
+          echo "## 🚀 Backend API Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E API Tests | ${{ needs.backend-e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health Check | ${{ needs.backend-health-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Audit | ${{ needs.backend-security-audit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.backend-e2e-tests.result }}" == "success" ]]; then
+            echo "🎉 All 75 backend E2E tests passed! API endpoints are working correctly." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Tested API Endpoints:" >> $GITHUB_STEP_SUMMARY
+            echo "- Health endpoints (/health, /health/detailed)" >> $GITHUB_STEP_SUMMARY
+            echo "- Torrent search (YTS, PirateBay, LimeTorrent, NyaaSI, Combo)" >> $GITHUB_STEP_SUMMARY
+            echo "- Favorites management (CRUD operations)" >> $GITHUB_STEP_SUMMARY
+            echo "- Cache operations and statistics" >> $GITHUB_STEP_SUMMARY
+            echo "- Image processing (Google Images, Pixhost)" >> $GITHUB_STEP_SUMMARY
+            echo "- Video screenshots (generation and retrieval)" >> $GITHUB_STEP_SUMMARY
+            echo "- Proxy services (Real-Debrid integration)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some backend E2E tests failed. Please check the test results." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -58,7 +58,7 @@ Add these to your GitHub repository secrets:
 
 - ✅ **Database Health**: Turso connection validation
 - ✅ **Security Audit**: Vulnerability scanning
-- ✅ **Multi-Node Testing**: Node.js 18.x and 20.x
+- ✅ **Node.js 20**: All testing and deployment using Node.js 20.x
 - ✅ **Performance**: Database warmup, timeout protection
 
 ## 🏃‍♂️ How to Run

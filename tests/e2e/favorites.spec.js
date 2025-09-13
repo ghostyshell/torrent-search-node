@@ -16,15 +16,29 @@ test.describe('Favorites API Endpoints', () => {
       data: { torrent: testTorrent },
     });
 
+    let favoriteAdded = false;
+
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data).toHaveProperty('message', 'Favorite added successfully');
+      favoriteAdded = true;
     } else {
       // Cache not available
       expect(response.status()).toBe(503);
       const data = await response.json();
       expect(data).toHaveProperty('error', 'Cache not available');
+    }
+
+    // Cleanup: Remove the favorite to avoid affecting production data
+    if (favoriteAdded) {
+      try {
+        await request.delete('/api/cache/favorites', {
+          data: { torrent: testTorrent },
+        });
+      } catch (error) {
+        console.warn('Failed to cleanup favorite:', error);
+      }
     }
   });
 

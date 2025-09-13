@@ -64,19 +64,8 @@ const cacheController = {
         });
       }
 
-      let success;
-      if (imageData) {
-        // Store binary image data
-        const buffer = Buffer.from(imageData, 'base64');
-        success = await cache.storeCoverImage(
-          torrent,
-          buffer,
-          mimeType || 'image/jpeg'
-        );
-      } else {
-        // Store image URL
-        success = await cache.storeCoverImageUrl(torrent, imageUrl);
-      }
+      // Always use the setCoverImage method which handles Pixhost upload
+      const success = await cache.setCoverImage(torrent, imageUrl, imageData);
 
       if (success) {
         res.json({
@@ -120,16 +109,12 @@ const cacheController = {
       const imageData = await cache.getCoverImageByKey(torrentKey);
 
       if (imageData) {
-        if (imageData.type === 'blob') {
-          res.setHeader('Content-Type', imageData.mimeType || 'image/jpeg');
-          res.send(imageData.data);
-        } else {
-          res.json({
-            success: true,
-            imageUrl: imageData.imageUrl,
-            type: 'url',
-          });
-        }
+        res.json({
+          success: true,
+          imageUrl: imageData.imageUrl,
+          type: 'url',
+          originalUrl: imageData.originalUrl,
+        });
       } else {
         res.status(404).json({
           success: false,
@@ -709,15 +694,10 @@ const cacheController = {
       const coverImage = await cache.getCoverImageForTorrent(torrent);
 
       if (coverImage) {
-        if (coverImage.type === 'blob') {
-          res.setHeader('Content-Type', coverImage.mimeType || 'image/jpeg');
-          res.send(coverImage.data);
-        } else {
-          res.json({
-            success: true,
-            coverImage,
-          });
-        }
+        res.json({
+          success: true,
+          coverImage,
+        });
       } else {
         res.status(404).json({
           success: false,

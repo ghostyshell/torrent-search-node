@@ -34,14 +34,26 @@ test.describe('Cache API Endpoints', () => {
       },
     });
 
+    let cacheValueSet = false;
+
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.success).toBe(true);
       expect(data).toHaveProperty('message', 'Value cached successfully');
       expect(data).toHaveProperty('key', testKey);
+      cacheValueSet = true;
     } else {
       // Cache not available - this is acceptable
       expect(response.status()).toBe(503);
+    }
+
+    // Cleanup: Delete the cached value to avoid affecting production data
+    if (cacheValueSet) {
+      try {
+        await request.delete(`/api/cache/delete/${testKey}`);
+      } catch (error) {
+        console.warn(`Failed to cleanup cache key ${testKey}:`, error);
+      }
     }
   });
 
@@ -54,6 +66,8 @@ test.describe('Cache API Endpoints', () => {
       timestamp: Date.now(),
     };
 
+    let cacheValueSet = false;
+
     // First set a value
     const setResponse = await request.post('/api/cache/set', {
       data: {
@@ -63,6 +77,8 @@ test.describe('Cache API Endpoints', () => {
     });
 
     if (setResponse.status() === 200) {
+      cacheValueSet = true;
+
       // Then try to get it
       const getResponse = await request.get(`/api/cache/get/${testKey}`);
 
@@ -74,6 +90,15 @@ test.describe('Cache API Endpoints', () => {
         expect(getData).toHaveProperty('key', testKey);
         expect(getData).toHaveProperty('value');
         expect(getData.value).toEqual(testValue);
+      }
+    }
+
+    // Cleanup: Delete the cached value to avoid affecting production data
+    if (cacheValueSet) {
+      try {
+        await request.delete(`/api/cache/delete/${testKey}`);
+      } catch (error) {
+        console.warn(`Failed to cleanup cache key ${testKey}:`, error);
       }
     }
   });
@@ -124,6 +149,8 @@ test.describe('Cache API Endpoints', () => {
       data: testLink,
     });
 
+    let createdLinkId = null;
+
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.success).toBe(true);
@@ -135,9 +162,20 @@ test.describe('Cache API Endpoints', () => {
       expect(cachedLink).toHaveProperty('url', testLink.url);
       expect(cachedLink).toHaveProperty('title', testLink.title);
       expect(cachedLink).toHaveProperty('dateAdded');
+
+      createdLinkId = cachedLink.id;
     } else {
       // Cache not available
       expect(response.status()).toBe(503);
+    }
+
+    // Cleanup: Delete the created cached link to avoid affecting production data
+    if (createdLinkId) {
+      try {
+        await request.delete(`/api/cache/cached-links/${createdLinkId}`);
+      } catch (error) {
+        console.warn(`Failed to cleanup cached link ${createdLinkId}:`, error);
+      }
     }
   });
 
@@ -223,5 +261,4 @@ test.describe('Cache API Endpoints', () => {
       );
     }
   });
-
 });

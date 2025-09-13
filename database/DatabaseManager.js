@@ -90,13 +90,12 @@ class DatabaseManager {
         metadata TEXT
       )`,
 
-      // Image cache table for binary data
+      // Image URLs table for Pixhost-hosted images
       `CREATE TABLE IF NOT EXISTS images (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         torrent_key TEXT NOT NULL,
         image_type TEXT NOT NULL,
-        image_data BLOB NOT NULL,
-        mime_type TEXT,
+        pixhost_url TEXT NOT NULL,
         original_url TEXT,
         torrent_name TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
@@ -212,6 +211,9 @@ class DatabaseManager {
 
     // Migration: Add cover image columns to other tables
     await this.migrateCoverImageColumns();
+
+    // Migration: Update images table to use URLs only
+    await this.migrateImagesToUrlOnly();
   }
 
   /**
@@ -268,6 +270,76 @@ class DatabaseManager {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Migration method to update images table to store URLs only
+   */
+  async migrateImagesToUrlOnly() {
+    try {
+      // Check if the pixhost_url column exists
+      const hasPixhostUrl = await this.columnExists('images', 'pixhost_url');
+
+      if (!hasPixhostUrl) {
+        // Add pixhost_url column
+        await this.execute('ALTER TABLE images ADD COLUMN pixhost_url TEXT');
+        console.log('✅ Added pixhost_url column to images table');
+      }
+
+      // Check if we need to drop the image_data column
+      const hasImageData = await this.columnExists('images', 'image_data');
+
+      if (hasImageData) {
+        // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
+        const tempTableSql = `
+          CREATE TABLE IF NOT EXISTS images_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            torrent_key TEXT NOT NULL,
+            image_type TEXT NOT NULL,
+            pixhost_url TEXT NOT NULL,
+            original_url TEXT,
+            torrent_name TEXT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+            metadata TEXT,
+            UNIQUE(torrent_key, image_type)
+          )
+        `;
+
+        await this.execute(tempTableSql);
+
+        // Copy data from old table to new table (excluding image_data)
+        const copyDataSql = `
+          INSERT OR IGNORE INTO images_new (id, torrent_key, image_type, pixhost_url, original_url, torrent_name, created_at, metadata)
+          SELECT id, torrent_key, image_type,
+                 COALESCE(original_url, '') as pixhost_url,
+                 original_url, torrent_name, created_at, metadata
+          FROM images
+        `;
+
+        await this.execute(copyDataSql);
+
+        // Drop old table and rename new table
+        await this.execute('DROP TABLE images');
+        await this.execute('ALTER TABLE images_new RENAME TO images');
+
+        console.log('✅ Migrated images table to URL-only storage');
+      }
+    } catch (error) {
+      console.warn('⚠️ Images table migration warning:', error.message);
+    }
+  }
+
+  /**
+   * Helper method to check if a column exists in a table
+   */
+  async columnExists(tableName, columnName) {
+    try {
+      const result = await this.execute(`PRAGMA table_info(${tableName})`);
+      return result.rows.some(row => row.name === columnName);
+    } catch (error) {
+      console.warn(`Error checking column ${columnName} in ${tableName}:`, error.message);
+      return false;
     }
   }
 

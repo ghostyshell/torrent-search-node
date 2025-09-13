@@ -1,4 +1,5 @@
 const DatabaseManager = require('./DatabaseManager');
+const pixhostService = require('../services/pixhostService');
 
 /**
  * Unified cache manager that works with both local SQLite and Turso cloud database
@@ -76,43 +77,52 @@ class UnifiedCache {
 
   async setCoverImage(torrent, imageUrl, imageData = null) {
     const torrentKey = this.generateTorrentKey(torrent);
-    let blobSuccess = false;
-    let urlSuccess = false;
 
-    // If we have image data (blob), store it
-    if (imageData) {
+    try {
+      console.log(`🖼️ [UnifiedCache] Setting cover image for torrent: ${torrent.Name}`);
+
+      let pixhostUrl = imageUrl;
+
+      // Always upload to Pixhost if we have an image URL (not already a Pixhost URL)
+      if (imageUrl && !imageUrl.includes('pixhost.to') && !imageUrl.includes('img1.pixhost.to')) {
+        console.log(`📤 [UnifiedCache] Uploading to Pixhost: ${imageUrl.substring(0, 50)}...`);
+
+        try {
+          const uploadResult = await pixhostService.uploadFromUrl(imageUrl);
+          pixhostUrl = uploadResult.directImageUrl;
+          console.log(`✅ [UnifiedCache] Pixhost upload successful: ${pixhostUrl.substring(0, 50)}...`);
+        } catch (uploadError) {
+          console.warn(`⚠️ [UnifiedCache] Pixhost upload failed, using original URL:`, uploadError.message);
+          // Continue with original URL if Pixhost upload fails
+        }
+      }
+
+      // Store the Pixhost URL in the images table
       const sql = `
-        INSERT OR REPLACE INTO images (torrent_key, image_type, image_data, original_url, torrent_name, mime_type)
-        VALUES (?, 'cover', ?, ?, ?, ?)
+        INSERT OR REPLACE INTO images (torrent_key, image_type, pixhost_url, original_url, torrent_name)
+        VALUES (?, 'cover', ?, ?, ?)
       `;
 
-      const mimeType = this.detectMimeType(imageData);
       const result = await this.dbManager.run(sql, [
         torrentKey,
-        imageData,
-        imageUrl,
+        pixhostUrl,
+        imageUrl, // Original URL for reference
         torrent.Name || 'Unknown',
-        mimeType,
       ]);
 
-      blobSuccess = result.changes > 0;
+      const success = result.changes > 0;
+
+      if (success) {
+        console.log(`✅ [UnifiedCache] Cover image stored for: ${torrent.Name}`);
+      } else {
+        console.warn(`❌ [UnifiedCache] Failed to store cover image for: ${torrent.Name}`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error(`❌ [UnifiedCache] Error setting cover image for ${torrent.Name}:`, error.message);
+      return false;
     }
-
-    // Always store the URL reference as fallback
-    urlSuccess = await this.set(
-      `cover_url_${torrentKey}`,
-      {
-        imageUrl,
-        torrentName: torrent.Name,
-        originalUrl: imageUrl,
-      },
-      null,
-      'json',
-      { type: 'cover_image' }
-    );
-
-    // Return true if either storage method succeeded
-    return blobSuccess || urlSuccess;
   }
 
   async storeCoverImage(torrent, imageData, mimeType) {
@@ -152,55 +162,43 @@ class UnifiedCache {
   async getCoverImage(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 
-    // First try to get from blob storage
-    const blobSql = `
-      SELECT image_data, mime_type, original_url FROM images 
+    // Get Pixhost URL from images table
+    const sql = `
+      SELECT pixhost_url, original_url FROM images
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
 
-    const row = await this.dbManager.get(blobSql, [torrentKey]);
+    const row = await this.dbManager.get(sql, [torrentKey]);
 
-    if (row) {
+    if (row && row.pixhost_url) {
       return {
-        data: row.image_data,
-        mimeType: row.mime_type,
-        originalUrl: row.original_url,
-        type: 'blob',
+        type: 'url',
+        imageUrl: row.pixhost_url,
+        originalUrl: row.original_url || row.pixhost_url,
       };
-    }
-
-    // Fallback to URL cache
-    try {
-      const urlData = await this.get(`cover_url_${torrentKey}`);
-      if (urlData) {
-        return { ...urlData, type: 'url' };
-      }
-    } catch (urlErr) {
-      // Ignore URL cache errors
     }
 
     return null;
   }
 
   async getCoverImageByKey(torrentKey) {
-    // First try to get from blob storage
-    const blobSql = `
-      SELECT image_data, mime_type, original_url FROM images 
+    // Check URL storage in images table (Pixhost URLs)
+    const urlSql = `
+      SELECT pixhost_url, original_url FROM images
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
 
-    const row = await this.dbManager.get(blobSql, [torrentKey]);
+    const row = await this.dbManager.get(urlSql, [torrentKey]);
 
     if (row) {
       return {
-        data: row.image_data,
-        mimeType: row.mime_type,
-        originalUrl: row.original_url,
-        type: 'blob',
+        type: 'url',
+        imageUrl: row.pixhost_url,
+        originalUrl: row.original_url || row.pixhost_url,
       };
     }
 
-    // Fallback to URL cache
+    // Fallback to legacy URL cache
     try {
       const urlData = await this.get(`cover_url_${torrentKey}`);
       if (urlData) {
@@ -216,24 +214,24 @@ class UnifiedCache {
   async hasCoverImage(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 
-    // Check blob storage
-    const blobSql =
-      'SELECT 1 FROM images WHERE torrent_key = ? AND image_type = ?';
-    const blobRow = await this.dbManager.get(blobSql, [torrentKey, 'cover']);
+    // Check URL storage in images table
+    const urlSql =
+      'SELECT 1 FROM images WHERE torrent_key = ? AND image_type = ? AND pixhost_url IS NOT NULL';
+    const urlRow = await this.dbManager.get(urlSql, [torrentKey, 'cover']);
 
-    if (blobRow) {
+    if (urlRow) {
       return true;
     }
 
-    // Check URL cache
-    const urlSql = `
+    // Check legacy URL cache
+    const legacySql = `
       SELECT 1 FROM cache WHERE key = ? AND (expires_at IS NULL OR expires_at > strftime('%s', 'now'))
     `;
-    const urlRow = await this.dbManager.get(urlSql, [
+    const legacyRow = await this.dbManager.get(legacySql, [
       `cover_url_${torrentKey}`,
     ]);
 
-    return !!urlRow;
+    return !!legacyRow;
   }
 
   // === STREAM URL METHODS ===

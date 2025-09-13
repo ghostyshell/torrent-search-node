@@ -4,18 +4,14 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'Torrent-Search-API/**'
-      - '.github/workflows/**'
+      - '**'
+      - '.github/workflows/backend-e2e-tests.yml'
   pull_request:
     branches: [main, master]
     paths:
-      - 'Torrent-Search-API/**'
-      - '.github/workflows/**'
+      - '**'
+      - '.github/workflows/backend-e2e-tests.yml'
   workflow_dispatch: # Allow manual triggering
-
-defaults:
-  run:
-    working-directory: ./Torrent-Search-API
 
 jobs:
   backend-e2e-tests:
@@ -36,7 +32,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install backend dependencies
         run: npm ci
@@ -64,7 +60,7 @@ jobs:
         if: always()
         with:
           name: backend-playwright-report-node-${{ matrix.node-version }}
-          path: Torrent-Search-API/playwright-report/
+          path: playwright-report/
           retention-days: 30
 
       - name: Upload test results
@@ -72,7 +68,7 @@ jobs:
         if: always()
         with:
           name: backend-test-results-node-${{ matrix.node-version }}
-          path: Torrent-Search-API/test-results/
+          path: test-results/
           retention-days: 30
 
   backend-health-check:
@@ -89,7 +85,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install backend dependencies
         run: npm ci
@@ -113,7 +109,7 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: 'Torrent-Search-API/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install backend dependencies
         run: npm ci
@@ -145,7 +141,7 @@ jobs:
           if [[ "${{ needs.backend-e2e-tests.result }}" == "success" ]]; then
             echo "🎉 All 75 backend E2E tests passed! API endpoints are working correctly." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ✅ Tested API Endpoints:" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Tested Backend API Endpoints:" >> $GITHUB_STEP_SUMMARY
             echo "- Health endpoints (/health, /health/detailed)" >> $GITHUB_STEP_SUMMARY
             echo "- Torrent search (YTS, PirateBay, LimeTorrent, NyaaSI, Combo)" >> $GITHUB_STEP_SUMMARY
             echo "- Favorites management (CRUD operations)" >> $GITHUB_STEP_SUMMARY

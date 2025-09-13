@@ -13,16 +13,31 @@ const videoController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
+    // Add early validation for request body
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body',
+      });
+    }
+
     const { videoUrl, timestamp, magnetLink, filename } = req.body;
     const cache = req.app.locals.cache;
     let responseSent = false;
 
-    if (!videoUrl || typeof timestamp !== 'number') {
+    if (!videoUrl || typeof videoUrl !== 'string') {
       responseSent = true;
       return res.status(400).json({
         success: false,
-        error:
-          'Missing required fields: videoUrl (string) and timestamp (number)',
+        error: 'Missing required field: videoUrl (string)',
+      });
+    }
+
+    if (typeof timestamp !== 'number' || isNaN(timestamp) || timestamp < 0) {
+      responseSent = true;
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: timestamp (positive number)',
       });
     }
 
@@ -73,7 +88,6 @@ const videoController = {
       });
 
       ffmpegProcess.on('close', async (code) => {
-
         if (code !== 0) {
           logger.error('FFmpeg process failed', {
             code,
@@ -359,10 +373,18 @@ const videoController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
+    // Add early validation for request body
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body',
+      });
+    }
+
     const { magnetLink } = req.body;
     const cache = req.app.locals.cache;
 
-    if (!magnetLink) {
+    if (!magnetLink || typeof magnetLink !== 'string') {
       return res.status(400).json({
         success: false,
         error: 'Missing required parameter: magnetLink',
@@ -377,10 +399,14 @@ const videoController = {
     }
 
     try {
-      const screenshots = await videoController._getCachedScreenshots(
-        magnetLink,
-        cache
-      );
+      // Add timeout to prevent hanging requests
+      const timeoutMs = 10000; // 10 seconds
+      const screenshots = await Promise.race([
+        videoController._getCachedScreenshots(magnetLink, cache),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        ),
+      ]);
 
       logger.info('Retrieved cached screenshots via POST', {
         count: screenshots.length,
@@ -400,10 +426,14 @@ const videoController = {
         magnetLinkLength: magnetLink ? magnetLink.length : 0,
       });
 
+      // Don't send error details in production to avoid info leakage
+      const errorDetails =
+        process.env.NODE_ENV === 'development' ? error.message : undefined;
+
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve cached screenshots',
-        details: error.message,
+        details: errorDetails,
       });
     }
   }),
@@ -419,28 +449,32 @@ const videoController = {
     const { magnetLink: encodedMagnetLink } = req.params;
     const cache = req.app.locals.cache;
 
-    if (!encodedMagnetLink) {
+    if (!encodedMagnetLink || typeof encodedMagnetLink !== 'string') {
       return res.status(400).json({
         success: false,
         error: 'Missing required parameter: magnetLink',
       });
     }
 
-    // URL decode the magnet link to ensure consistency with cache keys
-    const magnetLink = decodeURIComponent(encodedMagnetLink);
-
-    if (!cache) {
-      return res.status(503).json({
-        success: false,
-        error: 'Cache not available',
-      });
-    }
-
     try {
-      const screenshots = await videoController._getCachedScreenshots(
-        magnetLink,
-        cache
-      );
+      // URL decode the magnet link to ensure consistency with cache keys
+      const magnetLink = decodeURIComponent(encodedMagnetLink);
+
+      if (!cache) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
+      // Add timeout to prevent hanging requests
+      const timeoutMs = 10000; // 10 seconds
+      const screenshots = await Promise.race([
+        videoController._getCachedScreenshots(magnetLink, cache),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        ),
+      ]);
 
       logger.info('Retrieved cached screenshots via GET', {
         count: screenshots.length,
@@ -459,10 +493,14 @@ const videoController = {
         stack: error.stack,
       });
 
+      // Don't send error details in production to avoid info leakage
+      const errorDetails =
+        process.env.NODE_ENV === 'development' ? error.message : undefined;
+
       res.status(500).json({
         success: false,
         error: 'Failed to retrieve cached screenshots',
-        details: error.message,
+        details: errorDetails,
       });
     }
   }),
@@ -475,13 +513,34 @@ const videoController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const { videoUrl, timestamps, magnetLink } = req.body;
-
-    if (!videoUrl || !timestamps || !Array.isArray(timestamps)) {
+    // Add early validation for request body
+    if (!req.body || typeof req.body !== 'object') {
       return res.status(400).json({
         success: false,
-        error:
-          'Missing required fields: videoUrl (string) and timestamps (array)',
+        error: 'Invalid request body',
+      });
+    }
+
+    const { videoUrl, timestamps, magnetLink } = req.body;
+
+    if (!videoUrl || typeof videoUrl !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: videoUrl (string)',
+      });
+    }
+
+    if (!timestamps || !Array.isArray(timestamps)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required field: timestamps (array)',
+      });
+    }
+
+    if (timestamps.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Timestamps array cannot be empty',
       });
     }
 
@@ -492,47 +551,64 @@ const videoController = {
       });
     }
 
-    const results = [];
-    const errors = [];
+    try {
+      const results = [];
+      const errors = [];
 
-    for (let i = 0; i < timestamps.length; i++) {
-      try {
-        // Use the same screenshot generation logic but skip response
-        const timestamp = timestamps[i];
-        if (typeof timestamp !== 'number') {
-          errors.push({
+      for (let i = 0; i < timestamps.length; i++) {
+        try {
+          const timestamp = timestamps[i];
+          if (
+            typeof timestamp !== 'number' ||
+            isNaN(timestamp) ||
+            timestamp < 0
+          ) {
+            errors.push({
+              index: i,
+              timestamp: timestamp,
+              error: 'Timestamp must be a valid positive number',
+            });
+            continue;
+          }
+
+          // This would need to be implemented as a separate internal method
+          // For now, just indicate the structure
+          results.push({
             index: i,
             timestamp: timestamp,
-            error: 'Timestamp must be a number',
+            success: true,
+            message: 'Screenshot generation queued',
           });
-          continue;
+        } catch (error) {
+          errors.push({
+            index: i,
+            timestamp: timestamps[i],
+            error: error.message,
+          });
         }
-
-        // This would need to be implemented as a separate internal method
-        // For now, just indicate the structure
-        results.push({
-          index: i,
-          timestamp: timestamp,
-          success: true,
-          message: 'Screenshot generation queued',
-        });
-      } catch (error) {
-        errors.push({
-          index: i,
-          timestamp: timestamps[i],
-          error: error.message,
-        });
       }
-    }
 
-    res.json({
-      success: true,
-      totalRequested: timestamps.length,
-      successful: results.length,
-      failed: errors.length,
-      results: results,
-      errors: errors,
-    });
+      res.json({
+        success: true,
+        totalRequested: timestamps.length,
+        successful: results.length,
+        failed: errors.length,
+        results: results,
+        errors: errors,
+      });
+    } catch (error) {
+      logger.error('Error in batch screenshot generation', {
+        error: error.message,
+        stack: error.stack,
+      });
+
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error during batch processing',
+        details:
+          process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
   }),
 
   // Private helper methods
@@ -578,14 +654,18 @@ const videoController = {
   },
 
   _getCachedScreenshots: async (magnetLink, cache) => {
+    // Validate inputs
+    if (!magnetLink || typeof magnetLink !== 'string') {
+      throw new Error('Invalid magnetLink provided');
+    }
+
+    if (!cache) {
+      throw new Error('Cache not available');
+    }
+
     logger.info('Retrieving cached screenshots', {
       magnetLink: magnetLink.substring(0, 50) + '...',
       magnetLinkLength: magnetLink.length,
-    });
-
-    // Add timeout wrapper to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Cache operation timeout')), 5000); // 5 second timeout
     });
 
     try {
@@ -597,39 +677,71 @@ const videoController = {
         .digest('hex')
         .substring(0, 16);
 
+      // Use shorter, more aggressive timeouts to prevent hanging
+      const INDIVIDUAL_TIMEOUT = 2000; // 2 seconds per cache operation
+      const TOTAL_TIMEOUT = 5000; // 5 seconds total
+
+      // Create timeout promise
+      const createTimeoutPromise = (timeoutMs, message) => {
+        return new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(message)), timeoutMs);
+        });
+      };
+
       // Check if there's a screenshots list stored with timeout
       const screenshotsListKey = `screenshots_list_${magnetHash}`;
-      const screenshotsList = await Promise.race([
-        cache.get(screenshotsListKey),
-        timeoutPromise,
-      ]);
+      let screenshotsList;
+
+      try {
+        screenshotsList = await Promise.race([
+          cache.get(screenshotsListKey),
+          createTimeoutPromise(
+            INDIVIDUAL_TIMEOUT,
+            'Screenshots list retrieval timeout'
+          ),
+        ]);
+      } catch (error) {
+        logger.warn('Failed to retrieve screenshots list', {
+          error: error.message,
+          magnetHash,
+        });
+        return []; // Return empty array on failure
+      }
 
       logger.info('Checking screenshots list', {
         hasScreenshotsList: !!screenshotsList,
         listLength: screenshotsList ? screenshotsList.length : 0,
       });
 
-      if (screenshotsList && Array.isArray(screenshotsList)) {
+      if (
+        screenshotsList &&
+        Array.isArray(screenshotsList) &&
+        screenshotsList.length > 0
+      ) {
         logger.info('Found screenshots in list', {
-          timestamps: screenshotsList.map((item) => item.timestamp),
+          timestamps: screenshotsList
+            .map((item) => item?.timestamp)
+            .filter((t) => t !== undefined),
           count: screenshotsList.length,
         });
 
-        // Limit to first 10 items to prevent excessive cache calls
-        const limitedList = screenshotsList.slice(0, 10);
+        // Limit to first 5 items to prevent excessive cache calls and improve performance
+        const limitedList = screenshotsList.slice(0, 5);
 
-        // Retrieve cached data for screenshots in parallel with timeout
+        // Retrieve cached data for screenshots with individual timeouts
         const cachePromises = limitedList.map(async (item) => {
+          if (!item || typeof item.timestamp === 'undefined') {
+            return { timestamp: null, cacheKey: null, cachedData: null };
+          }
+
           const cacheKey = `screenshot_${magnetHash}_${item.timestamp}`;
           try {
             const cachedData = await Promise.race([
               cache.get(cacheKey),
-              new Promise((_, reject) => {
-                setTimeout(
-                  () => reject(new Error('Individual cache timeout')),
-                  1000
-                ); // 1 second per item
-              }),
+              createTimeoutPromise(
+                INDIVIDUAL_TIMEOUT,
+                'Individual cache timeout'
+              ),
             ]);
             return {
               timestamp: item.timestamp,
@@ -649,13 +761,25 @@ const videoController = {
           }
         });
 
-        const results = await Promise.race([
-          Promise.all(cachePromises),
-          timeoutPromise,
-        ]);
+        let results;
+        try {
+          results = await Promise.race([
+            Promise.all(cachePromises),
+            createTimeoutPromise(
+              TOTAL_TIMEOUT,
+              'Total cache operation timeout'
+            ),
+          ]);
+        } catch (error) {
+          logger.warn('Cache operations timed out', {
+            error: error.message,
+            magnetHash,
+          });
+          return []; // Return empty array on timeout
+        }
 
         for (const result of results) {
-          if (result.cachedData) {
+          if (result.cachedData && result.timestamp !== null) {
             screenshots.push({
               timestamp: result.timestamp,
               ...result.cachedData,
@@ -671,7 +795,6 @@ const videoController = {
         });
       } else {
         // No screenshots list found - return empty array
-        // Screenshots will be available after they are generated via screenshot API
         logger.info('No screenshots list found for magnet link', {
           magnetHash: magnetHash,
           message:
@@ -681,11 +804,13 @@ const videoController = {
 
       return screenshots;
     } catch (error) {
-      logger.warn('Cache operation failed or timed out', {
+      logger.error('Cache operation failed', {
         error: error.message,
+        stack: error.stack,
         magnetLink: magnetLink.substring(0, 50) + '...',
       });
-      return []; // Return empty array on timeout or error
+      // Return empty array instead of throwing to prevent server crashes
+      return [];
     }
   },
 };

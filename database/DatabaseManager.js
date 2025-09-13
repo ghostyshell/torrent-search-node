@@ -2,6 +2,8 @@
  * Database abstraction layer for Turso cloud database
  * Provides connection pooling, retry logic, and optimized cloud database operations
  */
+const { createClient } = require('@libsql/client');
+
 class DatabaseManager {
   constructor(config = {}) {
     // Load environment variables
@@ -25,6 +27,7 @@ class DatabaseManager {
 
     this.isCloudDatabase = true; // Always use cloud database now
     this.retryCount = 0;
+    this.client = null;
   }
 
   /**
@@ -32,6 +35,11 @@ class DatabaseManager {
    */
   async initializeConnection() {
     try {
+      this.client = createClient({
+        url: this.config.tursoUrl,
+        authToken: this.config.tursoAuthToken,
+      });
+
       await this.testTursoConnection();
       await this.initializeSchema();
     } catch (error) {
@@ -49,7 +57,7 @@ class DatabaseManager {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         // Simple test query to verify connection
-        await this.executeTursoQuery('SELECT 1 as test');
+        await this.client.execute('SELECT 1 as test');
         return;
       } catch (error) {
         lastError = error;
@@ -64,56 +72,6 @@ class DatabaseManager {
     throw new Error(
       `Failed to connect to Turso after ${maxRetries} attempts: ${lastError.message}`
     );
-  }
-
-  /**
-   * Execute query on Turso database
-   */
-  async executeTursoQuery(sql, params = []) {
-    const axios = require('axios');
-
-    try {
-      const payload = {
-        stmt: {
-          sql: sql,
-          args: params.map((param) => {
-            if (param === null) return { type: 'null' };
-            if (typeof param === 'string')
-              return { type: 'text', value: param };
-            if (typeof param === 'number')
-              return { type: 'integer', value: param.toString() };
-            if (typeof param === 'boolean')
-              return { type: 'integer', value: param ? '1' : '0' };
-            if (Buffer.isBuffer(param))
-              return { type: 'blob', base64: param.toString('base64') };
-            return { type: 'text', value: String(param) };
-          }),
-        },
-      };
-
-      const response = await axios.post(
-        `${this.config.tursoUrl}/v1/execute`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${this.config.tursoAuthToken}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: this.config.connectionTimeout,
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      if (error.response) {
-        throw new Error(
-          `Turso API error: ${error.response.status} - ${JSON.stringify(
-            error.response.data
-          )}`
-        );
-      }
-      throw new Error(`Turso query failed: ${error.message}`);
-    }
   }
 
   /**
@@ -264,7 +222,7 @@ class DatabaseManager {
       { name: 'stream_url_cached_at', type: 'TEXT' },
       { name: 'supports_range_requests', type: 'BOOLEAN DEFAULT 0' },
       { name: 'filename', type: 'TEXT' },
-      { name: 'cover_image_url', type: 'TEXT' }
+      { name: 'cover_image_url', type: 'TEXT' },
     ];
 
     for (const column of missingColumns) {
@@ -287,12 +245,12 @@ class DatabaseManager {
     const tables = [
       {
         table: 'torrent_details',
-        columns: [{ name: 'cover_image_url', type: 'TEXT' }]
+        columns: [{ name: 'cover_image_url', type: 'TEXT' }],
       },
       {
         table: 'favorite_entries',
-        columns: [{ name: 'cover_image_url', type: 'TEXT' }]
-      }
+        columns: [{ name: 'cover_image_url', type: 'TEXT' }],
+      },
     ];
 
     for (const { table, columns } of tables) {
@@ -303,7 +261,10 @@ class DatabaseManager {
         } catch (error) {
           // Column might already exist, ignore duplicate column errors
           if (!error.message.includes('duplicate column name')) {
-            console.warn(`Failed to add column ${column.name} to ${table}:`, error.message);
+            console.warn(
+              `Failed to add column ${column.name} to ${table}:`,
+              error.message
+            );
           }
         }
       }
@@ -319,7 +280,7 @@ class DatabaseManager {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await this.executeTursoQuery(sql, params);
+        return await this.client.execute(sql, params);
       } catch (error) {
         lastError = error;
         // Query attempt failed
@@ -339,53 +300,32 @@ class DatabaseManager {
    * Get a single row
    */
   async get(sql, params = []) {
-    const result = await this.executeTursoQuery(sql, params);
-    const rows = result.result?.rows || [];
-    const columns = result.result?.cols || [];
+    const result = await this.client.execute(sql, params);
 
-    if (rows.length === 0) return null;
+    if (result.rows.length === 0) return null;
 
-    // Convert array row to object using column names
-    const row = {};
-    rows[0].forEach((value, index) => {
-      if (columns[index]) {
-        const colValue = value?.value !== undefined ? value.value : value;
-        row[columns[index].name] = colValue;
-      }
-    });
-
-    return row;
+    // libsql client returns rows as objects, not arrays
+    return result.rows[0];
   }
 
   /**
    * Get all rows
    */
   async all(sql, params = []) {
-    const result = await this.executeTursoQuery(sql, params);
-    const rows = result.result?.rows || [];
-    const columns = result.result?.cols || [];
+    const result = await this.client.execute(sql, params);
 
-    // Convert array rows to objects using column names
-    return rows.map((row) => {
-      const obj = {};
-      row.forEach((value, index) => {
-        if (columns[index]) {
-          const colValue = value?.value !== undefined ? value.value : value;
-          obj[columns[index].name] = colValue;
-        }
-      });
-      return obj;
-    });
+    // libsql client returns rows as objects, return directly
+    return result.rows;
   }
 
   /**
    * Run a query (INSERT, UPDATE, DELETE)
    */
   async run(sql, params = []) {
-    const result = await this.executeTursoQuery(sql, params);
+    const result = await this.client.execute(sql, params);
     return {
-      changes: result.result?.affected_row_count || 0,
-      lastID: result.result?.last_insert_rowid || null,
+      changes: result.rowsAffected || 0,
+      lastID: result.lastInsertRowid || null,
     };
   }
 
@@ -393,21 +333,21 @@ class DatabaseManager {
    * Begin a transaction
    */
   async beginTransaction() {
-    await this.execute('BEGIN TRANSACTION');
+    await this.client.execute('BEGIN TRANSACTION');
   }
 
   /**
    * Commit a transaction
    */
   async commitTransaction() {
-    await this.execute('COMMIT');
+    await this.client.execute('COMMIT');
   }
 
   /**
    * Rollback a transaction
    */
   async rollbackTransaction() {
-    await this.execute('ROLLBACK');
+    await this.client.execute('ROLLBACK');
   }
 
   /**
@@ -419,7 +359,7 @@ class DatabaseManager {
 
       const results = [];
       for (const { sql, params } of queries) {
-        const result = await this.execute(sql, params);
+        const result = await this.client.execute(sql, params);
         results.push(result);
       }
 
@@ -493,10 +433,13 @@ class DatabaseManager {
   }
 
   /**
-   * Close database connection (no-op for HTTP API)
+   * Close database connection
    */
   async close() {
-    // No persistent connection to close with HTTP API
+    if (this.client) {
+      await this.client.close();
+      this.client = null;
+    }
     return Promise.resolve();
   }
 

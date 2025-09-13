@@ -97,12 +97,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4097,
+                      "duration": 39,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:18:55.976Z",
+                      "startTime": "2025-09-13T07:49:23.960Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -131,12 +131,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 529,
+                      "duration": 11,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:00.085Z",
+                      "startTime": "2025-09-13T07:49:24.008Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -165,12 +165,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1041,
+                      "duration": 6,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:00.631Z",
+                      "startTime": "2025-09-13T07:49:24.028Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -199,12 +199,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1082,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:01.692Z",
+                      "startTime": "2025-09-13T07:49:24.039Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -233,12 +233,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 570,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:02.788Z",
+                      "startTime": "2025-09-13T07:49:24.047Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -267,12 +267,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1098,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:03.369Z",
+                      "startTime": "2025-09-13T07:49:24.058Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -301,12 +301,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 35,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:04.513Z",
+                      "startTime": "2025-09-13T07:49:24.067Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -335,12 +335,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 16,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:04.576Z",
+                      "startTime": "2025-09-13T07:49:24.076Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -369,12 +369,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:04.630Z",
+                      "startTime": "2025-09-13T07:49:24.087Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -420,12 +420,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 524,
+                      "duration": 8,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:04.650Z",
+                      "startTime": "2025-09-13T07:49:24.101Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -454,12 +454,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 11,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:05.181Z",
+                      "startTime": "2025-09-13T07:49:24.114Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -488,12 +488,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 845,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:05.199Z",
+                      "startTime": "2025-09-13T07:49:24.123Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -522,12 +522,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 523,
+                      "duration": 9,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:06.050Z",
+                      "startTime": "2025-09-13T07:49:24.132Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -556,12 +556,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1051,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:06.583Z",
+                      "startTime": "2025-09-13T07:49:24.154Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -590,12 +590,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:07.639Z",
+                      "startTime": "2025-09-13T07:49:24.162Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -624,12 +624,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 508,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:07.648Z",
+                      "startTime": "2025-09-13T07:49:24.170Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -658,12 +658,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.168Z",
+                      "startTime": "2025-09-13T07:49:24.178Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -692,12 +692,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.179Z",
+                      "startTime": "2025-09-13T07:49:24.187Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -731,7 +731,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.190Z",
+                      "startTime": "2025-09-13T07:49:24.197Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -760,12 +760,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 512,
+                      "duration": 9,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.200Z",
+                      "startTime": "2025-09-13T07:49:24.208Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -794,12 +794,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.719Z",
+                      "startTime": "2025-09-13T07:49:24.222Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -828,12 +828,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.734Z",
+                      "startTime": "2025-09-13T07:49:24.231Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -879,12 +879,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 9,
+                      "duration": 6,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.750Z",
+                      "startTime": "2025-09-13T07:49:24.242Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -899,7 +899,7 @@
             },
             {
               "title": "GET /health/detailed should return comprehensive health info",
-              "ok": true,
+              "ok": false,
               "tags": [],
               "tests": [
                 {
@@ -912,18 +912,42 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 528,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 14,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n    at /Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e/health.spec.js:56:31",
+                        "location": {
+                          "file": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e/health.spec.js",
+                          "column": 31,
+                          "line": 56
+                        },
+                        "snippet": "  54 |     \n  55 |     // Response time should be reasonable\n> 56 |     expect(data.responseTime).toBeGreaterThan(0);\n     |                               ^\n  57 |     expect(data.responseTime).toBeLessThan(5000); // Less than 5 seconds\n  58 |   });\n  59 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e/health.spec.js",
+                            "column": 31,
+                            "line": 56
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n\n  54 |     \n  55 |     // Response time should be reasonable\n> 56 |     expect(data.responseTime).toBeGreaterThan(0);\n     |                               ^\n  57 |     expect(data.responseTime).toBeLessThan(5000); // Less than 5 seconds\n  58 |   });\n  59 |\n    at /Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e/health.spec.js:56:31"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:08.767Z",
+                      "startTime": "2025-09-13T07:49:24.253Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [],
+                      "errorLocation": {
+                        "file": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e/health.spec.js",
+                        "column": 31,
+                        "line": 56
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "5fa61424c064729e5dd1-e90324b372faa482191f",
@@ -944,15 +968,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 511,
+                      "duration": 43,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:09.301Z",
+                      "startTime": "2025-09-13T07:49:24.658Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -978,15 +1002,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 10,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:09.819Z",
+                      "startTime": "2025-09-13T07:49:24.712Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1029,15 +1053,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1382,
+                      "duration": 1807,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:09.832Z",
+                      "startTime": "2025-09-13T07:49:24.734Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1063,15 +1087,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.219Z",
+                      "startTime": "2025-09-13T07:49:26.547Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1097,15 +1121,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4,
+                      "duration": 6,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.226Z",
+                      "startTime": "2025-09-13T07:49:26.555Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1131,15 +1155,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8,
+                      "duration": 15,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.235Z",
+                      "startTime": "2025-09-13T07:49:26.567Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1165,15 +1189,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3,
+                      "duration": 5,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.248Z",
+                      "startTime": "2025-09-13T07:49:26.588Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1199,15 +1223,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3,
+                      "duration": 8,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.256Z",
+                      "startTime": "2025-09-13T07:49:26.600Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1233,15 +1257,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.265Z",
+                      "startTime": "2025-09-13T07:49:26.613Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1267,15 +1291,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 14,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.273Z",
+                      "startTime": "2025-09-13T07:49:26.622Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1301,15 +1325,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6,
+                      "duration": 5,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.294Z",
+                      "startTime": "2025-09-13T07:49:26.631Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1335,15 +1359,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7,
+                      "duration": 8,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.307Z",
+                      "startTime": "2025-09-13T07:49:26.664Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1369,7 +1393,7 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
                       "duration": 5,
@@ -1377,7 +1401,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.320Z",
+                      "startTime": "2025-09-13T07:49:26.677Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1420,7 +1444,7 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
                       "duration": 4,
@@ -1428,7 +1452,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.332Z",
+                      "startTime": "2025-09-13T07:49:26.689Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1454,15 +1478,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1145,
+                      "duration": 1153,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:11.341Z",
+                      "startTime": "2025-09-13T07:49:26.700Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1488,15 +1512,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 337,
+                      "duration": 340,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:12.498Z",
+                      "startTime": "2025-09-13T07:49:27.863Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1522,15 +1546,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 337,
+                      "duration": 290,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:12.844Z",
+                      "startTime": "2025-09-13T07:49:28.217Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1556,15 +1580,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 293,
+                      "duration": 321,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:13.186Z",
+                      "startTime": "2025-09-13T07:49:28.518Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1590,15 +1614,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 327,
+                      "duration": 331,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:13.485Z",
+                      "startTime": "2025-09-13T07:49:28.844Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1624,15 +1648,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 347,
+                      "duration": 320,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:13.818Z",
+                      "startTime": "2025-09-13T07:49:29.180Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1658,15 +1682,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 332,
+                      "duration": 337,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:14.171Z",
+                      "startTime": "2025-09-13T07:49:29.505Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1692,15 +1716,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 298,
+                      "duration": 292,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:14.508Z",
+                      "startTime": "2025-09-13T07:49:29.855Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1726,15 +1750,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 343,
+                      "duration": 320,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:14.815Z",
+                      "startTime": "2025-09-13T07:49:30.152Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1760,15 +1784,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 338,
+                      "duration": 340,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:15.163Z",
+                      "startTime": "2025-09-13T07:49:30.476Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1811,15 +1835,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 8,
+                      "duration": 6,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:15.511Z",
+                      "startTime": "2025-09-13T07:49:30.823Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1845,15 +1869,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4300,
+                      "duration": 3625,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:15.527Z",
+                      "startTime": "2025-09-13T07:49:30.834Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1879,15 +1903,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1945,
+                      "duration": 1829,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:19.834Z",
+                      "startTime": "2025-09-13T07:49:34.465Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1913,15 +1937,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 366,
+                      "duration": 498,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:21.786Z",
+                      "startTime": "2025-09-13T07:49:36.300Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1947,15 +1971,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 640,
+                      "duration": 625,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:22.159Z",
+                      "startTime": "2025-09-13T07:49:36.803Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1981,15 +2005,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 987,
+                      "duration": 722,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:22.804Z",
+                      "startTime": "2025-09-13T07:49:37.433Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2015,15 +2039,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2671,
+                      "duration": 2325,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:23.796Z",
+                      "startTime": "2025-09-13T07:49:38.159Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2049,15 +2073,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 34,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:26.501Z",
+                      "startTime": "2025-09-13T07:49:40.489Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2083,15 +2107,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1245,
+                      "duration": 740,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:26.555Z",
+                      "startTime": "2025-09-13T07:49:40.497Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2117,15 +2141,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:27.806Z",
+                      "startTime": "2025-09-13T07:49:41.242Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2151,15 +2175,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2585,
+                      "duration": 3110,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:27.817Z",
+                      "startTime": "2025-09-13T07:49:41.250Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2185,10 +2209,10 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1837,
+                      "duration": 1766,
                       "errors": [],
                       "stdout": [
                         {
@@ -2197,7 +2221,7 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:30.408Z",
+                      "startTime": "2025-09-13T07:49:44.366Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2240,15 +2264,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 4,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:32.259Z",
+                      "startTime": "2025-09-13T07:49:46.144Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2274,15 +2298,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:32.270Z",
+                      "startTime": "2025-09-13T07:49:46.152Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2308,7 +2332,7 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
                       "duration": 4,
@@ -2316,7 +2340,7 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:32.282Z",
+                      "startTime": "2025-09-13T07:49:46.161Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2342,15 +2366,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:32.293Z",
+                      "startTime": "2025-09-13T07:49:46.169Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2376,15 +2400,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5202,
+                      "duration": 5248,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:32.305Z",
+                      "startTime": "2025-09-13T07:49:46.177Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2410,15 +2434,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:37.512Z",
+                      "startTime": "2025-09-13T07:49:51.433Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2444,15 +2468,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 838,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:37.521Z",
+                      "startTime": "2025-09-13T07:49:51.441Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2478,15 +2502,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 543,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.364Z",
+                      "startTime": "2025-09-13T07:49:51.449Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2512,15 +2536,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.913Z",
+                      "startTime": "2025-09-13T07:49:51.457Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2546,15 +2570,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.923Z",
+                      "startTime": "2025-09-13T07:49:51.464Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2580,15 +2604,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.944Z",
+                      "startTime": "2025-09-13T07:49:51.472Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2614,15 +2638,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 5,
+                      "duration": 3,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.956Z",
+                      "startTime": "2025-09-13T07:49:51.479Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2648,15 +2672,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 11,
+                      "duration": 7,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.968Z",
+                      "startTime": "2025-09-13T07:49:51.487Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2682,15 +2706,15 @@
                   "projectName": "API Tests",
                   "results": [
                     {
-                      "workerIndex": 0,
+                      "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 9,
+                      "duration": 6,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-09-13T06:19:38.985Z",
+                      "startTime": "2025-09-13T07:49:51.499Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2710,11 +2734,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-13T06:18:49.203Z",
-    "duration": 49826.451,
-    "expected": 74,
+    "startTime": "2025-09-13T07:48:21.754Z",
+    "duration": 89777.271,
+    "expected": 73,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 1,
     "flaky": 0
   }
 }

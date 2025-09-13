@@ -25,19 +25,18 @@ const videoController = {
     const cache = req.app.locals.cache;
     let responseSent = false;
 
-    if (!videoUrl || typeof videoUrl !== 'string') {
+    if (
+      !videoUrl ||
+      typeof videoUrl !== 'string' ||
+      typeof timestamp !== 'number' ||
+      isNaN(timestamp) ||
+      timestamp < 0
+    ) {
       responseSent = true;
       return res.status(400).json({
         success: false,
-        error: 'Missing required field: videoUrl (string)',
-      });
-    }
-
-    if (typeof timestamp !== 'number' || isNaN(timestamp) || timestamp < 0) {
-      responseSent = true;
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: timestamp (positive number)',
+        error:
+          'Missing required fields: videoUrl (string) and timestamp (number)',
       });
     }
 
@@ -83,11 +82,34 @@ const videoController = {
       const ffmpegProcess = spawn('ffmpeg', ffmpegArgs);
       let stderr = '';
 
+      // Add timeout to prevent hanging processes
+      const ffmpegTimeout = setTimeout(() => {
+        if (!responseSent) {
+          logger.warn('FFmpeg process timeout, killing process');
+          ffmpegProcess.kill('SIGKILL');
+
+          // Clean up temp file if it exists
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+
+          responseSent = true;
+          res.status(500).json({
+            success: false,
+            error: 'Screenshot generation timed out',
+            details: 'FFmpeg process exceeded maximum allowed time',
+          });
+        }
+      }, 30000); // 30 second timeout
+
       ffmpegProcess.stderr.on('data', (data) => {
         stderr += data.toString();
       });
 
       ffmpegProcess.on('close', async (code) => {
+        clearTimeout(ffmpegTimeout); // Clear timeout when process completes
+        if (responseSent) return; // Early exit if response already sent
+
         if (code !== 0) {
           logger.error('FFmpeg process failed', {
             code,
@@ -331,6 +353,7 @@ const videoController = {
       });
 
       ffmpegProcess.on('error', (error) => {
+        clearTimeout(ffmpegTimeout); // Clear timeout on error
         if (responseSent) return;
 
         logger.error('FFmpeg process error', {

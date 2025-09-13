@@ -31,16 +31,24 @@
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "aws-cdk-lib": "^2.121.1",
     "constructs": "^10.0.0",
+    "jest": "^30.1.3",
     "serverless": "^3.38.0",
-    "serverless-dotenv-plugin": "^6.0.0"
+    "serverless-dotenv-plugin": "^6.0.0",
+    "supertest": "^7.1.4"
   },
   "scripts": {
     "start": "nodemon app.js",
     "start-server": "node app.js",
     "start:prod": "NODE_ENV=production node app.js",
     "validate-config": "node scripts/validate-config.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
     "test:db": "node database/test.js",
     "db:verify": "node database/migrations/importToTurso.js verify",
     "db:health": "node database/health-check.js",

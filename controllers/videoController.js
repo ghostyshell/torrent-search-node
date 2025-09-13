@@ -570,123 +570,110 @@ const videoController = {
       magnetLinkLength: magnetLink.length,
     });
 
-    const screenshots = [];
-    const crypto = require('crypto');
-    const magnetHash = crypto
-      .createHash('sha256')
-      .update(magnetLink)
-      .digest('hex')
-      .substring(0, 16);
-    const cacheKeyPrefix = `screenshot_${magnetHash}_`;
-
-    // First, check if there's a screenshots list stored (preferred method)
-    const screenshotsListKey = `screenshots_list_${magnetHash}`;
-    const screenshotsList = await cache.get(screenshotsListKey);
-
-    logger.info('Checking screenshots list', {
-      hasScreenshotsList: !!screenshotsList,
-      listLength: screenshotsList ? screenshotsList.length : 0,
+    // Add timeout wrapper to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Cache operation timeout')), 5000); // 5 second timeout
     });
 
-    if (screenshotsList && Array.isArray(screenshotsList)) {
-      logger.info('Found screenshots in list', {
-        timestamps: screenshotsList.map((item) => item.timestamp),
+    try {
+      const screenshots = [];
+      const crypto = require('crypto');
+      const magnetHash = crypto
+        .createHash('sha256')
+        .update(magnetLink)
+        .digest('hex')
+        .substring(0, 16);
+
+      // Check if there's a screenshots list stored with timeout
+      const screenshotsListKey = `screenshots_list_${magnetHash}`;
+      const screenshotsList = await Promise.race([
+        cache.get(screenshotsListKey),
+        timeoutPromise,
+      ]);
+
+      logger.info('Checking screenshots list', {
+        hasScreenshotsList: !!screenshotsList,
+        listLength: screenshotsList ? screenshotsList.length : 0,
       });
 
-      for (const item of screenshotsList) {
-        const cacheKey = `screenshot_${magnetHash}_${item.timestamp}`;
-        const cachedData = await cache.get(cacheKey);
-
-        logger.info('Checking cache for timestamp', {
-          timestamp: item.timestamp,
-          cacheKey: cacheKey.substring(0, 80) + '...',
-          found: !!cachedData,
-          hasPixhostUrl: cachedData?.pixhostUrl ? true : false,
+      if (screenshotsList && Array.isArray(screenshotsList)) {
+        logger.info('Found screenshots in list', {
+          timestamps: screenshotsList.map((item) => item.timestamp),
+          count: screenshotsList.length,
         });
 
-        if (cachedData) {
-          screenshots.push({
-            timestamp: item.timestamp,
-            ...cachedData,
-            cacheKey: cacheKey,
-          });
+        // Limit to first 10 items to prevent excessive cache calls
+        const limitedList = screenshotsList.slice(0, 10);
+
+        // Retrieve cached data for screenshots in parallel with timeout
+        const cachePromises = limitedList.map(async (item) => {
+          const cacheKey = `screenshot_${magnetHash}_${item.timestamp}`;
+          try {
+            const cachedData = await Promise.race([
+              cache.get(cacheKey),
+              new Promise((_, reject) => {
+                setTimeout(
+                  () => reject(new Error('Individual cache timeout')),
+                  1000
+                ); // 1 second per item
+              }),
+            ]);
+            return {
+              timestamp: item.timestamp,
+              cacheKey,
+              cachedData,
+            };
+          } catch (error) {
+            logger.warn('Failed to get cached screenshot', {
+              timestamp: item.timestamp,
+              error: error.message,
+            });
+            return {
+              timestamp: item.timestamp,
+              cacheKey,
+              cachedData: null,
+            };
+          }
+        });
+
+        const results = await Promise.race([
+          Promise.all(cachePromises),
+          timeoutPromise,
+        ]);
+
+        for (const result of results) {
+          if (result.cachedData) {
+            screenshots.push({
+              timestamp: result.timestamp,
+              ...result.cachedData,
+              cacheKey: result.cacheKey,
+            });
+          }
         }
-      }
-    } else {
-      // Fallback: Try to find any existing screenshots and rebuild the list
-      logger.info(
-        'No screenshots list found, trying to discover existing screenshots'
-      );
 
-      // Try a broader range of timestamps that might exist
-      const commonTimestamps = [
-        30, 60, 120, 180, 300, 600, 900, 1200, 1800, 2400, 3000, 3600,
-      ];
-
-      // Also check for more recent timestamps that might have been generated
-      const recentTimestamps = [];
-      for (let i = 0; i <= 3600; i += 10) {
-        // Check every 10 seconds up to 1 hour
-        recentTimestamps.push(i);
+        logger.info('Retrieved cached screenshots', {
+          totalInList: screenshotsList.length,
+          limitedTo: limitedList.length,
+          foundInCache: screenshots.length,
+        });
+      } else {
+        // No screenshots list found - return empty array
+        // Screenshots will be available after they are generated via screenshot API
+        logger.info('No screenshots list found for magnet link', {
+          magnetHash: magnetHash,
+          message:
+            'Screenshots will be available after generation via screenshot API',
+        });
       }
 
-      const allTimestamps = [
-        ...new Set([...commonTimestamps, ...recentTimestamps]),
-      ].sort((a, b) => a - b);
-      const discoveredScreenshots = [];
-
-      logger.info('Fallback: trying to discover cached screenshots', {
-        magnetHash: magnetHash,
-        cacheKeyPrefix: cacheKeyPrefix,
-        totalTimestamps: allTimestamps.length,
+      return screenshots;
+    } catch (error) {
+      logger.warn('Cache operation failed or timed out', {
+        error: error.message,
+        magnetLink: magnetLink.substring(0, 50) + '...',
       });
-
-      for (const timestamp of allTimestamps) {
-        const cacheKey = `${cacheKeyPrefix}${timestamp}`;
-        const cachedData = await cache.get(cacheKey);
-
-        if (cachedData) {
-          logger.info('Found cached screenshot in fallback', {
-            timestamp: timestamp,
-            cacheKey: cacheKey.substring(0, 80) + '...',
-            hasPixhostUrl: !!cachedData.pixhostUrl,
-            filename: cachedData.filename,
-          });
-
-          screenshots.push({
-            timestamp: timestamp,
-            ...cachedData,
-            cacheKey: cacheKey,
-          });
-
-          discoveredScreenshots.push({
-            timestamp: timestamp,
-            filename: cachedData.filename || `Screenshot at ${timestamp}s`,
-            generatedAt: cachedData.generatedAt || new Date().toISOString(),
-          });
-        }
-      }
-
-      // If we found any screenshots, create the screenshots list for future use
-      if (discoveredScreenshots.length > 0) {
-        try {
-          await cache.set(
-            screenshotsListKey,
-            discoveredScreenshots,
-            7 * 24 * 60 * 60
-          );
-          logger.info('Created screenshots list from discovered screenshots', {
-            count: discoveredScreenshots.length,
-          });
-        } catch (error) {
-          logger.warn('Failed to create screenshots list', {
-            error: error.message,
-          });
-        }
-      }
+      return []; // Return empty array on timeout or error
     }
-
-    return screenshots;
   },
 };
 

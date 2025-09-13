@@ -24,3 +24,5 @@ tmp/
 uploads/
 *.log
 pm2.json
+
+playwright-report/

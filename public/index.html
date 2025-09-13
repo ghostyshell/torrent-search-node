@@ -35,6 +35,12 @@ body {
     color: var(--text-color);
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 header {
@@ -57,6 +63,9 @@ header h1 {
     padding: 20px;
     background-color: #fff;
     box-shadow: 0 2px 5px var(--box-shadow-light);
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
 }
 
 .search-container input,
@@ -67,6 +76,8 @@ header h1 {
     border: 1px solid var(--border-color);
     margin-right: 10px;
     flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .search-container button {
@@ -90,8 +101,10 @@ header h1 {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 15px;
     max-width: 1200px;
+    width: 100%;
     margin: 40px auto;
     padding: 20px;
+    box-sizing: border-box;
 }
 
 .movie-card {
@@ -206,18 +219,33 @@ header h1 {
 @media (max-width: 768px) {
     header h1 {
         font-size: var(--header-font-size-mobile);
+        padding: 0 15px;
     }
 
     .search-container {
         flex-direction: column;
         padding: 15px;
+        margin: 0;
     }
 
     .search-container input,
     .search-container select,
     .search-container button {
         margin-bottom: 10px;
+        margin-right: 0;
         width: 100%;
+        max-width: 100%;
+    }
+
+    .movie-grid {
+        grid-template-columns: 1fr;
+        padding: 15px;
+        margin: 20px auto;
+        gap: 12px;
+    }
+
+    .movie-card {
+        max-width: 100%;
     }
 }
 

@@ -1,0 +1,2754 @@
+{
+  "config": {
+    "configFile": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/playwright.config.js",
+    "rootDir": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/setup.js",
+    "globalTeardown": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/results.json"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "API Tests",
+        "name": "API Tests",
+        "testDir": "/Users/akshat/Code/TorrentSearchBackendGo/Torrent-Search-API/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run start-server",
+      "url": "http://localhost:3001/health",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "cache.spec.js",
+      "file": "cache.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Cache API Endpoints",
+          "file": "cache.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/cache/stats should return cache statistics",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4028,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:15.901Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-94f42a875e23989b68fd",
+              "file": "cache.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/set should store cache value",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 557,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:19.941Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-f769ab5c89584e93b533",
+              "file": "cache.spec.js",
+              "line": 25,
+              "column": 3
+            },
+            {
+              "title": "GET /api/cache/get/:key should retrieve cache value",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1020,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:20.507Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-49f3152619e4c0225fb5",
+              "file": "cache.spec.js",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "DELETE /api/cache/delete/:key should delete cache value",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1042,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:21.535Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-4c230d7bc18a7d4e52ea",
+              "file": "cache.spec.js",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/cached-links should add cached link",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 520,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:22.583Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-e62e19202a84e80f05ba",
+              "file": "cache.spec.js",
+              "line": 115,
+              "column": 3
+            },
+            {
+              "title": "GET /api/cache/cached-links should retrieve cached links",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1033,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:23.109Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-7fb1b366a836323c4542",
+              "file": "cache.spec.js",
+              "line": 144,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/cover-image should handle missing torrent field",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:24.149Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-aca70ee8ff4db02e3610",
+              "file": "cache.spec.js",
+              "line": 164,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/cover-image should handle missing image data/url",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:24.167Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-64efdc0df8e13677d9bd",
+              "file": "cache.spec.js",
+              "line": 183,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/stream-url should handle missing required fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:24.178Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-31929d9296fe67cfe69c",
+              "file": "cache.spec.js",
+              "line": 205,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/clear should clear all caches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8040,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:24.188Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ee6978d89ab90e353c89-f5f4bd6de6e2ae9a0791",
+              "file": "cache.spec.js",
+              "line": 227,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "favorites.spec.js",
+      "file": "favorites.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Favorites API Endpoints",
+          "file": "favorites.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "POST /api/cache/favorites should add favorite with valid torrent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 523,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:32.237Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-17d35562ef222b8b6363",
+              "file": "favorites.spec.js",
+              "line": 12,
+              "column": 3
+            },
+            {
+              "title": "POST /api/cache/favorites should return error for missing torrent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:32.766Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-7b5375185cb73a72f1ba",
+              "file": "favorites.spec.js",
+              "line": 31,
+              "column": 3
+            },
+            {
+              "title": "GET /api/cache/favorites should retrieve favorites list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 854,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:32.791Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-2026e50c38159d97faf9",
+              "file": "favorites.spec.js",
+              "line": 47,
+              "column": 3
+            },
+            {
+              "title": "GET /api/cache/favorites with pagination should work",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 507,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:33.651Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-8389b64be6285e7fbdd0",
+              "file": "favorites.spec.js",
+              "line": 74,
+              "column": 3
+            },
+            {
+              "title": "DELETE /api/cache/favorites should remove favorite",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1040,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:34.164Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-31b57b90bb1bf410433a",
+              "file": "favorites.spec.js",
+              "line": 91,
+              "column": 3
+            },
+            {
+              "title": "DELETE /api/cache/favorites should return error for missing torrent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.210Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-5390938008e12deb6b22",
+              "file": "favorites.spec.js",
+              "line": 121,
+              "column": 3
+            },
+            {
+              "title": "POST /api/favorites/check should check if torrent is favorite",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 499,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.219Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-84f05085458723c59741",
+              "file": "favorites.spec.js",
+              "line": 137,
+              "column": 3
+            },
+            {
+              "title": "POST /api/favorites/check should return error for missing torrent",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.723Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-ee24d4c8846ff5be0c62",
+              "file": "favorites.spec.js",
+              "line": 154,
+              "column": 3
+            },
+            {
+              "title": "GET /api/favorites/:favoriteId/details should handle favorite details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.738Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-69135c263d8a8f41c1ae",
+              "file": "favorites.spec.js",
+              "line": 170,
+              "column": 3
+            },
+            {
+              "title": "POST /api/favorites/:favoriteId/details should store favorite details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.749Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-29fbea549ee41b6e0445",
+              "file": "favorites.spec.js",
+              "line": 192,
+              "column": 3
+            },
+            {
+              "title": "GET /api/favorites/:favoriteId/screenshots should handle favorite screenshots",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 504,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:35.760Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-5c213ad874229b0bbfe3",
+              "file": "favorites.spec.js",
+              "line": 228,
+              "column": 3
+            },
+            {
+              "title": "POST /api/favorites/:favoriteId/screenshots should store favorite screenshots",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:36.270Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-486dc8fb4dd4259168ee",
+              "file": "favorites.spec.js",
+              "line": 250,
+              "column": 3
+            },
+            {
+              "title": "POST /api/favorites/entry should store favorite entry",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 10,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:36.286Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "62cda71af6f80f24b489-a3e4405cde821cd7a9ca",
+              "file": "favorites.spec.js",
+              "line": 281,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "health.spec.js",
+      "file": "health.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Health Endpoints",
+          "file": "health.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /health should return basic health status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:36.305Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5fa61424c064729e5dd1-f4d00cbf26478e11a729",
+              "file": "health.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "GET /health/detailed should return comprehensive health info",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 508,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:36.319Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5fa61424c064729e5dd1-e90324b372faa482191f",
+              "file": "health.spec.js",
+              "line": 23,
+              "column": 3
+            },
+            {
+              "title": "GET /health/ready should return readiness status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 504,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:36.833Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5fa61424c064729e5dd1-4a1d71b3a9388682991f",
+              "file": "health.spec.js",
+              "line": 60,
+              "column": 3
+            },
+            {
+              "title": "GET /health/live should return liveness status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:37.344Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "5fa61424c064729e5dd1-c6587c04b3ec43d6c0da",
+              "file": "health.spec.js",
+              "line": 80,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "image.spec.js",
+      "file": "image.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Image API Endpoints",
+          "file": "image.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/google-images/search should search for images",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2039,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:37.358Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-4e90c3c657197b9308bf",
+              "file": "image.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "GET /api/google-images/search should return error for missing query",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.402Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-f6850fd0c4a160b507d2",
+              "file": "image.spec.js",
+              "line": 30,
+              "column": 3
+            },
+            {
+              "title": "GET /api/google-images/suggestions should generate suggestions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.411Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-382ced0048acb453e1d7",
+              "file": "image.spec.js",
+              "line": 41,
+              "column": 3
+            },
+            {
+              "title": "GET /api/google-images/suggestions should return error for missing query",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.421Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-66f415f7a09f44e2e3e2",
+              "file": "image.spec.js",
+              "line": 61,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/image should return error for missing URL",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.431Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-a62030655615400b95e1",
+              "file": "image.spec.js",
+              "line": 72,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/image should return error for invalid URL",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.439Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-eea5dfb8fd461cd1a413",
+              "file": "image.spec.js",
+              "line": 84,
+              "column": 3
+            },
+            {
+              "title": "POST /api/pixhost/upload should handle missing image data/URL",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.459Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-eaa97cf58886957dca5e",
+              "file": "image.spec.js",
+              "line": 99,
+              "column": 3
+            },
+            {
+              "title": "POST /api/images/batch-process should handle missing images array",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.473Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-3a2114c5d7d342d0a99c",
+              "file": "image.spec.js",
+              "line": 116,
+              "column": 3
+            },
+            {
+              "title": "POST /api/images/batch-process should handle invalid images parameter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.484Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-ac91e61ba29a04dc99cd",
+              "file": "image.spec.js",
+              "line": 130,
+              "column": 3
+            },
+            {
+              "title": "POST /api/images/batch-process should handle proxy operation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.496Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-448125adb2b5dc41d184",
+              "file": "image.spec.js",
+              "line": 144,
+              "column": 3
+            },
+            {
+              "title": "POST /api/images/batch-process should handle unknown operation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.512Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a41775b54e2bc680dd7-7e74619c00cccb365b20",
+              "file": "image.spec.js",
+              "line": 179,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "proxy.spec.js",
+      "file": "proxy.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Proxy API Endpoints",
+          "file": "proxy.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "OPTIONS /api/proxy/* should handle CORS preflight",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.547Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-ad5df17ce4808ca56d0b",
+              "file": "proxy.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/real-debrid/user should proxy to Real-Debrid API",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1199,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:39.560Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-97ae697eb01b0edfe2c1",
+              "file": "proxy.spec.js",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "POST /api/proxy/real-debrid/unrestrict/link should proxy POST requests",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 367,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:40.764Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-16e4abd5572b7dbb23dd",
+              "file": "proxy.spec.js",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/real-debrid/torrents should handle different endpoints",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 292,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:41.135Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-4f6742fd9c77c844be71",
+              "file": "proxy.spec.js",
+              "line": 66,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/real-debrid/downloads should proxy downloads endpoint",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 292,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:41.431Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-ca9146e7c7d02c9cbccc",
+              "file": "proxy.spec.js",
+              "line": 78,
+              "column": 3
+            },
+            {
+              "title": "POST /api/proxy/real-debrid with Authorization header should forward auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 349,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:41.728Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-469bf6aab9ff983854c3",
+              "file": "proxy.spec.js",
+              "line": 90,
+              "column": 3
+            },
+            {
+              "title": "GET /api/proxy/real-debrid with query parameters should forward them",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 338,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:42.083Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-844b0e35f7cdbe331e93",
+              "file": "proxy.spec.js",
+              "line": 107,
+              "column": 3
+            },
+            {
+              "title": "Proxy should handle empty responses correctly",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 389,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:42.434Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-266d66e64e4e24826b39",
+              "file": "proxy.spec.js",
+              "line": 121,
+              "column": 3
+            },
+            {
+              "title": "Proxy should set appropriate CORS headers on responses",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 383,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:42.828Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-1b8b767c486f8de64010",
+              "file": "proxy.spec.js",
+              "line": 140,
+              "column": 3
+            },
+            {
+              "title": "Proxy should handle non-JSON responses",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 388,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:43.217Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-40a2b2ef991bca07d058",
+              "file": "proxy.spec.js",
+              "line": 151,
+              "column": 3
+            },
+            {
+              "title": "Proxy should handle malformed Real-Debrid paths gracefully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 355,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:43.611Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "ab27ca3261f3e641fbe6-9fdf3c9610296ee3f59d",
+              "file": "proxy.spec.js",
+              "line": 168,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "torrent.spec.js",
+      "file": "torrent.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Torrent API Endpoints",
+          "file": "torrent.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/torrents should return available torrent websites",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:43.978Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-010af3f3787652f3800d",
+              "file": "torrent.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "GET /api/all/test/1 should search all torrent sites",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4288,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:43.993Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-30dbba632440416dde98",
+              "file": "torrent.spec.js",
+              "line": 28,
+              "column": 3
+            },
+            {
+              "title": "GET /api/yts/test/1 should search YTS specifically",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1595,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:48.290Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-927af24613aea1963e02",
+              "file": "torrent.spec.js",
+              "line": 47,
+              "column": 3
+            },
+            {
+              "title": "GET /api/piratebay/test/1 should search PirateBay specifically",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 524,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:49.893Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-eaa746b24024a3bbf27e",
+              "file": "torrent.spec.js",
+              "line": 64,
+              "column": 3
+            },
+            {
+              "title": "GET /api/limetorrent/test/1 should search LimeTorrent specifically",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 641,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:50.422Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-df42f2e9549a0f555b66",
+              "file": "torrent.spec.js",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "GET /api/nyaasi/test/1 should search NyaaSI specifically",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1026,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:51.069Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-357cb9f474ea1ae066cd",
+              "file": "torrent.spec.js",
+              "line": 97,
+              "column": 3
+            },
+            {
+              "title": "GET /api/torrentproject/test/1 should search TorrentProject specifically",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2407,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:52.102Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-415348a131c9f32c6962",
+              "file": "torrent.spec.js",
+              "line": 113,
+              "column": 3
+            },
+            {
+              "title": "GET /api/invalidsite/test/1 should return error for invalid site",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:54.514Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-6a638f7cf9f283b2ec83",
+              "file": "torrent.spec.js",
+              "line": 129,
+              "column": 3
+            },
+            {
+              "title": "GET /api/torrent-details/piratebay/* should handle torrent details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1326,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:54.523Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-af858aae277a05e3565b",
+              "file": "torrent.spec.js",
+              "line": 141,
+              "column": 3
+            },
+            {
+              "title": "GET /api/torrent-details/unsupported/test should return 404 for unsupported site",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:55.854Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-c4969141627107035e24",
+              "file": "torrent.spec.js",
+              "line": 162,
+              "column": 3
+            },
+            {
+              "title": "Search with query parameters should handle minSeeders filter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2789,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:55.862Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-2343b2b92afc33ef884e",
+              "file": "torrent.spec.js",
+              "line": 178,
+              "column": 3
+            },
+            {
+              "title": "Search with query parameters should handle maxResults filter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1792,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Warning: maxResults=5 returned 20 results. This suggests the YTS module may not implement result limiting.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:01:58.660Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b9d05ace2f1b697346ed-6af7e38e6b9ad2615e9c",
+              "file": "torrent.spec.js",
+              "line": 198,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "video.spec.js",
+      "file": "video.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Video API Endpoints",
+          "file": "video.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "POST /api/video/screenshot should handle missing required fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:00.465Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-ec0913ea4d9f84c42753",
+              "file": "video.spec.js",
+              "line": 9,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshot should handle missing videoUrl",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:00.476Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-5b55b5008a0b2e7a8f39",
+              "file": "video.spec.js",
+              "line": 26,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshot should handle missing timestamp",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:00.488Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-0ca9ed107d9b562a608b",
+              "file": "video.spec.js",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshot should handle invalid timestamp type",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:00.501Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-7b48354dff213746ec42",
+              "file": "video.spec.js",
+              "line": 60,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshot should attempt screenshot generation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5232,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:00.513Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-378a813061bd440671e6",
+              "file": "video.spec.js",
+              "line": 80,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshots should handle missing magnetLink",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:05.750Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-52deb938c44d197b4419",
+              "file": "video.spec.js",
+              "line": 119,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/screenshots should retrieve cached screenshots",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 15000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 844,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:05.758Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-45043c5cde54527566ef",
+              "file": "video.spec.js",
+              "line": 136,
+              "column": 3
+            },
+            {
+              "title": "GET /api/video/screenshots/:magnetLink should retrieve cached screenshots via GET",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 15000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 502,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:06.606Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-727addf9583f212f3174",
+              "file": "video.spec.js",
+              "line": 170,
+              "column": 3
+            },
+            {
+              "title": "GET /api/video/screenshots without magnetLink should return error",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.114Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-8082dc769bd4cf431212",
+              "file": "video.spec.js",
+              "line": 197,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/batch-screenshots should handle missing required fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.122Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-7ba517f34fa9d29e38d3",
+              "file": "video.spec.js",
+              "line": 206,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/batch-screenshots should handle invalid timestamps",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.133Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-f5570fffc341ff9e77d4",
+              "file": "video.spec.js",
+              "line": 223,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/batch-screenshots should handle too many timestamps",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.146Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-018725b433d872e90772",
+              "file": "video.spec.js",
+              "line": 243,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/batch-screenshots should handle valid batch request",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.158Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-2bc754f2f92f00af32e3",
+              "file": "video.spec.js",
+              "line": 265,
+              "column": 3
+            },
+            {
+              "title": "POST /api/video/batch-screenshots should handle invalid timestamp types",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "API Tests",
+                  "projectName": "API Tests",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T05:02:07.176Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "9a5116a91befef057817-fd8da2e5ab68057ec7a7",
+              "file": "video.spec.js",
+              "line": 303,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-13T05:01:09.147Z",
+    "duration": 58055.377,
+    "expected": 75,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

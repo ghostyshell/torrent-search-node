@@ -546,17 +546,16 @@ const videoController = {
 
     const { videoUrl, timestamps, magnetLink } = req.body;
 
-    if (!videoUrl || typeof videoUrl !== 'string') {
+    if (
+      !videoUrl ||
+      typeof videoUrl !== 'string' ||
+      !timestamps ||
+      !Array.isArray(timestamps)
+    ) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required field: videoUrl (string)',
-      });
-    }
-
-    if (!timestamps || !Array.isArray(timestamps)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: timestamps (array)',
+        error:
+          'Missing required fields: videoUrl (string) and timestamps (array)',
       });
     }
 
@@ -581,15 +580,20 @@ const videoController = {
       for (let i = 0; i < timestamps.length; i++) {
         try {
           const timestamp = timestamps[i];
-          if (
-            typeof timestamp !== 'number' ||
-            isNaN(timestamp) ||
-            timestamp < 0
-          ) {
+          if (typeof timestamp !== 'number' || isNaN(timestamp)) {
             errors.push({
               index: i,
               timestamp: timestamp,
-              error: 'Timestamp must be a valid positive number',
+              error: 'Timestamp must be a number',
+            });
+            continue;
+          }
+
+          if (timestamp < 0) {
+            errors.push({
+              index: i,
+              timestamp: timestamp,
+              error: 'Timestamp must be a positive number',
             });
             continue;
           }

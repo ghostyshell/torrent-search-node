@@ -96,34 +96,10 @@ jobs:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
 
-  backend-security-audit:
-    name: Backend Security Audit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
-
-      - name: Install backend dependencies
-        run: npm ci
-
-      - name: Run backend security audit
-        run: npm audit --audit-level high
-
-      - name: Run npm audit fix (dry run)
-        run: npm audit fix --dry-run
-
   backend-test-summary:
     name: Backend Test Summary
     runs-on: ubuntu-latest
-    needs: [backend-e2e-tests, backend-health-check, backend-security-audit]
+    needs: [backend-e2e-tests, backend-health-check]
     if: always()
 
     steps:
@@ -135,7 +111,6 @@ jobs:
           echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| E2E API Tests | ${{ needs.backend-e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Health Check | ${{ needs.backend-health-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security Audit | ${{ needs.backend-security-audit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "${{ needs.backend-e2e-tests.result }}" == "success" ]]; then

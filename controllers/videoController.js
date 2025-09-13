@@ -15,8 +15,10 @@ const videoController = {
 
     const { videoUrl, timestamp, magnetLink, filename } = req.body;
     const cache = req.app.locals.cache;
+    let responseSent = false;
 
     if (!videoUrl || typeof timestamp !== 'number') {
+      responseSent = true;
       return res.status(400).json({
         success: false,
         error:
@@ -71,7 +73,6 @@ const videoController = {
       });
 
       ffmpegProcess.on('close', async (code) => {
-        let responseSent = false;
 
         if (code !== 0) {
           logger.error('FFmpeg process failed', {
@@ -316,6 +317,8 @@ const videoController = {
       });
 
       ffmpegProcess.on('error', (error) => {
+        if (responseSent) return;
+
         logger.error('FFmpeg process error', {
           error: error.message,
         });
@@ -325,6 +328,7 @@ const videoController = {
           fs.unlinkSync(tempPath);
         }
 
+        responseSent = true;
         res.status(500).json({
           success: false,
           error: 'FFmpeg is not available or failed to start',
@@ -332,6 +336,8 @@ const videoController = {
         });
       });
     } catch (error) {
+      if (responseSent) return;
+
       logger.error('Video screenshot endpoint error', {
         error: error.message,
         stack: error.stack,

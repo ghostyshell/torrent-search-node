@@ -2,12 +2,12 @@ name: Backend E2E API Tests
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'Torrent-Search-API/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
       - 'Torrent-Search-API/**'
       - '.github/workflows/**'
@@ -22,7 +22,7 @@ jobs:
     name: Backend API E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    
+
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -79,7 +79,7 @@ jobs:
     name: Backend API Health Check
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
   backend-security-audit:
     name: Backend Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend-e2e-tests, backend-health-check, backend-security-audit]
     if: always()
-    
+
     steps:
       - name: Backend Test Results Summary
         run: |
@@ -141,7 +141,7 @@ jobs:
           echo "| Health Check | ${{ needs.backend-health-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Audit | ${{ needs.backend-security-audit.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ needs.backend-e2e-tests.result }}" == "success" ]]; then
             echo "🎉 All 75 backend E2E tests passed! API endpoints are working correctly." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

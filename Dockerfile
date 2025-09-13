@@ -11,17 +11,20 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copy package.json and package-lock.json (if available)
+# Change ownership of the app directory to nodejs user before copying files
+RUN chown -R nodejs:nodejs /app
+
+# Copy package.json and package-lock.json with correct ownership
 COPY --chown=nodejs:nodejs package*.json ./
 
-# Switch to nodejs user for npm install
+# Switch to nodejs user before installing dependencies
 USER nodejs
 
-# Install dependencies with retry logic and better error handling
+# Install dependencies as nodejs user
 RUN npm ci --only=production --no-audit --no-fund --prefer-offline && \
     npm cache clean --force
 
-# Copy the rest of the application code
+# Copy the rest of the application code with correct ownership
 COPY --chown=nodejs:nodejs . .
 
 # Expose the port the app runs on

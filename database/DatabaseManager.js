@@ -251,6 +251,9 @@ class DatabaseManager {
 
     // Migration: Add missing columns to cached_links table
     await this.migrateCachedLinksTable();
+
+    // Migration: Add cover image columns to other tables
+    await this.migrateCoverImageColumns();
   }
 
   /**
@@ -260,7 +263,8 @@ class DatabaseManager {
     const missingColumns = [
       { name: 'stream_url_cached_at', type: 'TEXT' },
       { name: 'supports_range_requests', type: 'BOOLEAN DEFAULT 0' },
-      { name: 'filename', type: 'TEXT' }
+      { name: 'filename', type: 'TEXT' },
+      { name: 'cover_image_url', type: 'TEXT' }
     ];
 
     for (const column of missingColumns) {
@@ -271,6 +275,36 @@ class DatabaseManager {
         // Column might already exist, ignore duplicate column errors
         if (!error.message.includes('duplicate column name')) {
           console.warn(`Failed to add column ${column.name}:`, error.message);
+        }
+      }
+    }
+  }
+
+  /**
+   * Migration method to add cover image columns to torrent-related tables
+   */
+  async migrateCoverImageColumns() {
+    const tables = [
+      {
+        table: 'torrent_details',
+        columns: [{ name: 'cover_image_url', type: 'TEXT' }]
+      },
+      {
+        table: 'favorite_entries',
+        columns: [{ name: 'cover_image_url', type: 'TEXT' }]
+      }
+    ];
+
+    for (const { table, columns } of tables) {
+      for (const column of columns) {
+        try {
+          const sql = `ALTER TABLE ${table} ADD COLUMN ${column.name} ${column.type}`;
+          await this.execute(sql);
+        } catch (error) {
+          // Column might already exist, ignore duplicate column errors
+          if (!error.message.includes('duplicate column name')) {
+            console.warn(`Failed to add column ${column.name} to ${table}:`, error.message);
+          }
         }
       }
     }

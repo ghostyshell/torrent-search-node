@@ -393,9 +393,9 @@ class UnifiedCache {
 
   async addCachedLink(cachedLink) {
     const sql = `
-      INSERT OR REPLACE INTO cached_links 
-      (id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO cached_links
+      (id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, cover_image_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await this.dbManager.run(sql, [
@@ -409,6 +409,7 @@ class UnifiedCache {
       cachedLink.error || null,
       cachedLink.supportsRangeRequests || 0,
       cachedLink.filename || null,
+      cachedLink.coverImageUrl || null,
     ]);
 
     return result.changes > 0;
@@ -530,14 +531,14 @@ class UnifiedCache {
 
   // === FAVORITE ENTRIES METHODS (New System) ===
 
-  async createFavoriteEntry(torrent) {
+  async createFavoriteEntry(torrent, coverImageUrl = null) {
     const { v4: uuidv4 } = require('uuid');
     const favoriteId = uuidv4();
     const torrentKey = this.generateTorrentKey(torrent);
 
     const sql = `
-      INSERT OR REPLACE INTO favorite_entries (id, torrent_key, torrent_data, magnet_link, torrent_name)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO favorite_entries (id, torrent_key, torrent_data, magnet_link, torrent_name, cover_image_url)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const result = await this.dbManager.run(sql, [
@@ -546,6 +547,7 @@ class UnifiedCache {
       JSON.stringify(torrent),
       torrent.MagnetLink || null,
       torrent.Name || 'Unknown',
+      coverImageUrl,
     ]);
 
     return result.changes > 0 ? favoriteId : null;
@@ -563,6 +565,7 @@ class UnifiedCache {
         torrentData: JSON.parse(row.torrent_data),
         magnetLink: row.magnet_link,
         torrentName: row.torrent_name,
+        coverImageUrl: row.cover_image_url,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -582,6 +585,7 @@ class UnifiedCache {
         torrentData: JSON.parse(row.torrent_data),
         magnetLink: row.magnet_link,
         torrentName: row.torrent_name,
+        coverImageUrl: row.cover_image_url,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };
@@ -775,9 +779,9 @@ class UnifiedCache {
 
   async setTorrentDetails(favoriteId, source, detailsData) {
     const sql = `
-      INSERT OR REPLACE INTO torrent_details 
-      (favorite_entry_id, source, details_url, description, files, comments, images, error_message, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
+      INSERT OR REPLACE INTO torrent_details
+      (favorite_entry_id, source, details_url, description, files, comments, images, cover_image_url, error_message, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
     `;
 
     const result = await this.dbManager.run(sql, [
@@ -788,6 +792,7 @@ class UnifiedCache {
       detailsData.files ? JSON.stringify(detailsData.files) : null,
       detailsData.comments ? JSON.stringify(detailsData.comments) : null,
       detailsData.images ? JSON.stringify(detailsData.images) : null,
+      detailsData.coverImageUrl || null,
       detailsData.error || null,
     ]);
 
@@ -819,6 +824,7 @@ class UnifiedCache {
           files: row.files ? JSON.parse(row.files) : [],
           comments: row.comments ? JSON.parse(row.comments) : [],
           images: row.images ? JSON.parse(row.images) : [],
+          coverImageUrl: row.cover_image_url,
           error: row.error_message,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
@@ -836,6 +842,7 @@ class UnifiedCache {
         files: row.files ? JSON.parse(row.files) : [],
         comments: row.comments ? JSON.parse(row.comments) : [],
         images: row.images ? JSON.parse(row.images) : [],
+        coverImageUrl: row.cover_image_url,
         error: row.error_message,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -1070,6 +1077,61 @@ class UnifiedCache {
 
   async healthCheck() {
     return this.dbManager.healthCheck();
+  }
+
+  // === COVER IMAGE UPDATE METHODS ===
+
+  async updateFavoriteEntryCoverImage(favoriteId, coverImageUrl) {
+    const sql = 'UPDATE favorite_entries SET cover_image_url = ? WHERE id = ?';
+    const result = await this.dbManager.run(sql, [coverImageUrl, favoriteId]);
+    return result.changes > 0;
+  }
+
+  async updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl) {
+    const sql = 'UPDATE torrent_details SET cover_image_url = ? WHERE favorite_entry_id = ? AND source = ?';
+    const result = await this.dbManager.run(sql, [coverImageUrl, favoriteId, source]);
+    return result.changes > 0;
+  }
+
+  async updateCachedLinkCoverImage(cachedLinkId, coverImageUrl) {
+    const sql = 'UPDATE cached_links SET cover_image_url = ? WHERE id = ?';
+    const result = await this.dbManager.run(sql, [coverImageUrl, cachedLinkId]);
+    return result.changes > 0;
+  }
+
+  async getCoverImageForTorrent(torrent) {
+    const torrentKey = this.generateTorrentKey(torrent);
+
+    // First check if we have the image stored in the images table
+    const coverImage = await this.getCoverImageByKey(torrentKey);
+    if (coverImage) {
+      return coverImage;
+    }
+
+    // Check if this is a favorite entry with a cover image URL
+    const favoriteEntry = await this.getFavoriteEntry(torrent);
+    if (favoriteEntry && favoriteEntry.coverImageUrl) {
+      return {
+        type: 'url',
+        imageUrl: favoriteEntry.coverImageUrl,
+        originalUrl: favoriteEntry.coverImageUrl
+      };
+    }
+
+    // Check if this is a cached link with a cover image URL
+    if (torrent.isCachedLink && torrent.cachedLinkId) {
+      const sql = 'SELECT cover_image_url FROM cached_links WHERE id = ?';
+      const row = await this.dbManager.get(sql, [torrent.cachedLinkId]);
+      if (row && row.cover_image_url) {
+        return {
+          type: 'url',
+          imageUrl: row.cover_image_url,
+          originalUrl: row.cover_image_url
+        };
+      }
+    }
+
+    return null;
   }
 
   async close() {

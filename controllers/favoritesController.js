@@ -21,13 +21,21 @@ const favoritesController = {
     }
 
     try {
-      const { torrent } = req.body;
+      const { torrent, coverImageUrl } = req.body;
 
       if (!torrent) {
         return res.status(400).json({
           success: false,
           error: 'Missing required field: torrent',
         });
+      }
+
+      // If coverImageUrl is provided, try to create/update favorite entry with cover image
+      if (coverImageUrl) {
+        const favoriteEntry = await cache.getOrCreateFavoriteEntry(torrent);
+        if (favoriteEntry) {
+          await cache.updateFavoriteEntryCoverImage(favoriteEntry.id, coverImageUrl);
+        }
       }
 
       const success = await cache.addFavorite(torrent);

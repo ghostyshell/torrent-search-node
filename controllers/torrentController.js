@@ -60,7 +60,7 @@ const torrentController = {
   },
 
   // Search torrents
-  searchTorrents: (req, res) => {
+  searchTorrents: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
@@ -75,20 +75,34 @@ const torrentController = {
     const options = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
       maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
+      includeCoverImages: req.query.includeCoverImages === 'true' || false,
     };
 
-    if (website === 'all') {
-      combo(query, page, options).then((v) => {
-        res.json(v);
-      });
-    } else if (torrents[website]) {
-      torrents[website](query, page, options).then((v) => {
+    try {
+      let results;
+
+      if (website === 'all') {
+        results = await combo(query, page, options);
+      } else if (torrents[website]) {
+        results = await torrents[website](query, page, options);
         // Handle null responses by returning empty array
-        res.json(v || []);
-      });
-    } else {
-      res.json({
-        error: `Please select "${Object.keys(torrents).join(' | ')}"`,
+        results = results || [];
+      } else {
+        return res.json({
+          error: `Please select "${Object.keys(torrents).join(' | ')}"`,
+        });
+      }
+
+      // Add cover images to results if requested
+      if (options.includeCoverImages && req.app.locals.cache) {
+        results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
+      }
+
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Search failed',
+        message: error.message,
       });
     }
   },
@@ -99,7 +113,7 @@ const torrentController = {
   },
 
   // Single torrent search endpoint for specific websites
-  searchSingleWebsite: (req, res) => {
+  searchSingleWebsite: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
@@ -121,27 +135,33 @@ const torrentController = {
     const options = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
       maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
+      includeCoverImages: req.query.includeCoverImages === 'true' || false,
     };
 
-    torrents[websiteLower](query, page, options)
-      .then((results) => {
-        res.json({
-          success: true,
-          website: websiteLower,
-          query: query,
-          page: page,
-          results: results,
-        });
-      })
-      .catch((error) => {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to search torrents',
-          message: error.message,
-          website: websiteLower,
-          query: query,
-        });
+    try {
+      let results = await torrents[websiteLower](query, page, options);
+
+      // Add cover images to results if requested
+      if (options.includeCoverImages && req.app.locals.cache) {
+        results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
+      }
+
+      res.json({
+        success: true,
+        website: websiteLower,
+        query: query,
+        page: page,
+        results: results,
       });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to search torrents',
+        message: error.message,
+        website: websiteLower,
+        query: query,
+      });
+    }
   },
 
   // Advanced search with multiple filters
@@ -160,6 +180,7 @@ const torrentController = {
         maxResults = 50,
         sortBy = 'seeders',
         sortOrder = 'desc',
+        includeCoverImages = false,
       } = req.body;
 
       if (!query) {
@@ -229,6 +250,11 @@ const torrentController = {
         results = results.slice(0, maxResults);
       }
 
+      // Add cover images to results if requested
+      if (includeCoverImages && req.app.locals.cache) {
+        results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
+      }
+
       res.json({
         success: true,
         query: query,
@@ -247,6 +273,38 @@ const torrentController = {
   },
 };
 
+// Helper function to enrich search results with cover images
+async function enrichResultsWithCoverImages(results, cache) {
+  if (!Array.isArray(results) || results.length === 0) {
+    return results;
+  }
+
+  // Process results in parallel for better performance
+  const enrichedResults = await Promise.all(
+    results.map(async (torrent) => {
+      try {
+        const coverImage = await cache.getCoverImageForTorrent(torrent);
+        if (coverImage) {
+          return {
+            ...torrent,
+            coverImage: {
+              type: coverImage.type,
+              url: coverImage.imageUrl || coverImage.originalUrl,
+              mimeType: coverImage.mimeType,
+            },
+          };
+        }
+      } catch (error) {
+        // Silently continue if cover image lookup fails
+        console.warn('Failed to get cover image for torrent:', torrent.Name, error.message);
+      }
+      return torrent;
+    })
+  );
+
+  return enrichedResults;
+}
+
 // Export individual controller functions
 module.exports = {
   getTorrentDetails: torrentController.getTorrentDetails,
@@ -254,5 +312,6 @@ module.exports = {
   getTorrentWebsites: torrentController.getTorrentWebsites,
   searchSingleWebsite: torrentController.searchSingleWebsite,
   advancedSearch: torrentController.advancedSearch,
+  enrichResultsWithCoverImages: enrichResultsWithCoverImages,
   router: router,
 };

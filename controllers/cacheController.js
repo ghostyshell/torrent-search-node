@@ -532,6 +532,206 @@ const cacheController = {
       });
     }
   },
+
+  // Update cover image for favorite entry
+  updateFavoriteEntryCoverImage: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const cache = req.app.locals.cache;
+    if (!cache) {
+      return res.status(503).json({
+        success: false,
+        error: 'Cache not available',
+      });
+    }
+
+    try {
+      const { favoriteId } = req.params;
+      const { coverImageUrl } = req.body;
+
+      if (!favoriteId || !coverImageUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: favoriteId and coverImageUrl',
+        });
+      }
+
+      const success = await cache.updateFavoriteEntryCoverImage(favoriteId, coverImageUrl);
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Favorite entry cover image updated successfully',
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Favorite entry not found',
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update favorite entry cover image',
+        message: error.message,
+      });
+    }
+  },
+
+  // Update cover image for torrent details
+  updateTorrentDetailsCoverImage: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const cache = req.app.locals.cache;
+    if (!cache) {
+      return res.status(503).json({
+        success: false,
+        error: 'Cache not available',
+      });
+    }
+
+    try {
+      const { favoriteId, source } = req.params;
+      const { coverImageUrl } = req.body;
+
+      if (!favoriteId || !source || !coverImageUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: favoriteId, source, and coverImageUrl',
+        });
+      }
+
+      const success = await cache.updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl);
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Torrent details cover image updated successfully',
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Torrent details not found',
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update torrent details cover image',
+        message: error.message,
+      });
+    }
+  },
+
+  // Update cover image for cached link
+  updateCachedLinkCoverImage: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const cache = req.app.locals.cache;
+    if (!cache) {
+      return res.status(503).json({
+        success: false,
+        error: 'Cache not available',
+      });
+    }
+
+    try {
+      const { cachedLinkId } = req.params;
+      const { coverImageUrl } = req.body;
+
+      if (!cachedLinkId || !coverImageUrl) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: cachedLinkId and coverImageUrl',
+        });
+      }
+
+      const success = await cache.updateCachedLinkCoverImage(cachedLinkId, coverImageUrl);
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Cached link cover image updated successfully',
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Cached link not found',
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update cached link cover image',
+        message: error.message,
+      });
+    }
+  },
+
+  // Get cover image for any torrent
+  getCoverImageForTorrent: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const cache = req.app.locals.cache;
+    if (!cache) {
+      return res.status(503).json({
+        success: false,
+        error: 'Cache not available',
+      });
+    }
+
+    try {
+      const torrent = req.body;
+
+      if (!torrent) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field: torrent',
+        });
+      }
+
+      const coverImage = await cache.getCoverImageForTorrent(torrent);
+
+      if (coverImage) {
+        if (coverImage.type === 'blob') {
+          res.setHeader('Content-Type', coverImage.mimeType || 'image/jpeg');
+          res.send(coverImage.data);
+        } else {
+          res.json({
+            success: true,
+            coverImage,
+          });
+        }
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Cover image not found for torrent',
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get cover image for torrent',
+        message: error.message,
+      });
+    }
+  },
 };
 
 // Helper function to extract title from URL
@@ -565,4 +765,8 @@ module.exports = {
   setCacheValue: cacheController.setCacheValue,
   getCacheValue: cacheController.getCacheValue,
   deleteCacheValue: cacheController.deleteCacheValue,
+  updateFavoriteEntryCoverImage: cacheController.updateFavoriteEntryCoverImage,
+  updateTorrentDetailsCoverImage: cacheController.updateTorrentDetailsCoverImage,
+  updateCachedLinkCoverImage: cacheController.updateCachedLinkCoverImage,
+  getCoverImageForTorrent: cacheController.getCoverImageForTorrent,
 };

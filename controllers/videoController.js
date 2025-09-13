@@ -71,6 +71,8 @@ const videoController = {
       });
 
       ffmpegProcess.on('close', async (code) => {
+        let responseSent = false;
+
         if (code !== 0) {
           logger.error('FFmpeg process failed', {
             code,
@@ -82,6 +84,7 @@ const videoController = {
             fs.unlinkSync(tempPath);
           }
 
+          responseSent = true;
           return res.status(500).json({
             success: false,
             error: 'Failed to generate screenshot',
@@ -92,6 +95,7 @@ const videoController = {
         try {
           // Check if screenshot file was created
           if (!fs.existsSync(tempPath)) {
+            responseSent = true;
             return res.status(500).json({
               success: false,
               error: 'Screenshot file was not created',
@@ -277,6 +281,7 @@ const videoController = {
           fs.unlinkSync(tempPath);
 
           // Return response
+          responseSent = true;
           res.json({
             success: true,
             screenshot: {
@@ -300,11 +305,13 @@ const videoController = {
             fs.unlinkSync(tempPath);
           }
 
-          res.status(500).json({
-            success: false,
-            error: 'Failed to process screenshot',
-            details: error.message,
-          });
+          if (!responseSent) {
+            res.status(500).json({
+              success: false,
+              error: 'Failed to process screenshot',
+              details: error.message,
+            });
+          }
         }
       });
 

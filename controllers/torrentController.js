@@ -83,7 +83,8 @@ const torrentController = {
       });
     } else if (torrents[website]) {
       torrents[website](query, page, options).then((v) => {
-        res.json(v);
+        // Handle null responses by returning empty array
+        res.json(v || []);
       });
     } else {
       res.json({

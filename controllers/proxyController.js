@@ -9,34 +9,6 @@ const fetch = require('node-fetch');
 // Custom Real-Debrid proxy handler
 const realDebridProxy = async (req, res) => {
   try {
-    // Require authentication for Real Debrid operations
-    if (!req.userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required for Real Debrid operations',
-        code: 'UNAUTHORIZED'
-      });
-    }
-
-    // Get user's Real Debrid API key
-    const authService = req.app.locals.authService;
-    if (!authService) {
-      return res.status(503).json({
-        success: false,
-        error: 'Authentication service not available',
-        code: 'SERVICE_UNAVAILABLE'
-      });
-    }
-
-    const userApiKey = await authService.getRealDebridApiKey(req.userId);
-    if (!userApiKey) {
-      return res.status(400).json({
-        success: false,
-        error: 'Real Debrid API key not configured. Please add it in your account settings.',
-        code: 'NO_API_KEY'
-      });
-    }
-
     // Extract the path after /api/proxy/real-debrid
     const realDebridPath = req.originalUrl.replace('/api/proxy/real-debrid', '');
     const targetUrl = `https://api.real-debrid.com/rest/1.0${realDebridPath}`;
@@ -45,15 +17,19 @@ const realDebridProxy = async (req, res) => {
       method: req.method,
       originalUrl: req.originalUrl,
       targetUrl: targetUrl,
-      userId: req.userId,
+      headers: req.headers,
     });
 
-    // Prepare headers with user's API key
+    // Prepare headers
     const headers = {
       'Content-Type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
       'User-Agent': req.headers['user-agent'] || 'TorrentSearch-Proxy/1.0',
-      'Authorization': `Bearer ${userApiKey}`,
     };
+
+    // Forward authorization header
+    if (req.headers.authorization) {
+      headers.Authorization = req.headers.authorization;
+    }
 
     // Prepare request options
     const fetchOptions = {

@@ -14,18 +14,21 @@ class GoogleImagesService {
       const customSearchEngineId = process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID;
 
       if (!serviceAccountJson) {
-        throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON environment variable is required');
+        console.warn('⚠ Google Images Service: GOOGLE_SERVICE_ACCOUNT_JSON not configured - image search will be unavailable');
+        return;
       }
 
       if (!customSearchEngineId) {
-        throw new Error('GOOGLE_CUSTOM_SEARCH_ENGINE_ID environment variable is required');
+        console.warn('⚠ Google Images Service: GOOGLE_CUSTOM_SEARCH_ENGINE_ID not configured - image search will be unavailable');
+        return;
       }
 
       let credentials;
       try {
         credentials = JSON.parse(serviceAccountJson);
       } catch (parseError) {
-        throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT_JSON format - must be valid JSON');
+        console.warn('⚠ Google Images Service: Invalid GOOGLE_SERVICE_ACCOUNT_JSON format - image search will be unavailable');
+        return;
       }
 
       // Validate required fields in service account JSON
@@ -33,7 +36,8 @@ class GoogleImagesService {
       const missingFields = requiredFields.filter(field => !credentials[field]);
 
       if (missingFields.length > 0) {
-        throw new Error(`Missing required fields in service account JSON: ${missingFields.join(', ')}`);
+        console.warn(`⚠ Google Images Service: Missing required fields in service account JSON: ${missingFields.join(', ')} - image search will be unavailable`);
+        return;
       }
 
       const auth = new google.auth.GoogleAuth({
@@ -48,8 +52,8 @@ class GoogleImagesService {
 
       console.log('✓ Google Images Service initialized successfully');
     } catch (error) {
-      console.error('✗ Failed to initialize Google Images Service:', error.message);
-      throw error;
+      console.warn('⚠ Google Images Service initialization failed:', error.message, '- image search will be unavailable');
+      this.customsearch = null;
     }
   }
 
@@ -183,4 +187,26 @@ class GoogleImagesService {
   }
 }
 
-module.exports = new GoogleImagesService();
+// Export the class instead of an instance to allow graceful handling
+let instance = null;
+
+function getInstance() {
+  if (!instance) {
+    try {
+      instance = new GoogleImagesService();
+    } catch (error) {
+      console.warn('⚠ Google Images Service could not be initialized:', error.message);
+      instance = {
+        searchImages: async () => {
+          throw new Error('Google Images Service not available - check environment configuration');
+        },
+        getSuggestions: async () => {
+          throw new Error('Google Images Service not available - check environment configuration');
+        }
+      };
+    }
+  }
+  return instance;
+}
+
+module.exports = getInstance();

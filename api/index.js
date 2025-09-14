@@ -33,6 +33,7 @@ const combo = require('../torrent/COMBO.js');
 const UnifiedCache = require('../database/UnifiedCache');
 const googleImagesService = require('../services/googleImagesService');
 const setupAuthRoutes = require('../routes/auth');
+const AuthMiddleware = require('../middleware/auth');
 
 // Controllers
 const storageController = require('../controllers/storageController');
@@ -46,6 +47,7 @@ const app = express();
 
 // Initialize cache
 let cache = null;
+let authMiddleware = null;
 
 // Auth routes initialization function
 const initializeAuthRoutes = () => {
@@ -65,6 +67,9 @@ const initializeCache = async () => {
     // Make cache available to health checks and controllers
     app.locals.cache = cache;
 
+    // Initialize auth middleware now that cache is ready
+    authMiddleware = new AuthMiddleware(cache);
+
     logger.info('Database initialized successfully', {
       type: config.database.useCloudDb ? 'cloud' : 'local',
       environment: config.environment,
@@ -72,7 +77,7 @@ const initializeCache = async () => {
 
     // Print database stats on startup
     await cache.printStats();
-    
+
     // Initialize auth routes now that cache is ready
     initializeAuthRoutes();
   } catch (error) {
@@ -102,7 +107,10 @@ app.use('/health', require('../routes/health'));
 // --- STORAGE ROUTES (Turso Database) ---
 app.get('/api/storage/stats', storageController.getStats);
 app.post('/api/storage/cover-image', storageController.storeCoverImage);
-app.get('/api/storage/cover-image/:torrentKey', storageController.getCoverImage);
+app.get(
+  '/api/storage/cover-image/:torrentKey',
+  storageController.getCoverImage
+);
 app.post(
   '/api/storage/cover-image/torrent',
   storageController.getCoverImageForTorrent
@@ -130,33 +138,74 @@ app.get('/api/storage/get/:key', storageController.getCacheValue);
 app.delete('/api/storage/delete/:key', storageController.deleteCacheValue);
 
 // --- FAVORITES ROUTES ---
+// Note: Using optional auth to support both authenticated and guest users
+// When authenticated, favorites are user-specific. When not authenticated, returns empty results.
+const getOptionalAuth = () =>
+  authMiddleware ? authMiddleware.optionalAuth() : (req, res, next) => next();
+
 // Note: Using /api/storage paths for database operations
-app.post('/api/storage/favorites', favoritesController.addFavorite);
-app.get('/api/storage/favorites', favoritesController.getFavorites);
-app.delete('/api/storage/favorites', favoritesController.removeFavorite);
+app.post(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.addFavorite
+);
+app.get(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.getFavorites
+);
+app.delete(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.removeFavorite
+);
 
 // Maintain backward compatibility for existing clients
-app.post('/api/cache/favorites', favoritesController.addFavorite);
-app.get('/api/cache/favorites', favoritesController.getFavorites);
-app.delete('/api/cache/favorites', favoritesController.removeFavorite);
+app.post(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.addFavorite
+);
+app.get(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.getFavorites
+);
+app.delete(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.removeFavorite
+);
 app.get(
   '/api/favorites/:favoriteId/details',
+  getOptionalAuth(),
   favoritesController.getFavoriteDetails
 );
 app.post(
   '/api/favorites/:favoriteId/details',
+  getOptionalAuth(),
   favoritesController.storeFavoriteDetails
 );
 app.get(
   '/api/favorites/:favoriteId/screenshots',
+  getOptionalAuth(),
   favoritesController.getFavoriteScreenshots
 );
 app.post(
   '/api/favorites/:favoriteId/screenshots',
+  getOptionalAuth(),
   favoritesController.storeFavoriteScreenshots
 );
-app.post('/api/favorites/check', favoritesController.checkFavorite);
-app.post('/api/favorites/entry', favoritesController.storeFavoriteEntry);
+app.post(
+  '/api/favorites/check',
+  getOptionalAuth(),
+  favoritesController.checkFavorite
+);
+app.post(
+  '/api/favorites/entry',
+  getOptionalAuth(),
+  favoritesController.storeFavoriteEntry
+);
 
 // --- IMAGE ROUTES ---
 app.get('/api/google-images/search', imageController.searchGoogleImages);

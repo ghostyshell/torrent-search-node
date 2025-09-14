@@ -18,6 +18,7 @@ const path = require('path');
 const UnifiedCache = require('./database/UnifiedCache');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
+const AuthMiddleware = require('./middleware/auth');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
@@ -63,6 +64,8 @@ if (config.security.trustProxy) {
 
 // Initialize unified cache (supports both local SQLite and Turso cloud)
 let cache = null;
+let authMiddleware = null;
+
 const initializeCache = async () => {
   try {
     cache = new UnifiedCache();
@@ -70,6 +73,9 @@ const initializeCache = async () => {
 
     // Make cache available to health checks and controllers
     app.locals.cache = cache;
+
+    // Initialize auth middleware now that cache is ready
+    authMiddleware = new AuthMiddleware(cache);
 
     logger.info('Database initialized successfully', {
       type: config.database.useCloudDb ? 'cloud' : 'local',
@@ -124,8 +130,15 @@ const initializeAuthRoutes = () => {
   if (cache) {
     app.use('/api/auth', setupAuthRoutes(cache));
     logger.info('Auth routes initialized');
+    
+    // Register the catch-all torrent search route AFTER auth routes to prevent conflicts
+    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+    logger.info('Torrent search route registered after auth routes');
   } else {
     logger.warn('Auth routes not initialized - cache not available');
+    // Still register torrent route even if auth is not available
+    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+    logger.info('Torrent search route registered (auth not available)');
   }
 };
 
@@ -144,34 +157,74 @@ app.get('/api/cache/get/:key', cacheController.getCacheValue);
 app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 
 // --- FAVORITES ROUTES ---
-// Note: Using /api/cache paths for backward compatibility
-app.post('/api/cache/favorites', favoritesController.addFavorite);
-app.get('/api/cache/favorites', favoritesController.getFavorites);
-app.delete('/api/cache/favorites', favoritesController.removeFavorite);
+// Note: Using optional auth to support both authenticated and guest users
+// When authenticated, favorites are user-specific. When not authenticated, returns empty results.
+const getOptionalAuth = () =>
+  authMiddleware ? authMiddleware.optionalAuth() : (req, res, next) => next();
+
+app.post(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.addFavorite
+);
+app.get(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.getFavorites
+);
+app.delete(
+  '/api/cache/favorites',
+  getOptionalAuth(),
+  favoritesController.removeFavorite
+);
 app.get(
   '/api/favorites/:favoriteId/details',
+  getOptionalAuth(),
   favoritesController.getFavoriteDetails
 );
 app.post(
   '/api/favorites/:favoriteId/details',
+  getOptionalAuth(),
   favoritesController.storeFavoriteDetails
 );
 app.get(
   '/api/favorites/:favoriteId/screenshots',
+  getOptionalAuth(),
   favoritesController.getFavoriteScreenshots
 );
 app.post(
   '/api/favorites/:favoriteId/screenshots',
+  getOptionalAuth(),
   favoritesController.storeFavoriteScreenshots
 );
-app.post('/api/favorites/check', favoritesController.checkFavorite);
-app.post('/api/favorites/entry', favoritesController.storeFavoriteEntry);
+app.post(
+  '/api/favorites/check',
+  getOptionalAuth(),
+  favoritesController.checkFavorite
+);
+app.post(
+  '/api/favorites/entry',
+  getOptionalAuth(),
+  favoritesController.storeFavoriteEntry
+);
 
 // --- STORAGE ROUTES ---
 // Frontend calls /api/storage/favorites instead of /api/cache/favorites
-app.post('/api/storage/favorites', favoritesController.addFavorite);
-app.get('/api/storage/favorites', favoritesController.getFavorites);
-app.delete('/api/storage/favorites', favoritesController.removeFavorite);
+app.post(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.addFavorite
+);
+app.get(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.getFavorites
+);
+app.delete(
+  '/api/storage/favorites',
+  getOptionalAuth(),
+  favoritesController.removeFavorite
+);
 
 // --- IMAGE ROUTES ---
 app.get('/api/google-images/search', imageController.searchGoogleImages);
@@ -209,8 +262,7 @@ app.options('/api/proxy/*', proxyController.handleCorsOptions);
 app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
 
 // --- MAIN SEARCH ROUTE ---
-// Note: This catch-all route should be last to avoid conflicts
-app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+// Note: This will be registered after auth routes to avoid conflicts
 
 // --- STATIC ROUTES ---
 app.get('/', (req, res) => {

@@ -17,6 +17,7 @@ const express = require('express');
 const path = require('path');
 const UnifiedCache = require('./database/UnifiedCache');
 const healthRoutes = require('./routes/health');
+const setupAuthRoutes = require('./routes/auth');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
@@ -77,6 +78,9 @@ const initializeCache = async () => {
 
     // Print database stats on startup
     await cache.printStats();
+
+    // Initialize auth routes now that cache is ready
+    initializeAuthRoutes();
   } catch (error) {
     logger.error('Database initialization failed', {
       error: error.message,
@@ -113,6 +117,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check routes (before other routes)
 app.use('/', healthRoutes);
+
+// Auth routes (must be before catch-all routes)
+// Note: Auth routes need cache to be initialized, so they're set up after cache init
+const initializeAuthRoutes = () => {
+  if (cache) {
+    app.use('/api/auth', setupAuthRoutes(cache));
+    logger.info('Auth routes initialized');
+  } else {
+    logger.warn('Auth routes not initialized - cache not available');
+  }
+};
 
 // --- CACHE ROUTES ---
 app.get('/api/cache/stats', cacheController.getStats);
@@ -151,6 +166,12 @@ app.post(
 );
 app.post('/api/favorites/check', favoritesController.checkFavorite);
 app.post('/api/favorites/entry', favoritesController.storeFavoriteEntry);
+
+// --- STORAGE ROUTES ---
+// Frontend calls /api/storage/favorites instead of /api/cache/favorites
+app.post('/api/storage/favorites', favoritesController.addFavorite);
+app.get('/api/storage/favorites', favoritesController.getFavorites);
+app.delete('/api/storage/favorites', favoritesController.removeFavorite);
 
 // --- IMAGE ROUTES ---
 app.get('/api/google-images/search', imageController.searchGoogleImages);

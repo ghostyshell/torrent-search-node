@@ -15,6 +15,7 @@ const {
 // Core dependencies
 const express = require('express');
 const path = require('path');
+const passport = require('passport');
 const UnifiedCache = require('./database/UnifiedCache');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
@@ -114,6 +115,9 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
 
+// Initialize passport middleware
+app.use(passport.initialize());
+
 // Static file serving
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -128,8 +132,13 @@ app.use('/', healthRoutes);
 // Note: Auth routes need cache to be initialized, so they're set up after cache init
 const initializeAuthRoutes = () => {
   if (cache) {
-    app.use('/api/auth', setupAuthRoutes(cache));
-    logger.info('Auth routes initialized');
+    try {
+      app.use('/api/auth', setupAuthRoutes(cache));
+      logger.info('Auth routes initialized');
+    } catch (error) {
+      logger.error('Failed to initialize auth routes:', error.message);
+      logger.warn('Continuing without auth routes');
+    }
 
     // Register the catch-all torrent search route AFTER auth routes to prevent conflicts
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);

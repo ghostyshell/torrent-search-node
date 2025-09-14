@@ -81,7 +81,8 @@ class AuthService {
       console.log('✓ Google OAuth Strategy initialized successfully');
     } catch (error) {
       console.error('✗ Failed to initialize Google OAuth Strategy:', error.message);
-      throw error;
+      console.warn('⚠ Continuing without Google OAuth - auth routes will not be available');
+      // Don't throw error - allow app to continue without auth
     }
   }
 

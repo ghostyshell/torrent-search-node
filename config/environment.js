@@ -5,8 +5,9 @@
 
 const path = require('path');
 
-// Load environment variables
-require('dotenv').config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: path.resolve(__dirname, '..', envFile) });
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const isProduction = process.env.NODE_ENV === 'production';

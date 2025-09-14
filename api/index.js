@@ -32,6 +32,7 @@ const express = require('express');
 const combo = require('../torrent/COMBO.js');
 const UnifiedCache = require('../database/UnifiedCache');
 const googleImagesService = require('../services/googleImagesService');
+const setupAuthRoutes = require('../routes/auth');
 
 // Controllers
 const storageController = require('../controllers/storageController');
@@ -45,6 +46,17 @@ const app = express();
 
 // Initialize cache
 let cache = null;
+
+// Auth routes initialization function
+const initializeAuthRoutes = () => {
+  if (cache) {
+    app.use('/api/auth', setupAuthRoutes(cache));
+    logger.info('Auth routes initialized');
+  } else {
+    logger.warn('Auth routes not initialized - cache not available');
+  }
+};
+
 const initializeCache = async () => {
   try {
     cache = new UnifiedCache();
@@ -60,6 +72,9 @@ const initializeCache = async () => {
 
     // Print database stats on startup
     await cache.printStats();
+    
+    // Initialize auth routes now that cache is ready
+    initializeAuthRoutes();
   } catch (error) {
     logger.error('Database initialization failed', {
       error: error.message,

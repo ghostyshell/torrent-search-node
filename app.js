@@ -15,11 +15,20 @@ const {
 // Core dependencies
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
+const passport = require('passport');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const UnifiedCache = require('./database/UnifiedCache');
 const healthRoutes = require('./routes/health');
 
+// Authentication
+const AuthService = require('./config/passport');
+const AuthMiddleware = require('./middleware/auth');
+const setupAuthRoutes = require('./routes/auth');
+
 // Controllers
-const cacheController = require('./controllers/cacheController');
+const storageController = require('./controllers/storageController');
 const favoritesController = require('./controllers/favoritesController');
 const torrentController = require('./controllers/torrentController');
 const imageController = require('./controllers/imageController');
@@ -94,12 +103,57 @@ initializeCache();
 // MIDDLEWARE SETUP
 // ===========================
 
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: ["'self'", "https://accounts.google.com"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["https://accounts.google.com"],
+    },
+  },
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: config.isProduction ? 100 : 1000, // limit each IP to 100 requests per windowMs in production
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again later.',
+    code: 'RATE_LIMITED'
+  }
+});
+app.use(limiter);
+
 // Request logging middleware
 app.use(logger.requestMiddleware());
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: config.isProduction,
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
@@ -108,31 +162,110 @@ app.use(corsMiddleware());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ===========================
+// INITIALIZE AUTHENTICATION
+// ===========================
+
+// Initialize auth service and middleware after cache is available
+let authService, authMiddleware;
+const initializeAuth = () => {
+  if (cache) {
+    authService = new AuthService(cache);
+    authMiddleware = new AuthMiddleware(cache);
+    app.locals.authService = authService;
+    app.locals.authMiddleware = authMiddleware;
+  }
+};
+
+// Initialize auth when cache is ready
+setTimeout(initializeAuth, 1000); // Give cache time to initialize
+
+// ===========================
 // ROUTE DEFINITIONS
 // ===========================
 
 // Health check routes (before other routes)
 app.use('/', healthRoutes);
 
-// --- CACHE ROUTES ---
-app.get('/api/cache/stats', cacheController.getStats);
-app.post('/api/cache/cover-image', cacheController.storeCoverImage);
-app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
-app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
-app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
-app.post('/api/cache/cached-links', cacheController.addCachedLink);
-app.get('/api/cache/cached-links', cacheController.getCachedLinks);
-app.delete('/api/cache/cached-links/:id', cacheController.removeCachedLink);
-app.put('/api/cache/cached-links/:id', cacheController.updateCachedLink);
-app.post('/api/cache/set', cacheController.setCacheValue);
-app.get('/api/cache/get/:key', cacheController.getCacheValue);
-app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
+// Authentication routes
+app.use('/api/auth', (req, res, next) => {
+  if (!app.locals.authService) {
+    return res.status(503).json({
+      success: false,
+      error: 'Authentication service not ready',
+      code: 'AUTH_NOT_READY'
+    });
+  }
+  next();
+}, setupAuthRoutes(cache));
+
+// --- STORAGE ROUTES (Turso Database) ---
+app.get('/api/storage/stats', storageController.getStats);
+app.post('/api/storage/cover-image', storageController.storeCoverImage);
+app.get('/api/storage/cover-image/:torrentKey', storageController.getCoverImage);
+app.post('/api/storage/stream-url', storageController.storeStreamUrl);
+app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
+app.post('/api/storage/stored-links', storageController.addCachedLink);
+app.get('/api/storage/stored-links', storageController.getCachedLinks);
+app.delete('/api/storage/stored-links/:id', storageController.removeCachedLink);
+app.put('/api/storage/stored-links/:id', storageController.updateCachedLink);
+app.post('/api/storage/set', storageController.setCacheValue);
+app.get('/api/storage/get/:key', storageController.getCacheValue);
+app.delete('/api/storage/delete/:key', storageController.deleteCacheValue);
+
+// --- LEGACY CACHE ROUTES (Backward Compatibility) ---
+app.get('/api/cache/stats', storageController.getStats);
+app.post('/api/cache/cover-image', storageController.storeCoverImage);
+app.get('/api/cache/cover-image/:torrentKey', storageController.getCoverImage);
+app.post('/api/cache/stream-url', storageController.storeStreamUrl);
+app.get('/api/cache/stream-url/:magnetHash', storageController.getStreamUrl);
+app.post('/api/cache/cached-links', storageController.addCachedLink);
+app.get('/api/cache/cached-links', storageController.getCachedLinks);
+app.delete('/api/cache/cached-links/:id', storageController.removeCachedLink);
+app.put('/api/cache/cached-links/:id', storageController.updateCachedLink);
+app.post('/api/cache/set', storageController.setCacheValue);
+app.get('/api/cache/get/:key', storageController.getCacheValue);
+app.delete('/api/cache/delete/:key', storageController.deleteCacheValue);
 
 // --- FAVORITES ROUTES ---
-// Note: Using /api/cache paths for backward compatibility
-app.post('/api/cache/favorites', favoritesController.addFavorite);
-app.get('/api/cache/favorites', favoritesController.getFavorites);
-app.delete('/api/cache/favorites', favoritesController.removeFavorite);
+// Note: Using /api/storage paths for database operations
+app.post('/api/storage/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.addFavorite);
+app.get('/api/storage/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.getFavorites);
+app.delete('/api/storage/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.removeFavorite);
+
+// Maintain backward compatibility for existing clients
+app.post('/api/cache/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.addFavorite);
+app.get('/api/cache/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.getFavorites);
+app.delete('/api/cache/favorites', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  next();
+}, favoritesController.removeFavorite);
 app.get(
   '/api/favorites/:favoriteId/details',
   favoritesController.getFavoriteDetails
@@ -185,7 +318,16 @@ app.get('/api/torrents', torrentController.getTorrentWebsites);
 // --- PROXY ROUTES ---
 // Note: MUST be before the catch-all torrent search route
 app.options('/api/proxy/*', proxyController.handleCorsOptions);
-app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
+app.all('/api/proxy/real-debrid/*', (req, res, next) => {
+  if (app.locals.authMiddleware) {
+    return app.locals.authMiddleware.requireAuth()(req, res, next);
+  }
+  return res.status(503).json({
+    success: false,
+    error: 'Authentication service not ready',
+    code: 'AUTH_NOT_READY'
+  });
+}, proxyController.realDebridProxy);
 
 // --- MAIN SEARCH ROUTE ---
 // Note: This catch-all route should be last to avoid conflicts

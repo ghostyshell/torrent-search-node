@@ -34,7 +34,7 @@ const UnifiedCache = require('../database/UnifiedCache');
 const googleImagesService = require('../services/googleImagesService');
 
 // Controllers
-const cacheController = require('../controllers/cacheController');
+const storageController = require('../controllers/storageController');
 const favoritesController = require('../controllers/favoritesController');
 const torrentController = require('../controllers/torrentController');
 const imageController = require('../controllers/imageController');
@@ -84,38 +84,43 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Health check routes
 app.use('/health', require('../routes/health'));
 
-// --- CACHE ROUTES ---
-app.get('/api/cache/stats', cacheController.getStats);
-app.post('/api/cache/cover-image', cacheController.storeCoverImage);
-app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
+// --- STORAGE ROUTES (Turso Database) ---
+app.get('/api/storage/stats', storageController.getStats);
+app.post('/api/storage/cover-image', storageController.storeCoverImage);
+app.get('/api/storage/cover-image/:torrentKey', storageController.getCoverImage);
 app.post(
-  '/api/cache/cover-image/torrent',
-  cacheController.getCoverImageForTorrent
+  '/api/storage/cover-image/torrent',
+  storageController.getCoverImageForTorrent
 );
 app.put(
-  '/api/cache/cover-image/favorite/:favoriteId',
-  cacheController.updateFavoriteEntryCoverImage
+  '/api/storage/cover-image/favorite/:favoriteId',
+  storageController.updateFavoriteEntryCoverImage
 );
 app.put(
-  '/api/cache/cover-image/torrent-details/:favoriteId/:source',
-  cacheController.updateTorrentDetailsCoverImage
+  '/api/storage/cover-image/torrent-details/:favoriteId/:source',
+  storageController.updateTorrentDetailsCoverImage
 );
 app.put(
-  '/api/cache/cover-image/cached-link/:cachedLinkId',
-  cacheController.updateCachedLinkCoverImage
+  '/api/storage/cover-image/stored-link/:storedLinkId',
+  storageController.updateCachedLinkCoverImage
 );
-app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
-app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
-app.post('/api/cache/cached-links', cacheController.addCachedLink);
-app.get('/api/cache/cached-links', cacheController.getCachedLinks);
-app.delete('/api/cache/cached-links/:id', cacheController.removeCachedLink);
-app.put('/api/cache/cached-links/:id', cacheController.updateCachedLink);
-app.post('/api/cache/set', cacheController.setCacheValue);
-app.get('/api/cache/get/:key', cacheController.getCacheValue);
-app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
+app.post('/api/storage/stream-url', storageController.storeStreamUrl);
+app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
+app.post('/api/storage/stored-links', storageController.addCachedLink);
+app.get('/api/storage/stored-links', storageController.getCachedLinks);
+app.delete('/api/storage/stored-links/:id', storageController.removeCachedLink);
+app.put('/api/storage/stored-links/:id', storageController.updateCachedLink);
+app.post('/api/storage/set', storageController.setCacheValue);
+app.get('/api/storage/get/:key', storageController.getCacheValue);
+app.delete('/api/storage/delete/:key', storageController.deleteCacheValue);
 
 // --- FAVORITES ROUTES ---
-// Note: Using /api/cache paths for backward compatibility
+// Note: Using /api/storage paths for database operations
+app.post('/api/storage/favorites', favoritesController.addFavorite);
+app.get('/api/storage/favorites', favoritesController.getFavorites);
+app.delete('/api/storage/favorites', favoritesController.removeFavorite);
+
+// Maintain backward compatibility for existing clients
 app.post('/api/cache/favorites', favoritesController.addFavorite);
 app.get('/api/cache/favorites', favoritesController.getFavorites);
 app.delete('/api/cache/favorites', favoritesController.removeFavorite);
@@ -190,7 +195,8 @@ app.get('/', (req, res) => {
       favorites: '/api/cache/favorites',
       favoriteCheck: '/api/favorites/check',
       googleImages: '/api/google-images/search',
-      cachedLinks: '/api/cache/cached-links',
+      storedLinks: '/api/storage/stored-links',
+      cachedLinks: '/api/cache/cached-links', // deprecated, use storedLinks
       health: '/health',
     },
   });

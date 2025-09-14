@@ -1,46 +1,55 @@
 const { google } = require('googleapis');
-const path = require('path');
-const fs = require('fs');
 
 class GoogleImagesService {
   constructor() {
     this.customsearch = null;
-    this.searchEngineId =
-      process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID || '43fbfca60a66d4222';
+    this.searchEngineId = process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID;
     this.initializeAuth();
   }
 
   async initializeAuth() {
     try {
-      // Look for service account file
-      const serviceAccountPath =
-        process.env.GOOGLE_SERVICE_ACCOUNT_PATH ||
-        path.join(__dirname, '..', 'tsearch-1756011816802-216637491714.json');
+      // Required environment variables
+      const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+      const customSearchEngineId = process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID;
 
-      if (fs.existsSync(serviceAccountPath)) {
-        const auth = new google.auth.GoogleAuth({
-          keyFile: serviceAccountPath,
-          scopes: ['https://www.googleapis.com/auth/cse'],
-        });
-
-        this.customsearch = google.customsearch({
-          version: 'v1',
-          auth: auth,
-        });
-      } else {
-        // Fallback to API key if service account is not available
-        const apiKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
-        if (apiKey) {
-          this.customsearch = google.customsearch({
-            version: 'v1',
-            auth: apiKey,
-          });
-        } else {
-          return;
-        }
+      if (!serviceAccountJson) {
+        throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON environment variable is required');
       }
+
+      if (!customSearchEngineId) {
+        throw new Error('GOOGLE_CUSTOM_SEARCH_ENGINE_ID environment variable is required');
+      }
+
+      let credentials;
+      try {
+        credentials = JSON.parse(serviceAccountJson);
+      } catch (parseError) {
+        throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT_JSON format - must be valid JSON');
+      }
+
+      // Validate required fields in service account JSON
+      const requiredFields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email'];
+      const missingFields = requiredFields.filter(field => !credentials[field]);
+
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields in service account JSON: ${missingFields.join(', ')}`);
+      }
+
+      const auth = new google.auth.GoogleAuth({
+        credentials: credentials,
+        scopes: ['https://www.googleapis.com/auth/cse'],
+      });
+
+      this.customsearch = google.customsearch({
+        version: 'v1',
+        auth: auth,
+      });
+
+      console.log('✓ Google Images Service initialized successfully');
     } catch (error) {
-      // Failed to initialize Google authentication
+      console.error('✗ Failed to initialize Google Images Service:', error.message);
+      throw error;
     }
   }
 

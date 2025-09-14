@@ -54,11 +54,8 @@ const config = {
 
   // Google API configuration
   google: {
-    serviceAccountPath:
-      process.env.GOOGLE_SERVICE_ACCOUNT_PATH ||
-      process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+    serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
     customSearchEngineId: process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID,
-    apiKey: process.env.GOOGLE_CUSTOM_SEARCH_API_KEY, // Fallback
   },
 
   // External API keys
@@ -149,10 +146,8 @@ function validateEnvironment() {
   }
 
   // Check Google API configuration
-  if (!config.google.serviceAccountPath && !config.google.apiKey) {
-    errors.push(
-      'Either GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_CUSTOM_SEARCH_API_KEY is required'
-    );
+  if (!config.google.serviceAccountJson) {
+    errors.push('GOOGLE_SERVICE_ACCOUNT_JSON is required');
   }
 
   if (!config.google.customSearchEngineId) {

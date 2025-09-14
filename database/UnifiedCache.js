@@ -340,33 +340,38 @@ class UnifiedCache {
 
   // === FAVORITES METHODS ===
 
-  async addFavorite(torrent) {
+  async addFavorite(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
     const sql = `
-      INSERT OR REPLACE INTO favorites (torrent_key, torrent_data)
-      VALUES (?, ?)
+      INSERT OR REPLACE INTO favorites (torrent_key, torrent_data, user_id)
+      VALUES (?, ?, ?)
     `;
 
     const result = await this.dbManager.run(sql, [
       torrentKey,
       JSON.stringify(torrent),
+      userId
     ]);
     return result.changes > 0;
   }
 
-  async removeFavorite(torrent) {
+  async removeFavorite(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
-    const result = await this.dbManager.run(
-      'DELETE FROM favorites WHERE torrent_key = ?',
-      [torrentKey]
-    );
+    const sql = userId ?
+      'DELETE FROM favorites WHERE torrent_key = ? AND user_id = ?' :
+      'DELETE FROM favorites WHERE torrent_key = ? AND user_id IS NULL';
+    const params = userId ? [torrentKey, userId] : [torrentKey];
+
+    const result = await this.dbManager.run(sql, params);
     return result.changes > 0;
   }
 
-  async getFavorites() {
-    const sql =
-      'SELECT torrent_data, added_at FROM favorites ORDER BY added_at DESC';
-    const rows = await this.dbManager.all(sql);
+  async getFavorites(userId = null) {
+    const sql = userId ?
+      'SELECT torrent_data, added_at FROM favorites WHERE user_id = ? ORDER BY added_at DESC' :
+      'SELECT torrent_data, added_at FROM favorites WHERE user_id IS NULL ORDER BY added_at DESC';
+    const params = userId ? [userId] : [];
+    const rows = await this.dbManager.all(sql, params);
 
     try {
       return rows.map((row) => ({
@@ -655,7 +660,7 @@ class UnifiedCache {
     return (oldCount?.count || 0) + (newCount?.count || 0);
   }
 
-  async getMergedFavoritesPaginated(limit, offset) {
+  async getMergedFavoritesPaginated(limit, offset, userId = null) {
     // Use a UNION query to merge both tables and handle deduplication efficiently at database level
     const sql = `
       WITH merged_favorites AS (
@@ -704,7 +709,7 @@ class UnifiedCache {
     }).filter(Boolean);
   }
 
-  async getMergedFavoritesCount() {
+  async getMergedFavoritesCount(userId = null) {
     // Get accurate count using same deduplication logic
     const sql = `
       WITH merged_favorites AS (

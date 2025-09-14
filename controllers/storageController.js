@@ -2,20 +2,20 @@ const express = require('express');
 const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 
-// Cache controller for all cache-related endpoints
-const cacheController = {
-  // Get cache statistics
+// Storage controller for all Turso database storage endpoints
+const storageController = {
+  // Get storage statistics
   getStats: async (req, res) => {
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
-      const stats = await cache.getStats();
+      const stats = await storage.getStats();
       res.json({
         success: true,
         stats,
@@ -24,7 +24,7 @@ const cacheController = {
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: 'Failed to get cache statistics',
+        error: 'Failed to get storage statistics',
         message: error.message,
       });
     }
@@ -39,11 +39,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -65,7 +65,7 @@ const cacheController = {
       }
 
       // Always use the setCoverImage method which handles Pixhost upload
-      const success = await cache.setCoverImage(torrent, imageUrl, imageData);
+      const success = await storage.setCoverImage(torrent, imageUrl, imageData);
 
       if (success) {
         res.json({
@@ -95,18 +95,18 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
       const torrentKey = req.params.torrentKey;
 
-      const imageData = await cache.getCoverImageByKey(torrentKey);
+      const imageData = await storage.getCoverImageByKey(torrentKey);
 
       if (imageData) {
         res.json({
@@ -138,11 +138,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -156,7 +156,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.setStreamUrl(magnetLink, streamData);
+      const success = await storage.setStreamUrl(magnetLink, streamData);
 
       if (success) {
         res.json({
@@ -186,17 +186,17 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
       const magnetHash = req.params.magnetHash;
-      const streamData = await cache.getStreamUrlByHash(magnetHash);
+      const streamData = await storage.getStreamUrlByHash(magnetHash);
 
       if (streamData) {
         res.json({
@@ -218,19 +218,19 @@ const cacheController = {
     }
   },
 
-  // Add cached link
-  addCachedLink: async (req, res) => {
+  // Add stored link
+  addStoredLink: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -244,80 +244,80 @@ const cacheController = {
         });
       }
 
-      const cachedLink = {
+      const storedLink = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         url,
         title: title || extractTitleFromUrl(url),
         dateAdded: new Date().toISOString(),
       };
 
-      const success = await cache.addCachedLink(cachedLink);
+      const success = await storage.addCachedLink(storedLink);
 
       if (success) {
         res.json({
           success: true,
-          message: 'Link cached successfully',
-          cachedLink,
+          message: 'Link stored successfully',
+          storedLink,
         });
       } else {
         res.status(500).json({
           success: false,
-          error: 'Failed to cache link',
+          error: 'Failed to store link',
         });
       }
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: 'Failed to cache link',
+        error: 'Failed to store link',
         message: error.message,
       });
     }
   },
 
-  // Get cached links
-  getCachedLinks: async (req, res) => {
+  // Get stored links
+  getStoredLinks: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
-      const cachedLinks = await cache.getCachedLinks();
+      const storedLinks = await storage.getCachedLinks();
       res.json({
         success: true,
-        cachedLinks,
+        storedLinks,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: 'Failed to get cached links',
+        error: 'Failed to get stored links',
         message: error.message,
       });
     }
   },
 
-  // Remove cached link
-  removeCachedLink: async (req, res) => {
+  // Remove stored link
+  removeStoredLink: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -331,7 +331,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.removeCachedLink(id);
+      const success = await storage.removeCachedLink(id);
 
       if (success) {
         res.json({
@@ -353,19 +353,19 @@ const cacheController = {
     }
   },
 
-  // Update cached link
-  updateCachedLink: async (req, res) => {
+  // Update stored link
+  updateStoredLink: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -380,7 +380,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.updateCachedLink(id, updates);
+      const success = await storage.updateCachedLink(id, updates);
 
       if (success) {
         res.json({
@@ -410,11 +410,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -428,7 +428,7 @@ const cacheController = {
         });
       }
 
-      await cache.set(key, value, ttl);
+      await storage.set(key, value, ttl);
       res.json({
         success: true,
         message: 'Value cached successfully',
@@ -451,17 +451,17 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
       const { key } = req.params;
-      const value = await cache.get(key);
+      const value = await storage.get(key);
 
       if (value !== undefined) {
         res.json({
@@ -492,17 +492,17 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
     try {
       const { key } = req.params;
-      await cache.delete(key);
+      await storage.delete(key);
 
       res.json({
         success: true,
@@ -526,11 +526,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -545,7 +545,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.updateFavoriteEntryCoverImage(favoriteId, coverImageUrl);
+      const success = await storage.updateFavoriteEntryCoverImage(favoriteId, coverImageUrl);
 
       if (success) {
         res.json({
@@ -575,11 +575,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -594,7 +594,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl);
+      const success = await storage.updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl);
 
       if (success) {
         res.json({
@@ -624,11 +624,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -643,7 +643,7 @@ const cacheController = {
         });
       }
 
-      const success = await cache.updateCachedLinkCoverImage(cachedLinkId, coverImageUrl);
+      const success = await storage.updateCachedLinkCoverImage(cachedLinkId, coverImageUrl);
 
       if (success) {
         res.json({
@@ -673,11 +673,11 @@ const cacheController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const cache = req.app.locals.cache;
-    if (!cache) {
+    const storage = req.app.locals.cache;
+    if (!storage) {
       return res.status(503).json({
         success: false,
-        error: 'Cache not available',
+        error: 'Storage not available',
       });
     }
 
@@ -691,7 +691,7 @@ const cacheController = {
         });
       }
 
-      const coverImage = await cache.getCoverImageForTorrent(torrent);
+      const coverImage = await storage.getCoverImageForTorrent(torrent);
 
       if (coverImage) {
         res.json({
@@ -733,20 +733,20 @@ function extractTitleFromUrl(url) {
 
 // Export individual controller functions for direct route binding
 module.exports = {
-  getStats: cacheController.getStats,
-  storeCoverImage: cacheController.storeCoverImage,
-  getCoverImage: cacheController.getCoverImage,
-  storeStreamUrl: cacheController.storeStreamUrl,
-  getStreamUrl: cacheController.getStreamUrl,
-  addCachedLink: cacheController.addCachedLink,
-  getCachedLinks: cacheController.getCachedLinks,
-  removeCachedLink: cacheController.removeCachedLink,
-  updateCachedLink: cacheController.updateCachedLink,
-  setCacheValue: cacheController.setCacheValue,
-  getCacheValue: cacheController.getCacheValue,
-  deleteCacheValue: cacheController.deleteCacheValue,
-  updateFavoriteEntryCoverImage: cacheController.updateFavoriteEntryCoverImage,
-  updateTorrentDetailsCoverImage: cacheController.updateTorrentDetailsCoverImage,
-  updateCachedLinkCoverImage: cacheController.updateCachedLinkCoverImage,
-  getCoverImageForTorrent: cacheController.getCoverImageForTorrent,
+  getStats: storageController.getStats,
+  storeCoverImage: storageController.storeCoverImage,
+  getCoverImage: storageController.getCoverImage,
+  storeStreamUrl: storageController.storeStreamUrl,
+  getStreamUrl: storageController.getStreamUrl,
+  addCachedLink: storageController.addStoredLink,
+  getCachedLinks: storageController.getStoredLinks,
+  removeCachedLink: storageController.removeStoredLink,
+  updateCachedLink: storageController.updateStoredLink,
+  setCacheValue: storageController.setCacheValue,
+  getCacheValue: storageController.getCacheValue,
+  deleteCacheValue: storageController.deleteCacheValue,
+  updateFavoriteEntryCoverImage: storageController.updateFavoriteEntryCoverImage,
+  updateTorrentDetailsCoverImage: storageController.updateTorrentDetailsCoverImage,
+  updateCachedLinkCoverImage: storageController.updateStoredLinkCoverImage,
+  getCoverImageForTorrent: storageController.getCoverImageForTorrent,
 };

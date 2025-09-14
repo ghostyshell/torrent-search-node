@@ -38,7 +38,7 @@ const favoritesController = {
         }
       }
 
-      const success = await cache.addFavorite(torrent);
+      const success = await cache.addFavorite(torrent, req.userId);
 
       if (success) {
         res.json({
@@ -83,8 +83,8 @@ const favoritesController = {
 
       // Use optimized database-level pagination and merging
       const [favorites, totalCount] = await Promise.all([
-        cache.getMergedFavoritesPaginated(limit, offset),
-        cache.getMergedFavoritesCount(),
+        cache.getMergedFavoritesPaginated(limit, offset, req.userId),
+        cache.getMergedFavoritesCount(req.userId),
       ]);
 
       const totalPages = Math.ceil(totalCount / limit);
@@ -136,7 +136,7 @@ const favoritesController = {
         });
       }
 
-      const success = await cache.removeFavorite(torrent);
+      const success = await cache.removeFavorite(torrent, req.userId);
 
       if (success) {
         res.json({

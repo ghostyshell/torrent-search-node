@@ -180,6 +180,33 @@ class DatabaseManager {
         FOREIGN KEY (favorite_entry_id) REFERENCES favorite_entries(id) ON DELETE CASCADE,
         UNIQUE(favorite_entry_id, timestamp)
       )`,
+
+      // Users table - stores user information from Google OAuth
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        picture TEXT,
+        google_id TEXT NOT NULL UNIQUE,
+        real_debrid_api_key TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        last_login_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        is_active BOOLEAN DEFAULT 1
+      )`,
+
+      // User sessions table - manage login sessions
+      `CREATE TABLE IF NOT EXISTS user_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        session_token TEXT NOT NULL UNIQUE,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        last_accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        user_agent TEXT,
+        ip_address TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`,
     ];
 
     const indexes = [
@@ -195,6 +222,13 @@ class DatabaseManager {
       'CREATE INDEX IF NOT EXISTS idx_torrent_details_source ON torrent_details(source)',
       'CREATE INDEX IF NOT EXISTS idx_favorite_screenshots_entry_id ON favorite_screenshots(favorite_entry_id)',
       'CREATE INDEX IF NOT EXISTS idx_favorite_screenshots_timestamp ON favorite_screenshots(timestamp)',
+      // Auth-related indexes
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
+      'CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token)',
+      'CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at)',
     ];
 
     // Execute schema creation
@@ -214,6 +248,9 @@ class DatabaseManager {
 
     // Migration: Update images table to use URLs only
     await this.migrateImagesToUrlOnly();
+
+    // Migration: Add user_id columns for user-specific data
+    await this.migrateUserColumns();
   }
 
   /**
@@ -327,6 +364,47 @@ class DatabaseManager {
       }
     } catch (error) {
       console.warn('⚠️ Images table migration warning:', error.message);
+    }
+  }
+
+  /**
+   * Migration method to add user_id columns to existing tables
+   */
+  async migrateUserColumns() {
+    const tables = [
+      'favorites',
+      'cached_links',
+      'favorite_entries'
+    ];
+
+    for (const tableName of tables) {
+      try {
+        const columnExists = await this.columnExists(tableName, 'user_id');
+        if (!columnExists) {
+          const sql = `ALTER TABLE ${tableName} ADD COLUMN user_id TEXT`;
+          await this.execute(sql);
+          console.log(`✅ Added user_id column to ${tableName} table`);
+        }
+      } catch (error) {
+        if (!error.message.includes('duplicate column name')) {
+          console.warn(`⚠️ Failed to add user_id column to ${tableName}:`, error.message);
+        }
+      }
+    }
+
+    // Add foreign key indexes for the new user_id columns
+    const indexes = [
+      'CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_cached_links_user_id ON cached_links(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_favorite_entries_user_id ON favorite_entries(user_id)'
+    ];
+
+    for (const indexSql of indexes) {
+      try {
+        await this.execute(indexSql);
+      } catch (error) {
+        console.warn('⚠️ Index creation warning:', error.message);
+      }
     }
   }
 

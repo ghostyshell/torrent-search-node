@@ -17,17 +17,26 @@
   "dependencies": {
     "@libsql/client": "^0.14.0",
     "axios": "^1.12.1",
+    "bcryptjs": "^3.0.2",
     "cheerio": "^1.0.0-rc.3",
+    "connect-session-sequelize": "^8.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "express-rate-limit": "^8.1.0",
+    "express-session": "^1.18.2",
     "form-data": "^4.0.4",
     "googleapis": "^157.0.0",
+    "helmet": "^8.1.0",
     "http-proxy-middleware": "^3.0.5",
+    "jsonwebtoken": "^9.0.2",
     "node-fetch": "^2.7.0",
     "nodemon": "^3.1.7",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "pm2": "^6.0.10",
-    "serverless-http": "^3.2.0"
+    "serverless-http": "^3.2.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

@@ -130,7 +130,7 @@ const initializeAuthRoutes = () => {
   if (cache) {
     app.use('/api/auth', setupAuthRoutes(cache));
     logger.info('Auth routes initialized');
-    
+
     // Register the catch-all torrent search route AFTER auth routes to prevent conflicts
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
     logger.info('Torrent search route registered after auth routes');

@@ -29,19 +29,20 @@ const setupAuthRoutes = (cache) => {
     }),
     async (req, res) => {
       try {
-        const sessionData = {
-          userAgent: req.headers['user-agent'],
-          ipAddress: req.ip || req.connection.remoteAddress
-        };
+        console.log('Google callback - user data received:', req.user);
 
-        const session = await authService.createSession(req.user.id, sessionData);
-
-        if (!session) {
-          return res.redirect(process.env.FRONTEND_URL + '/login?error=session_failed');
-        }
-
+        // Temporary: Skip database session creation and just redirect with user data
+        // TODO: Re-enable session creation once database is properly initialized
         const redirectUrl = new URL(process.env.FRONTEND_URL || 'http://localhost:3000');
-        redirectUrl.searchParams.append('token', session.token);
+
+        // Create a temporary token (in production, this should be a proper JWT or session token)
+        const tempToken = Buffer.from(JSON.stringify({
+          id: req.user.id,
+          email: req.user.email,
+          timestamp: Date.now()
+        })).toString('base64');
+
+        redirectUrl.searchParams.append('token', tempToken);
         redirectUrl.searchParams.append('user', JSON.stringify({
           id: req.user.id,
           name: req.user.name,
@@ -49,6 +50,7 @@ const setupAuthRoutes = (cache) => {
           picture: req.user.picture
         }));
 
+        console.log('Redirecting to:', redirectUrl.toString());
         res.redirect(redirectUrl.toString());
       } catch (error) {
         console.error('Google callback error:', error);

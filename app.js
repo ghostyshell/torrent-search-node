@@ -108,9 +108,12 @@ const initializeCache = async () => {
   }
 };
 
-// Skip cache initialization for testing
-console.log('app.js: Skipping cache initialization for testing...');
-// initializeCache();
+// Initialize cache asynchronously after server startup
+console.log('app.js: Deferring cache initialization to after server startup...');
+setTimeout(() => {
+  console.log('app.js: Starting async cache initialization...');
+  initializeCache();
+}, 1000);
 
 // ===========================
 // MIDDLEWARE SETUP
@@ -370,14 +373,11 @@ app.use(errorHandler);
 // SERVER STARTUP
 // ===========================
 
+console.log('app.js: About to start server...');
 const PORT = process.env.PORT || 3001;
-logger.info('Starting server...', { port: PORT });
+console.log('app.js: Starting server on port:', PORT);
 const server = app.listen(PORT, () => {
-  logger.info('Server started successfully', {
-    port: PORT,
-    environment: config.environment,
-    nodeEnv: process.env.NODE_ENV,
-  });
+  console.log('app.js: Server started successfully on port:', PORT);
 });
 
 // ===========================

@@ -329,9 +329,20 @@ const storageController = {
 
       const result = await storage.getCachedLinks(page, limit, userId);
 
+      // Flatten the response structure to match frontend expectations
+      // Frontend expects: { storedLinks: [...], pagination: {...} }
+      // But UnifiedCache returns: { cachedLinks: [...], pagination: {...} }
       res.json({
         success: true,
-        storedLinks: result,
+        storedLinks: result.cachedLinks || [],
+        pagination: result.pagination || {
+          currentPage: 1,
+          totalPages: 1,
+          totalCount: 0,
+          limit: limit,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
       });
     } catch (error) {
       // Check if error is due to database not being available

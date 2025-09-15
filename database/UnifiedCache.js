@@ -1330,15 +1330,75 @@ class UnifiedCache {
   async getCoverImageForTorrent(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 
+    console.log(
+      `🔍 [UnifiedCache] Getting cover image for torrent: "${torrent.Name}"`
+    );
+    console.log(`🔍 [UnifiedCache] Torrent lookup details:`, {
+      torrentKey,
+      favoriteEntryId: torrent.favoriteEntryId,
+      isCachedLink: torrent.isCachedLink,
+      cachedLinkId: torrent.cachedLinkId,
+      source: torrent.Source,
+    });
+
     // First check if we have the image stored in the images table
     const coverImage = await this.getCoverImageByKey(torrentKey);
     if (coverImage) {
+      console.log(
+        `✅ [UnifiedCache] Found cover image in images table for: "${torrent.Name}"`
+      );
       return coverImage;
     }
 
     // Check if this is a favorite entry with a cover image URL
-    const favoriteEntry = await this.getFavoriteEntry(torrent);
+    let favoriteEntry = null;
+
+    // First try using the provided favoriteEntryId if available
+    if (torrent.favoriteEntryId) {
+      console.log(
+        `🔍 [UnifiedCache] Looking up favorite entry by ID: ${torrent.favoriteEntryId}`
+      );
+      const sql =
+        'SELECT id, cover_image_url FROM favorite_entries WHERE id = ?';
+      const row = await this.dbManager.get(sql, [torrent.favoriteEntryId]);
+      if (row) {
+        favoriteEntry = {
+          id: row.id,
+          coverImageUrl: row.cover_image_url,
+        };
+        console.log(
+          `✅ [UnifiedCache] Found favorite entry by ID: ${
+            torrent.favoriteEntryId
+          }, cover_image_url: ${row.cover_image_url || 'null'}`
+        );
+      } else {
+        console.log(
+          `❌ [UnifiedCache] No favorite entry found for ID: ${torrent.favoriteEntryId}`
+        );
+      }
+    } else {
+      // Fallback to the existing getFavoriteEntry method
+      console.log(
+        `🔍 [UnifiedCache] No favoriteEntryId provided, trying getFavoriteEntry method`
+      );
+      favoriteEntry = await this.getFavoriteEntry(torrent);
+      if (favoriteEntry) {
+        console.log(
+          `✅ [UnifiedCache] Found favorite entry via getFavoriteEntry: ${
+            favoriteEntry.id
+          }, cover_image_url: ${favoriteEntry.coverImageUrl || 'null'}`
+        );
+      } else {
+        console.log(
+          `❌ [UnifiedCache] No favorite entry found via getFavoriteEntry`
+        );
+      }
+    }
+
     if (favoriteEntry && favoriteEntry.coverImageUrl) {
+      console.log(
+        `✅ [UnifiedCache] Returning cover image from favorite entry: ${favoriteEntry.coverImageUrl}`
+      );
       return {
         type: 'url',
         imageUrl: favoriteEntry.coverImageUrl,
@@ -1348,17 +1408,30 @@ class UnifiedCache {
 
     // Check if this is a cached link with a cover image URL
     if (torrent.isCachedLink && torrent.cachedLinkId) {
+      console.log(
+        `🔍 [UnifiedCache] Looking up cached link cover image: ${torrent.cachedLinkId}`
+      );
       const sql = 'SELECT cover_image_url FROM cached_links WHERE id = ?';
       const row = await this.dbManager.get(sql, [torrent.cachedLinkId]);
       if (row && row.cover_image_url) {
+        console.log(
+          `✅ [UnifiedCache] Found cover image in cached_links table: ${row.cover_image_url}`
+        );
         return {
           type: 'url',
           imageUrl: row.cover_image_url,
           originalUrl: row.cover_image_url,
         };
+      } else {
+        console.log(
+          `❌ [UnifiedCache] No cover image found in cached_links table for: ${torrent.cachedLinkId}`
+        );
       }
     }
 
+    console.log(
+      `❌ [UnifiedCache] No cover image found for torrent: "${torrent.Name}"`
+    );
     return null;
   }
 

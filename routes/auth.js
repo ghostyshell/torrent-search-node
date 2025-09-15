@@ -263,7 +263,13 @@ const setupAuthRoutes = (cache) => {
         console.log('Token validation successful for user:', tokenData.email);
 
         // Get user data from database to check Real Debrid key status
-        const user = await authService.getUserById(tokenData.id);
+        const user = await authService.getUserByEmail(tokenData.email);
+        console.log(
+          'User found in database:',
+          !!user,
+          'hasRealDebridKey:',
+          !!user?.real_debrid_api_key
+        );
 
         // Return user session format expected by frontend
         res.json({

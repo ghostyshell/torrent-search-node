@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TestAuthHelper = require('../helpers/auth');
 
 test.describe('Cache API Endpoints', () => {
   test('GET /api/cache/stats should return cache statistics', async ({
@@ -140,12 +141,13 @@ test.describe('Cache API Endpoints', () => {
   test('POST /api/cache/cached-links should add cached link', async ({
     request,
   }) => {
+    const authedRequest = TestAuthHelper.createAuthRequest(request);
     const testLink = {
       url: `https://example.com/test-link-${Date.now()}`,
       title: 'Test Link Title',
     };
 
-    const response = await request.post('/api/cache/cached-links', {
+    const response = await authedRequest.post('/api/cache/cached-links', {
       data: testLink,
     });
 
@@ -154,16 +156,16 @@ test.describe('Cache API Endpoints', () => {
     if (response.status() === 200) {
       const data = await response.json();
       expect(data.success).toBe(true);
-      expect(data).toHaveProperty('message', 'Link cached successfully');
-      expect(data).toHaveProperty('cachedLink');
+      expect(data).toHaveProperty('message', 'Link stored successfully');
+      expect(data).toHaveProperty('storedLink');
 
-      const cachedLink = data.cachedLink;
-      expect(cachedLink).toHaveProperty('id');
-      expect(cachedLink).toHaveProperty('url', testLink.url);
-      expect(cachedLink).toHaveProperty('title', testLink.title);
-      expect(cachedLink).toHaveProperty('dateAdded');
+      const storedLink = data.storedLink;
+      expect(storedLink).toHaveProperty('id');
+      expect(storedLink).toHaveProperty('url', testLink.url);
+      expect(storedLink).toHaveProperty('title', testLink.title);
+      expect(storedLink).toHaveProperty('dateAdded');
 
-      createdLinkId = cachedLink.id;
+      createdLinkId = storedLink.id;
     } else {
       // Cache not available
       expect(response.status()).toBe(503);
@@ -172,7 +174,7 @@ test.describe('Cache API Endpoints', () => {
     // Cleanup: Delete the created cached link to avoid affecting production data
     if (createdLinkId) {
       try {
-        await request.delete(`/api/cache/cached-links/${createdLinkId}`);
+        await authedRequest.delete(`/api/cache/cached-links/${createdLinkId}`);
       } catch (error) {
         console.warn(`Failed to cleanup cached link ${createdLinkId}:`, error);
       }
@@ -182,7 +184,8 @@ test.describe('Cache API Endpoints', () => {
   test('GET /api/cache/cached-links should retrieve cached links', async ({
     request,
   }) => {
-    const response = await request.get('/api/cache/cached-links');
+    const authedRequest = TestAuthHelper.createAuthRequest(request);
+    const response = await authedRequest.get('/api/cache/cached-links');
 
     expect([200, 503]).toContain(response.status());
 
@@ -191,11 +194,11 @@ test.describe('Cache API Endpoints', () => {
 
     if (response.status() === 200) {
       expect(data.success).toBe(true);
-      expect(data).toHaveProperty('cachedLinks');
-      // The actual response has nested structure with cachedLinks and pagination
-      expect(data.cachedLinks).toHaveProperty('cachedLinks');
-      expect(data.cachedLinks).toHaveProperty('pagination');
-      expect(Array.isArray(data.cachedLinks.cachedLinks)).toBe(true);
+      expect(data).toHaveProperty('storedLinks');
+      // The actual response has nested structure with storedLinks containing cachedLinks and pagination
+      expect(data.storedLinks).toHaveProperty('cachedLinks');
+      expect(data.storedLinks).toHaveProperty('pagination');
+      expect(Array.isArray(data.storedLinks.cachedLinks)).toBe(true);
     }
   });
 

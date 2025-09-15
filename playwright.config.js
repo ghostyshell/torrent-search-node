@@ -12,7 +12,7 @@ module.exports = defineConfig({
     ['line']
   ],
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: 'http://localhost:3002',
     extraHTTPHeaders: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -36,8 +36,8 @@ module.exports = defineConfig({
   globalSetup: require.resolve('./tests/setup.js'),
   globalTeardown: require.resolve('./tests/teardown.js'),
   webServer: {
-    command: 'npm run start-server',
-    url: 'http://localhost:3001/health',
+    command: 'PORT=3002 npm run start-server',
+    url: 'http://localhost:3002/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

@@ -12,7 +12,7 @@ async function globalSetup() {
   
   while (Date.now() - startTime < maxWaitTime) {
     try {
-      const response = await axios.get('http://localhost:3001/health/detailed', {
+      const response = await axios.get('http://localhost:3002/health/detailed', {
         timeout: 5000
       });
       
@@ -34,9 +34,9 @@ async function globalSetup() {
   try {
     // Test basic cache operations to establish connections
     const warmupRequests = [
-      axios.get('http://localhost:3001/api/cache/stats', { timeout: 10000 }),
-      axios.get('http://localhost:3001/health', { timeout: 5000 }),
-      axios.get('http://localhost:3001/health/ready', { timeout: 5000 })
+      axios.get('http://localhost:3002/api/cache/stats', { timeout: 10000 }),
+      axios.get('http://localhost:3002/health', { timeout: 5000 }),
+      axios.get('http://localhost:3002/health/ready', { timeout: 5000 })
     ];
     
     await Promise.all(warmupRequests);

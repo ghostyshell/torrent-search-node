@@ -71,32 +71,34 @@ let authMiddleware = null;
 
 const initializeCache = async () => {
   try {
-    logger.info('Starting cache initialization...');
+    console.log('Starting cache initialization...');
     cache = new UnifiedCache();
+    console.log('UnifiedCache instance created');
+
     await cache.initializeDatabase();
+    console.log('Database initialization completed');
 
     // Make cache available to health checks and controllers
     app.locals.cache = cache;
+    console.log('Cache made available to app.locals');
 
-    logger.info('Cache instance created, initializing auth middleware...');
+    console.log('Initializing auth middleware...');
     // Initialize auth middleware now that cache is ready
     authMiddleware = new AuthMiddleware(cache);
+    console.log('AuthMiddleware created');
 
-    logger.info('Database initialized successfully', {
-      type: config.database.useCloudDb ? 'cloud' : 'local',
-      environment: config.environment,
-    });
+    console.log('Database initialized successfully');
 
     // Print database stats on startup
-    logger.info('Printing database stats...');
+    console.log('About to print database stats...');
     await cache.printStats();
-    logger.info('Database stats printed successfully');
+    console.log('Database stats printed successfully');
 
     // Initialize auth routes now that cache is ready
-    logger.info('About to call initializeAuthRoutes...');
+    console.log('About to call initializeAuthRoutes...');
     initializeAuthRoutes();
-    logger.info('initializeAuthRoutes call completed');
-    logger.info('Auth routes initialization completed');
+    console.log('initializeAuthRoutes call completed');
+    console.log('Auth routes initialization completed');
   } catch (error) {
     logger.error('Database initialization failed', {
       error: error.message,

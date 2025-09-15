@@ -9,12 +9,12 @@ module.exports = defineConfig({
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['line']
+    ['line'],
   ],
   use: {
     baseURL: 'http://localhost:3002',
     extraHTTPHeaders: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
     ignoreHTTPSErrors: true,

@@ -95,7 +95,9 @@ test.describe('Favorites API Endpoints', () => {
     request,
   }) => {
     const authedRequest = TestAuthHelper.createAuthRequest(request);
-    const response = await authedRequest.get('/api/cache/favorites?page=1&limit=10');
+    const response = await authedRequest.get(
+      '/api/cache/favorites?page=1&limit=10'
+    );
 
     expect([200, 503]).toContain(response.status());
 
@@ -120,9 +122,14 @@ test.describe('Favorites API Endpoints', () => {
 
     if (addResponse.status() === 200) {
       // Then try to remove it
-      const removeResponse = await authedRequest.delete('/api/cache/favorites', {
-        data: { torrent: { ...testTorrent, title: 'Test Movie for Deletion' } },
-      });
+      const removeResponse = await authedRequest.delete(
+        '/api/cache/favorites',
+        {
+          data: {
+            torrent: { ...testTorrent, title: 'Test Movie for Deletion' },
+          },
+        }
+      );
 
       expect([200, 404]).toContain(removeResponse.status());
 

@@ -11,7 +11,7 @@ class TestAuthHelper {
       name: 'Test User',
       picture: 'https://example.com/avatar.jpg',
       timestamp: Date.now(),
-      ...userOverrides
+      ...userOverrides,
     };
 
     // Create base64 encoded token similar to what the auth middleware expects
@@ -22,46 +22,46 @@ class TestAuthHelper {
   static getAuthHeaders(userOverrides = {}) {
     const token = this.createMockToken(userOverrides);
     return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     };
   }
 
   static createAuthRequest(request, userOverrides = {}) {
     const headers = this.getAuthHeaders(userOverrides);
-    
+
     // Return a function that can be used with playwright request
     return {
       get: (url, options = {}) => {
         return request.get(url, {
           ...options,
-          headers: { ...headers, ...(options.headers || {}) }
+          headers: { ...headers, ...(options.headers || {}) },
         });
       },
       post: (url, options = {}) => {
         return request.post(url, {
           ...options,
-          headers: { ...headers, ...(options.headers || {}) }
+          headers: { ...headers, ...(options.headers || {}) },
         });
       },
       put: (url, options = {}) => {
         return request.put(url, {
           ...options,
-          headers: { ...headers, ...(options.headers || {}) }
+          headers: { ...headers, ...(options.headers || {}) },
         });
       },
       delete: (url, options = {}) => {
         return request.delete(url, {
           ...options,
-          headers: { ...headers, ...(options.headers || {}) }
+          headers: { ...headers, ...(options.headers || {}) },
         });
       },
       patch: (url, options = {}) => {
         return request.patch(url, {
           ...options,
-          headers: { ...headers, ...(options.headers || {}) }
+          headers: { ...headers, ...(options.headers || {}) },
         });
-      }
+      },
     };
   }
 }

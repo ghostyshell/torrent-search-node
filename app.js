@@ -111,28 +111,7 @@ console.log('app.js: Health routes added');
 
 // Initialize a minimal cache for auth routes during startup
 console.log('app.js: Setting up minimal cache for auth routes...');
-(async () => {
-  try {
-    cache = new UnifiedCache();
-    await cache.initializeDatabase();
-    app.locals.cache = cache;
-    console.log('app.js: Minimal cache instance created and database initialized');
-
-    // Initialize auth middleware
-    authMiddleware = new AuthMiddleware(cache);
-    console.log('app.js: AuthMiddleware created with minimal cache');
-
-    // Register auth routes immediately during startup
-    console.log('app.js: Registering auth routes during startup...');
-    const setupAuthRoutes = require('./routes/auth');
-    const authRouter = setupAuthRoutes(cache);
-    app.use('/api/auth', authRouter);
-    console.log('app.js: Auth routes registered successfully at /api/auth');
-  } catch (error) {
-    logger.error('Failed to initialize auth during startup:', error);
-    console.log('app.js: Continuing without auth routes');
-  }
-})()
+// Note: Server startup will happen after async initialization completes
 
 // --- CACHE ROUTES ---
 console.log('app.js: Setting up cache routes...');
@@ -287,12 +266,78 @@ app.use(errorHandler);
 // SERVER STARTUP
 // ===========================
 
-console.log('app.js: About to start server...');
-const PORT = process.env.PORT || 3001;
-console.log('app.js: Starting server on port:', PORT);
-const server = app.listen(PORT, () => {
-  console.log('app.js: Server started successfully on port:', PORT);
-});
+// Server startup will happen after async initialization
+async function startServer() {
+  try {
+    // Initialize cache and database first with timeout
+    console.log('app.js: Initializing cache and database...');
+    cache = new UnifiedCache();
+
+    // Add timeout to database initialization
+    const initPromise = cache.initializeDatabase();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database initialization timeout')), 10000)
+    );
+
+    await Promise.race([initPromise, timeoutPromise]);
+    app.locals.cache = cache;
+    console.log('app.js: Cache instance created and database initialized');
+
+    // Initialize auth middleware
+    authMiddleware = new AuthMiddleware(cache);
+    console.log('app.js: AuthMiddleware created with cache');
+
+    // Register auth routes
+    console.log('app.js: Registering auth routes...');
+    const setupAuthRoutes = require('./routes/auth');
+    const authRouter = setupAuthRoutes(cache);
+    app.use('/api/auth', authRouter);
+    console.log('app.js: Auth routes registered successfully at /api/auth');
+
+    // Now start the server
+    console.log('app.js: About to start server...');
+    const PORT = process.env.PORT || 3001;
+    console.log('app.js: Starting server on port:', PORT);
+    const server = app.listen(PORT, () => {
+      console.log('app.js: Server started successfully on port:', PORT);
+    });
+
+    return server;
+  } catch (error) {
+    logger.error('Failed to initialize application:', error);
+    console.log('app.js: Starting server without full database initialization');
+
+    // Initialize minimal cache without database
+    cache = new UnifiedCache();
+    app.locals.cache = cache;
+    console.log('app.js: Created cache instance without database initialization');
+
+    // Initialize auth middleware (will handle database unavailability gracefully)
+    authMiddleware = new AuthMiddleware(cache);
+    console.log('app.js: AuthMiddleware created with minimal cache');
+
+    // Register auth routes with minimal setup
+    console.log('app.js: Registering auth routes with minimal setup...');
+    const setupAuthRoutes = require('./routes/auth');
+    const authRouter = setupAuthRoutes(cache);
+    app.use('/api/auth', authRouter);
+    console.log('app.js: Auth routes registered in fallback mode');
+
+    // Start server
+    const PORT = process.env.PORT || 3001;
+    const server = app.listen(PORT, () => {
+      console.log('app.js: Server started in fallback mode on port:', PORT);
+    });
+
+    return server;
+  }
+}
+
+// Start the server with proper async initialization
+let server;
+(async () => {
+  server = await startServer();
+})();
 
 // ===========================
 // CLEANUP AND SHUTDOWN HANDLERS

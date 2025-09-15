@@ -11,7 +11,8 @@ const setupAuthRoutes = (cache) => {
   const authService = new AuthService(cache);
   console.log('AuthService created');
 
-  const authMiddleware = new AuthMiddleware(cache);
+  // Pass the authService instance to AuthMiddleware instead of creating a new one
+  const authMiddleware = new AuthMiddleware(cache, authService);
   console.log('AuthMiddleware created');
 
   router.get('/google',

@@ -143,17 +143,10 @@ const initializeAuthRoutes = () => {
     try {
       logger.info('Setting up auth routes with cache...');
       const authRouter = setupAuthRoutes(cache);
+      logger.info('Auth router created, registering with Express...');
+
       app.use('/api/auth', authRouter);
       logger.info('Auth routes registered successfully at /api/auth');
-
-      // Log all registered routes for debugging
-      app._router.stack.forEach((middleware, index) => {
-        if (middleware.route) {
-          logger.info(`Route registered: ${middleware.route.path}`);
-        } else if (middleware.name === 'router') {
-          logger.info(`Router middleware registered at: ${middleware.regexp}`);
-        }
-      });
     } catch (error) {
       logger.error('Failed to initialize auth routes:', {
         error: error.message,

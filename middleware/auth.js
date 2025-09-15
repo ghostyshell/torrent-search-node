@@ -1,8 +1,9 @@
 const AuthService = require('../config/passport');
 
 class AuthMiddleware {
-  constructor(cache) {
-    this.authService = new AuthService(cache);
+  constructor(cache, authService = null) {
+    // Reuse existing authService instance if provided, otherwise create new one
+    this.authService = authService || new AuthService(cache);
   }
 
   requireAuth() {

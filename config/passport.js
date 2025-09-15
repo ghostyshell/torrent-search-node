@@ -55,19 +55,25 @@ class AuthService {
     async (accessToken, refreshToken, profile, done) => {
       try {
         const userData = {
+          id: profile.id,
           google_id: profile.id,
           email: profile.emails[0].value,
           name: profile.displayName,
-          picture: profile.photos[0].value
+          picture: profile.photos[0].value,
+          last_login_at: Math.floor(Date.now() / 1000)
         };
 
-        let user = await this.findOrCreateUser(userData);
+        console.log('Google OAuth callback - profile received:', {
+          id: profile.id,
+          email: profile.emails[0].value,
+          name: profile.displayName
+        });
 
-        user.last_login_at = Math.floor(Date.now() / 1000);
-        await this.updateUser(user.id, { last_login_at: user.last_login_at });
-
-        return done(null, user);
+        // Temporary: Skip database operations and return user data directly
+        // TODO: Re-enable database operations once database is properly initialized
+        return done(null, userData);
       } catch (error) {
+        console.error('Google OAuth strategy error:', error);
         return done(error, null);
       }
       }));

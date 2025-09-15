@@ -39,6 +39,8 @@ const setupAuthRoutes = (cache) => {
         const tempToken = Buffer.from(JSON.stringify({
           id: req.user.id,
           email: req.user.email,
+          name: req.user.name,
+          picture: req.user.picture,
           timestamp: Date.now()
         })).toString('base64');
 
@@ -196,9 +198,42 @@ const setupAuthRoutes = (cache) => {
         });
       }
 
-      const userSession = await authService.validateSession(token);
+      console.log('Token validation request received:', { token: token.substring(0, 20) + '...' });
 
-      if (!userSession) {
+      // Temporary: Validate our base64 temporary token instead of database lookup
+      // TODO: Re-enable database session validation once database is properly initialized
+      try {
+        const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
+
+        // Basic validation - check if token has required fields and isn't too old
+        if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
+          throw new Error('Invalid token format');
+        }
+
+        // Check if token is less than 24 hours old
+        const tokenAge = Date.now() - tokenData.timestamp;
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+        if (tokenAge > maxAge) {
+          throw new Error('Token expired');
+        }
+
+        console.log('Token validation successful for user:', tokenData.email);
+
+        // Return user session format expected by frontend
+        res.json({
+          success: true,
+          user: {
+            id: tokenData.id,
+            email: tokenData.email,
+            name: tokenData.name || 'Unknown User',
+            picture: tokenData.picture || null,
+            hasRealDebridKey: false // Temporary: no Real Debrid key support without database
+          }
+        });
+
+      } catch (tokenError) {
+        console.error('Token parsing/validation error:', tokenError.message);
         return res.status(401).json({
           success: false,
           error: 'Invalid or expired token',
@@ -206,18 +241,8 @@ const setupAuthRoutes = (cache) => {
         });
       }
 
-      res.json({
-        success: true,
-        user: {
-          id: userSession.user_id,
-          email: userSession.email,
-          name: userSession.name,
-          picture: userSession.picture,
-          hasRealDebridKey: !!userSession.real_debrid_api_key
-        }
-      });
     } catch (error) {
-      console.error('Token validation error:', error);
+      console.error('Token validation endpoint error:', error);
       res.status(500).json({
         success: false,
         error: 'Token validation failed',

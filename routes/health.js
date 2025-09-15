@@ -75,7 +75,7 @@ router.get(
     }
 
     // Calculate response time at the end
-    health.responseTime = Date.now() - startTime;
+    health.responseTime = Math.max(1, Date.now() - startTime); // Ensure at least 1ms
 
     // Set appropriate HTTP status
     const statusCode =

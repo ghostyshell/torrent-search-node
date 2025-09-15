@@ -75,17 +75,26 @@ const initializeCache = async () => {
     console.log('API: Starting cache initialization...');
     cache = new UnifiedCache();
 
-    // Skip database initialization for now to avoid hang
-    console.log('API: Skipping database initialization temporarily');
+    // Initialize database for proper authentication and storage
+    console.log('API: Initializing database for authentication...');
+    try {
+      await cache.initializeDatabase();
+      console.log('API: Database initialized successfully');
+    } catch (dbError) {
+      console.warn(
+        'API: Database initialization failed, continuing with limited functionality:',
+        dbError.message
+      );
+    }
 
-    // Make cache available to health checks and controllers (even if not fully initialized)
+    // Make cache available to health checks and controllers
     app.locals.cache = cache;
 
     console.log('API: Cache instance created, initializing auth middleware...');
     // Initialize auth middleware with cache instance
     authMiddleware = new AuthMiddleware(cache);
 
-    console.log('API: Cache setup completed (DB initialization skipped)');
+    console.log('API: Cache setup completed');
 
     // Initialize auth routes now that cache instance is ready
     console.log('API: About to call initializeAuthRoutes...');
@@ -145,6 +154,15 @@ app.post('/api/storage/stream-url', storageController.storeStreamUrl);
 app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
 app.post(
   '/api/storage/stored-links',
+  (req, res, next) => {
+    console.log('🔍 [API] POST /api/storage/stored-links called');
+    console.log(
+      '🔍 [API] Has Authorization header:',
+      !!req.headers.authorization
+    );
+    console.log('🔍 [API] AuthMiddleware available:', !!authMiddleware);
+    next();
+  },
   getOptionalAuth(),
   storageController.addCachedLink
 );

@@ -455,16 +455,6 @@ async function startServer() {
     // --- STORAGE ROUTES FOR CACHED LINKS (FALLBACK) ---
     app.post(
       '/api/storage/stored-links',
-      (req, res, next) => {
-        console.log(
-          '🔍 [Routes] POST /api/storage/stored-links called (fallback)'
-        );
-        console.log(
-          '🔍 [Routes] Headers:',
-          req.headers.authorization ? 'Has Authorization' : 'No Authorization'
-        );
-        next();
-      },
       authMiddleware.optionalAuth(),
       cacheController.addCachedLink
     );
@@ -498,6 +488,28 @@ async function startServer() {
     app.post('/api/storage/set', cacheController.setCacheValue);
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
+
+    // --- CACHED LINKS ROUTES WITH OPTIONAL AUTH (FALLBACK) ---
+    app.post(
+      '/api/cache/cached-links',
+      authMiddleware.optionalAuth(),
+      cacheController.addCachedLink
+    );
+    app.get(
+      '/api/cache/cached-links',
+      authMiddleware.optionalAuth(),
+      cacheController.getCachedLinks
+    );
+    app.delete(
+      '/api/cache/cached-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.removeCachedLink
+    );
+    app.put(
+      '/api/cache/cached-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.updateCachedLink
+    );
 
     console.log('app.js: Storage routes registered in fallback mode');
 

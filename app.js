@@ -120,10 +120,7 @@ app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
 app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
-app.post('/api/cache/cached-links', cacheController.addCachedLink);
-app.get('/api/cache/cached-links', cacheController.getCachedLinks);
-app.delete('/api/cache/cached-links/:id', cacheController.removeCachedLink);
-app.put('/api/cache/cached-links/:id', cacheController.updateCachedLink);
+// Note: Cached links routes moved to startServer() for proper auth middleware
 app.post('/api/cache/set', cacheController.setCacheValue);
 app.get('/api/cache/get/:key', cacheController.getCacheValue);
 app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
@@ -323,6 +320,28 @@ async function startServer() {
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
 
+    // --- CACHED LINKS ROUTES WITH OPTIONAL AUTH ---
+    app.post(
+      '/api/cache/cached-links',
+      authMiddleware.optionalAuth(),
+      cacheController.addCachedLink
+    );
+    app.get(
+      '/api/cache/cached-links',
+      authMiddleware.optionalAuth(),
+      cacheController.getCachedLinks
+    );
+    app.delete(
+      '/api/cache/cached-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.removeCachedLink
+    );
+    app.put(
+      '/api/cache/cached-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.updateCachedLink
+    );
+
     console.log('app.js: Storage routes registered successfully');
 
     // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES ---
@@ -436,6 +455,16 @@ async function startServer() {
     // --- STORAGE ROUTES FOR CACHED LINKS (FALLBACK) ---
     app.post(
       '/api/storage/stored-links',
+      (req, res, next) => {
+        console.log(
+          '🔍 [Routes] POST /api/storage/stored-links called (fallback)'
+        );
+        console.log(
+          '🔍 [Routes] Headers:',
+          req.headers.authorization ? 'Has Authorization' : 'No Authorization'
+        );
+        next();
+      },
       authMiddleware.optionalAuth(),
       cacheController.addCachedLink
     );

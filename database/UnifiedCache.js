@@ -433,13 +433,21 @@ class UnifiedCache {
   // === CACHED LINKS METHODS ===
 
   async addCachedLink(cachedLink, userId = null) {
+    console.log('🔍 [UnifiedCache] Adding cached link with userId:', userId);
+    console.log('🔍 [UnifiedCache] Cached link data:', {
+      id: cachedLink.id,
+      url: cachedLink.url,
+      title: cachedLink.title,
+      dateAdded: cachedLink.dateAdded,
+    });
+
     const sql = `
       INSERT OR REPLACE INTO cached_links
       (id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, cover_image_url, user_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const result = await this.dbManager.run(sql, [
+    const values = [
       cachedLink.id,
       cachedLink.url,
       cachedLink.title,
@@ -452,8 +460,13 @@ class UnifiedCache {
       cachedLink.filename || null,
       cachedLink.coverImageUrl || null,
       userId,
-    ]);
+    ];
 
+    console.log('🔍 [UnifiedCache] SQL values:', values);
+
+    const result = await this.dbManager.run(sql, values);
+
+    console.log('🔍 [UnifiedCache] Insert result:', result);
     return result.changes > 0;
   }
 

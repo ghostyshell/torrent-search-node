@@ -284,18 +284,43 @@ async function startServer() {
     console.log('app.js: Favorites routes registered successfully');
 
     // --- STORAGE ROUTES FOR CACHED LINKS ---
+    console.log(
+      '🔍 [APP.JS] Setting up storage route with authMiddleware:',
+      !!authMiddleware
+    );
+    console.log(
+      '🔍 [APP.JS] authMiddleware.optionalAuth type:',
+      typeof authMiddleware?.optionalAuth
+    );
+    const optionalAuthFn = authMiddleware?.optionalAuth();
+    console.log(
+      '🔍 [APP.JS] authMiddleware.optionalAuth() returns:',
+      typeof optionalAuthFn
+    );
+
     app.post(
       '/api/storage/stored-links',
       (req, res, next) => {
         console.log('==========================================');
         console.log('🔍 [APP.JS] POST /api/storage/stored-links called');
-        console.log('🔍 [APP.JS] Has Authorization header:', !!req.headers.authorization);
+        console.log(
+          '🔍 [APP.JS] Has Authorization header:',
+          !!req.headers.authorization
+        );
         console.log('🔍 [APP.JS] req.userId BEFORE auth:', req.userId);
         console.log('🔍 [APP.JS] req.user BEFORE auth:', req.user);
         console.log('==========================================');
         next();
       },
-      authMiddleware.optionalAuth(),
+      (req, res, next) => {
+        console.log('🔍 [APP.JS] About to call auth middleware...');
+        console.log(
+          '🔍 [APP.JS] Auth middleware function type:',
+          typeof optionalAuthFn
+        );
+        next();
+      },
+      optionalAuthFn,
       (req, res, next) => {
         console.log('==========================================');
         console.log('🔍 [APP.JS] AFTER auth middleware');

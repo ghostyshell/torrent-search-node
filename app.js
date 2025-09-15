@@ -116,28 +116,38 @@ console.log('app.js: Skipping cache initialization for testing...');
 // MIDDLEWARE SETUP
 // ===========================
 
+console.log('app.js: Setting up middleware...');
+
 // Request logging middleware
 app.use(logger.requestMiddleware());
+console.log('app.js: Logger middleware added');
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+console.log('app.js: Body parsing middleware added');
 
 // CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
+console.log('app.js: CORS middleware added');
 
 // Initialize passport middleware
 app.use(passport.initialize());
+console.log('app.js: Passport middleware added');
 
 // Static file serving
 app.use(express.static(path.join(__dirname, 'public')));
+console.log('app.js: Static file middleware added');
 
 // ===========================
 // ROUTE DEFINITIONS
 // ===========================
 
+console.log('app.js: Setting up routes...');
+
 // Health check routes (before other routes)
 app.use('/', healthRoutes);
+console.log('app.js: Health routes added');
 
 // Auth routes (must be before catch-all routes)
 // Note: Auth routes need cache to be initialized, so they're set up after cache init

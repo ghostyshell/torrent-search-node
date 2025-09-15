@@ -269,7 +269,7 @@ async function startServer() {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error('Database initialization timeout')),
-        10000
+        30000
       )
     );
 

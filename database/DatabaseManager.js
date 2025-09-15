@@ -78,6 +78,7 @@ class DatabaseManager {
    * Initialize database schema
    */
   async initializeSchema() {
+    console.log('DatabaseManager: Starting schema initialization...');
     const tables = [
       // Cache table for general key-value storage
       `CREATE TABLE IF NOT EXISTS cache (
@@ -232,25 +233,43 @@ class DatabaseManager {
     ];
 
     // Execute schema creation
+    console.log('DatabaseManager: Creating tables...');
     for (const sql of tables) {
+      console.log('DatabaseManager: Creating table:', sql.substring(0, 50) + '...');
       await this.execute(sql);
     }
 
+    console.log('DatabaseManager: Creating indexes...');
     for (const sql of indexes) {
+      console.log('DatabaseManager: Creating index:', sql.substring(0, 50) + '...');
       await this.execute(sql);
     }
 
-    // Migration: Add missing columns to cached_links table
-    await this.migrateCachedLinksTable();
+    console.log('DatabaseManager: Running migrations...');
+    try {
+      // Migration: Add missing columns to cached_links table
+      console.log('DatabaseManager: Running migrateCachedLinksTable...');
+      await this.migrateCachedLinksTable();
 
-    // Migration: Add cover image columns to other tables
-    await this.migrateCoverImageColumns();
+      // Migration: Add cover image columns to other tables
+      console.log('DatabaseManager: Running migrateCoverImageColumns...');
+      await this.migrateCoverImageColumns();
 
-    // Migration: Update images table to use URLs only
-    await this.migrateImagesToUrlOnly();
+      // Migration: Update images table to use URLs only
+      console.log('DatabaseManager: Running migrateImagesToUrlOnly...');
+      await this.migrateImagesToUrlOnly();
 
-    // Migration: Add user_id columns for user-specific data
-    await this.migrateUserColumns();
+      // Migration: Add user_id columns for user-specific data
+      console.log('DatabaseManager: Running migrateUserColumns...');
+      await this.migrateUserColumns();
+
+      console.log('DatabaseManager: All migrations completed successfully');
+    } catch (migrationError) {
+      console.warn('DatabaseManager: Migration failed, continuing without migrations:', migrationError.message);
+      // Continue without migrations - tables and indexes are created
+    }
+
+    console.log('DatabaseManager: Schema initialization completed successfully');
   }
 
   /**

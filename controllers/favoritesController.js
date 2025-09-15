@@ -147,7 +147,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -178,6 +178,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to remove favorite',
@@ -195,7 +206,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -226,6 +237,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to get favorite details',
@@ -243,7 +265,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -275,6 +297,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to store favorite details',
@@ -292,7 +325,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -323,6 +356,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to get favorite screenshots',
@@ -340,7 +384,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -375,6 +419,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to store screenshots',
@@ -392,7 +447,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -416,6 +471,17 @@ const favoritesController = {
         isFavorite,
       });
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to check favorite status',
@@ -433,7 +499,7 @@ const favoritesController = {
     );
 
     const cache = req.app.locals.cache;
-    if (!cache) {
+    if (!cache || !cache.isInitialized) {
       return res.status(503).json({
         success: false,
         error: 'Cache not available',
@@ -464,6 +530,17 @@ const favoritesController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to store favorite entry',

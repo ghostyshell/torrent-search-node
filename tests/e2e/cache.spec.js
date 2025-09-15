@@ -195,10 +195,8 @@ test.describe('Cache API Endpoints', () => {
     if (response.status() === 200) {
       expect(data.success).toBe(true);
       expect(data).toHaveProperty('storedLinks');
-      // The actual response has nested structure with storedLinks containing cachedLinks and pagination
-      expect(data.storedLinks).toHaveProperty('cachedLinks');
-      expect(data.storedLinks).toHaveProperty('pagination');
-      expect(Array.isArray(data.storedLinks.cachedLinks)).toBe(true);
+      expect(data).toHaveProperty('pagination');
+      expect(Array.isArray(data.storedLinks)).toBe(true);
     }
   });
 

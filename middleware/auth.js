@@ -142,16 +142,22 @@ class AuthMiddleware {
   optionalAuth() {
     return async (req, res, next) => {
       try {
+        console.log('🔍 [OptionalAuth] Starting optional auth middleware');
         const sessionToken =
           req.headers.authorization?.replace('Bearer ', '') ||
           req.cookies?.sessionToken ||
           req.session?.sessionToken;
 
+        console.log('🔍 [OptionalAuth] Session token present:', !!sessionToken);
+
         if (sessionToken) {
+          // First try database session validation
+          console.log('🔍 [OptionalAuth] Trying database session validation...');
           const userSession = await this.authService.validateSession(
             sessionToken
           );
           if (userSession) {
+            console.log('🔍 [OptionalAuth] Database session valid, setting user');
             req.user = {
               id: userSession.user_id,
               email: userSession.email,
@@ -160,6 +166,85 @@ class AuthMiddleware {
               sessionId: userSession.id,
             };
             req.userId = userSession.user_id;
+            console.log('🔍 [OptionalAuth] Set req.userId from database session:', req.userId);
+            next();
+            return;
+          }
+
+          // Fallback: Try to validate as base64 temporary token
+          console.log('🔍 [OptionalAuth] Database session invalid, trying temporary token...');
+          try {
+            const tokenData = JSON.parse(
+              Buffer.from(sessionToken, 'base64').toString()
+            );
+
+            // Basic validation - check if token has required fields and isn't too old
+            if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
+              throw new Error('Invalid token format');
+            }
+
+            // Check if token is not older than 24 hours
+            const tokenAge = Date.now() - tokenData.timestamp;
+            const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+            if (tokenAge > maxAge) {
+              throw new Error('Token expired');
+            }
+
+            console.log('Using temporary token for user:', tokenData.email);
+            console.log('🔍 [Auth] Token data:', {
+              id: tokenData.id,
+              email: tokenData.email,
+              name: tokenData.name,
+            });
+
+            // Create or get user from database using token data
+            const userData = {
+              google_id: tokenData.id,
+              email: tokenData.email,
+              name: tokenData.name,
+              picture: tokenData.picture,
+            };
+
+            console.log('🔍 [Auth] Looking up user by email:', tokenData.email);
+            let user = await this.authService.getUserByEmail(tokenData.email);
+            console.log(
+              '🔍 [Auth] Found existing user:',
+              !!user,
+              user ? { id: user.id, email: user.email } : 'null'
+            );
+
+            if (!user) {
+              // Create new user
+              console.log('🔍 [Auth] Creating new user with data:', userData);
+              const newUser = await this.authService.findOrCreateUser(userData);
+              console.log(
+                '🔍 [Auth] Created new user:',
+                !!newUser,
+                newUser ? { id: newUser.id, email: newUser.email } : 'null'
+              );
+              user = newUser;
+            }
+
+            if (user) {
+              req.user = {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                picture: user.picture,
+              };
+              console.log('🔍 [Auth] Setting req.userId to:', user.id);
+              req.userId = user.id;
+            } else {
+              console.log(
+                '❌ [Auth] No user found or created, req.userId will be null'
+              );
+              req.userId = null;
+            }
+
+            console.log('🔍 [Auth] Final req.userId:', req.userId);
+          } catch (tempTokenError) {
+            console.log('🔍 [OptionalAuth] Temporary token validation failed:', tempTokenError.message);
+            // For optional auth, we continue without setting user
           }
         }
 

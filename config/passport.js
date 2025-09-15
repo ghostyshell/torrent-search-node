@@ -30,10 +30,17 @@ function getGoogleOAuthCredentials() {
   return { clientId, clientSecret };
 }
 
+// Track if Google strategy has been initialized
+let googleStrategyInitialized = false;
+
 class AuthService {
   constructor(cache) {
     this.cache = cache;
-    this.setupGoogleStrategy();
+    // Only setup Google strategy once
+    if (!googleStrategyInitialized) {
+      this.setupGoogleStrategy();
+      googleStrategyInitialized = true;
+    }
   }
 
   setupGoogleStrategy() {

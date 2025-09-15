@@ -69,12 +69,14 @@ let authMiddleware = null;
 
 const initializeCache = async () => {
   try {
+    logger.info('Starting cache initialization...');
     cache = new UnifiedCache();
     await cache.initializeDatabase();
 
     // Make cache available to health checks and controllers
     app.locals.cache = cache;
 
+    logger.info('Cache instance created, initializing auth middleware...');
     // Initialize auth middleware now that cache is ready
     authMiddleware = new AuthMiddleware(cache);
 
@@ -84,10 +86,13 @@ const initializeCache = async () => {
     });
 
     // Print database stats on startup
+    logger.info('Printing database stats...');
     await cache.printStats();
 
     // Initialize auth routes now that cache is ready
+    logger.info('Initializing auth routes...');
     initializeAuthRoutes();
+    logger.info('Auth routes initialization completed');
   } catch (error) {
     logger.error('Database initialization failed', {
       error: error.message,
@@ -95,6 +100,7 @@ const initializeCache = async () => {
     });
     logger.warn('Continuing without cache - some features may be limited');
     // Continue without cache - graceful degradation
+    initializeAuthRoutes();
   }
 };
 
@@ -290,8 +296,9 @@ app.use(errorHandler);
 // ===========================
 
 const PORT = process.env.PORT || 3001;
+logger.info('Starting server...', { port: PORT });
 const server = app.listen(PORT, () => {
-  logger.info('Server started', {
+  logger.info('Server started successfully', {
     port: PORT,
     environment: config.environment,
     nodeEnv: process.env.NODE_ENV,

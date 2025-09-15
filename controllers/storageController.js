@@ -255,13 +255,13 @@ const storageController = {
 
       const success = await storage.addCachedLink(storedLink, userId);
 
-      if (success) {
-        res.json({
-          success: true,
-          message: 'Link stored successfully',
-          cachedLink: storedLink,
-        });
-      } else {
+        if (success) {
+          res.json({
+            success: true,
+            message: 'Link stored successfully',
+            storedLink,
+          });
+        } else {
         res.status(500).json({
           success: false,
           error: 'Failed to store link',
@@ -311,13 +311,12 @@ const storageController = {
       // Extract userId from authentication (optional)
       const userId = req.userId || null;
 
-      const result = await storage.getCachedLinks(page, limit, userId);
+        const result = await storage.getCachedLinks(page, limit, userId);
 
-      res.json({
-        success: true,
-        storedLinks: result.cachedLinks,
-        pagination: result.pagination,
-      });
+        res.json({
+          success: true,
+          storedLinks: result,
+        });
     } catch (error) {
       // Check if error is due to database not being available
       if (

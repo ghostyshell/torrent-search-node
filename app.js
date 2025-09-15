@@ -286,6 +286,45 @@ async function startServer() {
 
     console.log('app.js: Favorites routes registered successfully');
 
+    // --- STORAGE ROUTES FOR CACHED LINKS ---
+    app.post(
+      '/api/storage/stored-links',
+      authMiddleware.optionalAuth(),
+      cacheController.addCachedLink
+    );
+    app.get(
+      '/api/storage/stored-links',
+      authMiddleware.optionalAuth(),
+      cacheController.getCachedLinks
+    );
+    app.delete(
+      '/api/storage/stored-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.removeCachedLink
+    );
+    app.put(
+      '/api/storage/stored-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.updateCachedLink
+    );
+
+    // --- OTHER STORAGE ROUTES ---
+    app.post('/api/storage/stream-url', cacheController.storeStreamUrl);
+    app.get(
+      '/api/storage/stream-url/:magnetHash',
+      cacheController.getStreamUrl
+    );
+    app.post('/api/storage/cover-image', cacheController.storeCoverImage);
+    app.get(
+      '/api/storage/cover-image/:torrentKey',
+      cacheController.getCoverImage
+    );
+    app.post('/api/storage/set', cacheController.setCacheValue);
+    app.get('/api/storage/get/:key', cacheController.getCacheValue);
+    app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
+
+    console.log('app.js: Storage routes registered successfully');
+
     // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES ---
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
     console.log('app.js: Torrent search route registered after auth routes');
@@ -393,6 +432,45 @@ async function startServer() {
     );
 
     console.log('app.js: Favorites routes registered with fallback auth');
+
+    // --- STORAGE ROUTES FOR CACHED LINKS (FALLBACK) ---
+    app.post(
+      '/api/storage/stored-links',
+      authMiddleware.optionalAuth(),
+      cacheController.addCachedLink
+    );
+    app.get(
+      '/api/storage/stored-links',
+      authMiddleware.optionalAuth(),
+      cacheController.getCachedLinks
+    );
+    app.delete(
+      '/api/storage/stored-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.removeCachedLink
+    );
+    app.put(
+      '/api/storage/stored-links/:id',
+      authMiddleware.optionalAuth(),
+      cacheController.updateCachedLink
+    );
+
+    // --- OTHER STORAGE ROUTES (FALLBACK) ---
+    app.post('/api/storage/stream-url', cacheController.storeStreamUrl);
+    app.get(
+      '/api/storage/stream-url/:magnetHash',
+      cacheController.getStreamUrl
+    );
+    app.post('/api/storage/cover-image', cacheController.storeCoverImage);
+    app.get(
+      '/api/storage/cover-image/:torrentKey',
+      cacheController.getCoverImage
+    );
+    app.post('/api/storage/set', cacheController.setCacheValue);
+    app.get('/api/storage/get/:key', cacheController.getCacheValue);
+    app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
+
+    console.log('app.js: Storage routes registered in fallback mode');
 
     // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES (FALLBACK) ---
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);

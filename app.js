@@ -142,6 +142,19 @@ const initializeAuthRoutes = () => {
   if (cache) {
     try {
       logger.info('Setting up auth routes with cache...');
+
+      // Test with a minimal router first
+      const express = require('express');
+      const testRouter = express.Router();
+      testRouter.get('/test', (req, res) => {
+        res.json({ message: 'Test route works' });
+      });
+
+      logger.info('Test router created, registering with Express...');
+      app.use('/api/auth-test', testRouter);
+      logger.info('Test router registered successfully');
+
+      // Now try the actual auth router
       const authRouter = setupAuthRoutes(cache);
       logger.info('Auth router created, registering with Express...');
 

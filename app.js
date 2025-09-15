@@ -223,6 +223,7 @@ const initializeAuthRoutes = () => {
 };
 
 // --- CACHE ROUTES ---
+console.log('app.js: Setting up cache routes...');
 app.get('/api/cache/stats', cacheController.getStats);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
@@ -235,18 +236,27 @@ app.put('/api/cache/cached-links/:id', cacheController.updateCachedLink);
 app.post('/api/cache/set', cacheController.setCacheValue);
 app.get('/api/cache/get/:key', cacheController.getCacheValue);
 app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
+console.log('app.js: Cache routes added');
 
 // --- FAVORITES ROUTES ---
+console.log('app.js: Setting up favorites routes...');
 // Note: Using optional auth to support both authenticated and guest users
 // When authenticated, favorites are user-specific. When not authenticated, returns empty results.
 const getOptionalAuth = () =>
   authMiddleware ? authMiddleware.optionalAuth() : (req, res, next) => next();
+console.log('app.js: getOptionalAuth function created');
+
+console.log('app.js: About to call getOptionalAuth() for first favorites route...');
+console.log('app.js: authMiddleware is:', !!authMiddleware);
+const optionalAuth = getOptionalAuth();
+console.log('app.js: getOptionalAuth() call completed');
 
 app.post(
   '/api/cache/favorites',
-  getOptionalAuth(),
+  optionalAuth,
   favoritesController.addFavorite
 );
+console.log('app.js: First favorites route registered');
 app.get(
   '/api/cache/favorites',
   getOptionalAuth(),

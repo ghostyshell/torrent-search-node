@@ -75,32 +75,27 @@ const initializeCache = async () => {
     cache = new UnifiedCache();
     console.log('UnifiedCache instance created');
 
-    await cache.initializeDatabase();
-    console.log('Database initialization completed');
+    // Skip database initialization for now to avoid hang
+    console.log('Skipping database initialization temporarily');
 
-    // Make cache available to health checks and controllers
+    // Make cache available to health checks and controllers (even if not fully initialized)
     app.locals.cache = cache;
     console.log('Cache made available to app.locals');
 
     console.log('Initializing auth middleware...');
-    // Initialize auth middleware now that cache is ready
+    // Initialize auth middleware with cache instance
     authMiddleware = new AuthMiddleware(cache);
     console.log('AuthMiddleware created');
 
-    console.log('Database initialized successfully');
+    console.log('Cache setup completed (DB initialization skipped)');
 
-    // Print database stats on startup
-    console.log('About to print database stats...');
-    await cache.printStats();
-    console.log('Database stats printed successfully');
-
-    // Initialize auth routes now that cache is ready
+    // Initialize auth routes now that cache instance is ready
     console.log('About to call initializeAuthRoutes...');
     initializeAuthRoutes();
     console.log('initializeAuthRoutes call completed');
     console.log('Auth routes initialization completed');
   } catch (error) {
-    logger.error('Database initialization failed', {
+    logger.error('Cache initialization failed', {
       error: error.message,
       stack: config.isDevelopment ? error.stack : undefined,
     });
@@ -157,11 +152,11 @@ console.log('app.js: Health routes added');
 // Auth routes (must be before catch-all routes)
 // Note: Auth routes need cache to be initialized, so they're set up after cache init
 const initializeAuthRoutes = () => {
-  logger.info('initializeAuthRoutes called', { cacheAvailable: !!cache });
+  console.log('initializeAuthRoutes called', { cacheAvailable: !!cache });
 
   if (cache) {
     try {
-      logger.info('Setting up auth routes with cache...');
+      console.log('Setting up auth routes with cache...');
 
       // Test with a minimal router first
       const express = require('express');
@@ -170,44 +165,35 @@ const initializeAuthRoutes = () => {
         res.json({ message: 'Test route works' });
       });
 
-      logger.info('Test router created, registering with Express...');
+      console.log('Test router created, registering with Express...');
       app.use('/api/auth-test', testRouter);
-      logger.info('Test router registered successfully');
+      console.log('Test router registered successfully');
 
       // Test with minimal auth router first
-      logger.info('Creating minimal auth router...');
+      console.log('Creating minimal auth router...');
       const minimalAuthRouter = express.Router();
       minimalAuthRouter.get('/google', (req, res) => {
         res.json({ message: 'Minimal Google auth route' });
       });
-      logger.info('Minimal auth router created, registering...');
+      console.log('Minimal auth router created, registering...');
       app.use('/api/auth-minimal', minimalAuthRouter);
-      logger.info('Minimal auth router registered successfully');
+      console.log('Minimal auth router registered successfully');
 
       // Test with minimal auth routes (no passport)
-      logger.info('Testing minimal auth routes without passport...');
+      console.log('Testing minimal auth routes without passport...');
       const setupMinimalAuthRoutes = require('./routes/auth-minimal');
       const minimalAuthRouter2 = setupMinimalAuthRoutes(cache);
-      logger.info('Minimal auth router created successfully');
+      console.log('Minimal auth router created successfully');
       app.use('/api/auth-minimal2', minimalAuthRouter2);
-      logger.info('Minimal auth router 2 registered successfully');
+      console.log('Minimal auth router 2 registered successfully');
 
-      // Try async router setup to avoid blocking
-      logger.info('About to call setupAuthRoutes...');
-      setTimeout(() => {
-        try {
-          logger.info('Setting up auth router in timeout...');
-          const authRouter = setupAuthRoutes(cache);
-          logger.info('setupAuthRoutes returned, router object received');
+      // Setup auth router directly
+      console.log('About to call setupAuthRoutes...');
+      const authRouter = setupAuthRoutes(cache);
+      console.log('setupAuthRoutes returned, router object received');
 
-          app.use('/api/auth', authRouter);
-          logger.info('Auth routes registered successfully at /api/auth');
-        } catch (error) {
-          logger.error('Error in async auth setup:', error);
-        }
-      }, 0);
-
-      logger.info('Async auth setup initiated, continuing...');
+      app.use('/api/auth', authRouter);
+      console.log('Auth routes registered successfully at /api/auth');
     } catch (error) {
       logger.error('Failed to initialize auth routes:', {
         error: error.message,
@@ -215,15 +201,8 @@ const initializeAuthRoutes = () => {
       });
       logger.warn('Continuing without auth routes');
     }
-
-    // Register the catch-all torrent search route AFTER auth routes to prevent conflicts
-    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-    logger.info('Torrent search route registered after auth routes');
   } else {
     logger.warn('Auth routes not initialized - cache not available');
-    // Still register torrent route even if auth is not available
-    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-    logger.info('Torrent search route registered (auth not available)');
   }
 };
 
@@ -363,6 +342,11 @@ app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// --- CATCH-ALL TORRENT SEARCH ROUTE ---
+// Note: Temporarily disabled to test auth routes
+// app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+// console.log('app.js: Catch-all torrent search route registered');
 
 // ===========================
 // ERROR HANDLING MIDDLEWARE

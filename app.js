@@ -358,6 +358,33 @@ async function startServer() {
       '/api/storage/cover-image/:torrentKey',
       cacheController.getCoverImage
     );
+
+    // Debug endpoint for troubleshooting favorite entries
+    app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
+      try {
+        const cache = req.app.locals.cache;
+        const { favoriteEntryId } = req.params;
+
+        console.log(
+          `🔍 [DEBUG ENDPOINT] Checking favorite entry: ${favoriteEntryId}`
+        );
+
+        const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
+        const row = await cache.dbManager.get(sql, [favoriteEntryId]);
+
+        res.json({
+          success: true,
+          favoriteEntryId,
+          found: !!row,
+          data: row,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
     app.post('/api/storage/set', cacheController.setCacheValue);
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);

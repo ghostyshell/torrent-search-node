@@ -1358,6 +1358,18 @@ class UnifiedCache {
       console.log(
         `🔍 [UnifiedCache] Looking up favorite entry by ID: ${torrent.favoriteEntryId}`
       );
+
+      // Special debugging for the specific failing favorite entry
+      if (torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81') {
+        console.log(
+          '🔍 [SPECIAL DEBUG - Backend] This is the failing favorite entry - enhanced debugging'
+        );
+        console.log(
+          '🔍 [SPECIAL DEBUG - Backend] Full torrent object received:',
+          JSON.stringify(torrent, null, 2)
+        );
+      }
+
       const sql =
         'SELECT id, cover_image_url FROM favorite_entries WHERE id = ?';
       const row = await this.dbManager.get(sql, [torrent.favoriteEntryId]);
@@ -1371,10 +1383,35 @@ class UnifiedCache {
             torrent.favoriteEntryId
           }, cover_image_url: ${row.cover_image_url || 'null'}`
         );
+
+        // Special debugging for the specific failing favorite entry
+        if (
+          torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81'
+        ) {
+          console.log(
+            '🔍 [SPECIAL DEBUG - Backend] Database row for failing entry:',
+            JSON.stringify(row, null, 2)
+          );
+        }
       } else {
         console.log(
           `❌ [UnifiedCache] No favorite entry found for ID: ${torrent.favoriteEntryId}`
         );
+
+        // Special debugging for the specific failing favorite entry
+        if (
+          torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81'
+        ) {
+          console.log(
+            '🔍 [SPECIAL DEBUG - Backend] No database row found for failing entry - checking if entry exists at all'
+          );
+          const checkSql =
+            'SELECT id, cover_image_url, torrent_name FROM favorite_entries WHERE id = ?';
+          const checkRow = await this.dbManager.get(checkSql, [
+            torrent.favoriteEntryId,
+          ]);
+          console.log('🔍 [SPECIAL DEBUG - Backend] Check result:', checkRow);
+        }
       }
     } else {
       // Fallback to the existing getFavoriteEntry method

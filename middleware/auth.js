@@ -152,12 +152,16 @@ class AuthMiddleware {
 
         if (sessionToken) {
           // First try database session validation
-          console.log('🔍 [OptionalAuth] Trying database session validation...');
+          console.log(
+            '🔍 [OptionalAuth] Trying database session validation...'
+          );
           const userSession = await this.authService.validateSession(
             sessionToken
           );
           if (userSession) {
-            console.log('🔍 [OptionalAuth] Database session valid, setting user');
+            console.log(
+              '🔍 [OptionalAuth] Database session valid, setting user'
+            );
             req.user = {
               id: userSession.user_id,
               email: userSession.email,
@@ -166,13 +170,18 @@ class AuthMiddleware {
               sessionId: userSession.id,
             };
             req.userId = userSession.user_id;
-            console.log('🔍 [OptionalAuth] Set req.userId from database session:', req.userId);
+            console.log(
+              '🔍 [OptionalAuth] Set req.userId from database session:',
+              req.userId
+            );
             next();
             return;
           }
 
           // Fallback: Try to validate as base64 temporary token
-          console.log('🔍 [OptionalAuth] Database session invalid, trying temporary token...');
+          console.log(
+            '🔍 [OptionalAuth] Database session invalid, trying temporary token...'
+          );
           try {
             const tokenData = JSON.parse(
               Buffer.from(sessionToken, 'base64').toString()
@@ -243,7 +252,10 @@ class AuthMiddleware {
 
             console.log('🔍 [Auth] Final req.userId:', req.userId);
           } catch (tempTokenError) {
-            console.log('🔍 [OptionalAuth] Temporary token validation failed:', tempTokenError.message);
+            console.log(
+              '🔍 [OptionalAuth] Temporary token validation failed:',
+              tempTokenError.message
+            );
             // For optional auth, we continue without setting user
           }
         }

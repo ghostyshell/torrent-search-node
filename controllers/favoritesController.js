@@ -32,9 +32,15 @@ const favoritesController = {
 
       // If coverImageUrl is provided, try to create/update favorite entry with cover image
       if (coverImageUrl) {
-        const favoriteEntry = await cache.getOrCreateFavoriteEntry(torrent);
+        const favoriteEntry = await cache.getOrCreateFavoriteEntry(
+          torrent,
+          req.userId
+        );
         if (favoriteEntry) {
-          await cache.updateFavoriteEntryCoverImage(favoriteEntry.id, coverImageUrl);
+          await cache.updateFavoriteEntryCoverImage(
+            favoriteEntry.id,
+            coverImageUrl
+          );
         }
       }
 
@@ -381,7 +387,7 @@ const favoritesController = {
         });
       }
 
-      const isFavorite = await cache.isFavorite(torrent);
+      const isFavorite = await cache.isFavorite(torrent, req.userId);
 
       res.json({
         success: true,

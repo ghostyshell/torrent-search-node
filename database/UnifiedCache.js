@@ -79,20 +79,39 @@ class UnifiedCache {
     const torrentKey = this.generateTorrentKey(torrent);
 
     try {
-      console.log(`🖼️ [UnifiedCache] Setting cover image for torrent: ${torrent.Name}`);
+      console.log(
+        `🖼️ [UnifiedCache] Setting cover image for torrent: ${torrent.Name}`
+      );
 
       let pixhostUrl = imageUrl;
 
       // Always upload to Pixhost if we have an image URL (not already a Pixhost URL)
-      if (imageUrl && !imageUrl.includes('pixhost.to') && !imageUrl.includes('img1.pixhost.to')) {
-        console.log(`📤 [UnifiedCache] Uploading to Pixhost: ${imageUrl.substring(0, 50)}...`);
+      if (
+        imageUrl &&
+        !imageUrl.includes('pixhost.to') &&
+        !imageUrl.includes('img1.pixhost.to')
+      ) {
+        console.log(
+          `📤 [UnifiedCache] Uploading to Pixhost: ${imageUrl.substring(
+            0,
+            50
+          )}...`
+        );
 
         try {
           const uploadResult = await pixhostService.uploadFromUrl(imageUrl);
           pixhostUrl = uploadResult.directImageUrl;
-          console.log(`✅ [UnifiedCache] Pixhost upload successful: ${pixhostUrl.substring(0, 50)}...`);
+          console.log(
+            `✅ [UnifiedCache] Pixhost upload successful: ${pixhostUrl.substring(
+              0,
+              50
+            )}...`
+          );
         } catch (uploadError) {
-          console.warn(`⚠️ [UnifiedCache] Pixhost upload failed, using original URL:`, uploadError.message);
+          console.warn(
+            `⚠️ [UnifiedCache] Pixhost upload failed, using original URL:`,
+            uploadError.message
+          );
           // Continue with original URL if Pixhost upload fails
         }
       }
@@ -113,21 +132,28 @@ class UnifiedCache {
       const success = result.changes > 0;
 
       if (success) {
-        console.log(`✅ [UnifiedCache] Cover image stored for: ${torrent.Name}`);
+        console.log(
+          `✅ [UnifiedCache] Cover image stored for: ${torrent.Name}`
+        );
       } else {
-        console.warn(`❌ [UnifiedCache] Failed to store cover image for: ${torrent.Name}`);
+        console.warn(
+          `❌ [UnifiedCache] Failed to store cover image for: ${torrent.Name}`
+        );
       }
 
       return success;
     } catch (error) {
-      console.error(`❌ [UnifiedCache] Error setting cover image for ${torrent.Name}:`, error.message);
+      console.error(
+        `❌ [UnifiedCache] Error setting cover image for ${torrent.Name}:`,
+        error.message
+      );
       return false;
     }
   }
 
   async storeCoverImage(torrent, imageData, mimeType) {
     const torrentKey = this.generateTorrentKey(torrent);
-    
+
     const sql = `
       INSERT OR REPLACE INTO images (torrent_key, image_type, image_data, torrent_name, mime_type)
       VALUES (?, 'cover', ?, ?, ?)
@@ -145,7 +171,7 @@ class UnifiedCache {
 
   async storeCoverImageUrl(torrent, imageUrl) {
     const torrentKey = this.generateTorrentKey(torrent);
-    
+
     return await this.set(
       `cover_url_${torrentKey}`,
       {
@@ -350,16 +376,16 @@ class UnifiedCache {
     const result = await this.dbManager.run(sql, [
       torrentKey,
       JSON.stringify(torrent),
-      userId
+      userId,
     ]);
     return result.changes > 0;
   }
 
   async removeFavorite(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
-    const sql = userId ?
-      'DELETE FROM favorites WHERE torrent_key = ? AND user_id = ?' :
-      'DELETE FROM favorites WHERE torrent_key = ? AND user_id IS NULL';
+    const sql = userId
+      ? 'DELETE FROM favorites WHERE torrent_key = ? AND user_id = ?'
+      : 'DELETE FROM favorites WHERE torrent_key = ? AND user_id IS NULL';
     const params = userId ? [torrentKey, userId] : [torrentKey];
 
     const result = await this.dbManager.run(sql, params);
@@ -367,9 +393,9 @@ class UnifiedCache {
   }
 
   async getFavorites(userId = null) {
-    const sql = userId ?
-      'SELECT torrent_data, added_at FROM favorites WHERE user_id = ? ORDER BY added_at DESC' :
-      'SELECT torrent_data, added_at FROM favorites WHERE user_id IS NULL ORDER BY added_at DESC';
+    const sql = userId
+      ? 'SELECT torrent_data, added_at FROM favorites WHERE user_id = ? ORDER BY added_at DESC'
+      : 'SELECT torrent_data, added_at FROM favorites WHERE user_id IS NULL ORDER BY added_at DESC';
     const params = userId ? [userId] : [];
     const rows = await this.dbManager.all(sql, params);
 
@@ -383,13 +409,25 @@ class UnifiedCache {
     }
   }
 
-  async isFavorite(torrent) {
+  async isFavorite(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
-    const row = await this.dbManager.get(
-      'SELECT 1 FROM favorites WHERE torrent_key = ?',
-      [torrentKey]
-    );
-    return !!row;
+
+    // Check in both tables for the user's favorites
+    const feQuery = userId
+      ? 'SELECT 1 FROM favorite_entries WHERE torrent_key = ? AND user_id = ?'
+      : 'SELECT 1 FROM favorite_entries WHERE torrent_key = ? AND user_id IS NULL';
+    const fQuery = userId
+      ? 'SELECT 1 FROM favorites WHERE torrent_key = ? AND user_id = ?'
+      : 'SELECT 1 FROM favorites WHERE torrent_key = ? AND user_id IS NULL';
+
+    const params = userId ? [torrentKey, userId] : [torrentKey];
+
+    const [feRow, fRow] = await Promise.all([
+      this.dbManager.get(feQuery, params),
+      this.dbManager.get(fQuery, params),
+    ]);
+
+    return !!(feRow || fRow);
   }
 
   // === CACHED LINKS METHODS ===
@@ -428,13 +466,13 @@ class UnifiedCache {
 
   async getCachedLinks(page = 1, limit = 20) {
     const offset = (page - 1) * limit;
-    
+
     // Get total count for pagination
     const countSql = 'SELECT COUNT(*) as total FROM cached_links';
     const countResult = await this.dbManager.get(countSql);
     const totalCount = countResult.total;
     const totalPages = Math.ceil(totalCount / limit);
-    
+
     const sql = `
       SELECT id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename
       FROM cached_links 
@@ -457,7 +495,7 @@ class UnifiedCache {
         supportsRangeRequests: !!row.supports_range_requests,
         filename: row.filename,
       }));
-      
+
       return {
         cachedLinks,
         pagination: {
@@ -466,8 +504,8 @@ class UnifiedCache {
           totalCount,
           limit,
           hasNextPage: page < totalPages,
-          hasPrevPage: page > 1
-        }
+          hasPrevPage: page > 1,
+        },
       };
     } catch (parseErr) {
       return {
@@ -478,8 +516,8 @@ class UnifiedCache {
           totalCount: 0,
           limit,
           hasNextPage: false,
-          hasPrevPage: false
-        }
+          hasPrevPage: false,
+        },
       };
     }
   }
@@ -534,14 +572,14 @@ class UnifiedCache {
 
   // === FAVORITE ENTRIES METHODS (New System) ===
 
-  async createFavoriteEntry(torrent, coverImageUrl = null) {
+  async createFavoriteEntry(torrent, coverImageUrl = null, userId = null) {
     const { v4: uuidv4 } = require('uuid');
     const favoriteId = uuidv4();
     const torrentKey = this.generateTorrentKey(torrent);
 
     const sql = `
-      INSERT OR REPLACE INTO favorite_entries (id, torrent_key, torrent_data, magnet_link, torrent_name, cover_image_url)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO favorite_entries (id, torrent_key, torrent_data, magnet_link, torrent_name, cover_image_url, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await this.dbManager.run(sql, [
@@ -551,15 +589,19 @@ class UnifiedCache {
       torrent.MagnetLink || null,
       torrent.Name || 'Unknown',
       coverImageUrl,
+      userId,
     ]);
 
     return result.changes > 0 ? favoriteId : null;
   }
 
-  async getFavoriteEntry(torrent) {
+  async getFavoriteEntry(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
-    const sql = 'SELECT * FROM favorite_entries WHERE torrent_key = ?';
-    const row = await this.dbManager.get(sql, [torrentKey]);
+    const sql = userId
+      ? 'SELECT * FROM favorite_entries WHERE torrent_key = ? AND user_id = ?'
+      : 'SELECT * FROM favorite_entries WHERE torrent_key = ? AND user_id IS NULL';
+    const params = userId ? [torrentKey, userId] : [torrentKey];
+    const row = await this.dbManager.get(sql, params);
 
     if (row) {
       return {
@@ -654,14 +696,20 @@ class UnifiedCache {
   async getFavoritesCount() {
     const [oldCount, newCount] = await Promise.all([
       this.dbManager.get('SELECT COUNT(*) as count FROM favorites'),
-      this.dbManager.get('SELECT COUNT(*) as count FROM favorite_entries')
+      this.dbManager.get('SELECT COUNT(*) as count FROM favorite_entries'),
     ]);
-    
+
     return (oldCount?.count || 0) + (newCount?.count || 0);
   }
 
   async getMergedFavoritesPaginated(limit, offset, userId = null) {
     // Use a UNION query to merge both tables and handle deduplication efficiently at database level
+    const userFilter = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
+    const userFilterFe = userId
+      ? 'WHERE fe.user_id = ?'
+      : 'WHERE fe.user_id IS NULL';
+    const userFilterF = userId ? 'AND f.user_id = ?' : 'AND f.user_id IS NULL';
+
     const sql = `
       WITH merged_favorites AS (
         -- New favorite entries (these take precedence)
@@ -672,6 +720,7 @@ class UnifiedCache {
           id as favorite_entry_id,
           NULL as old_added_at
         FROM favorite_entries
+        ${userFilter}
         
         UNION
         
@@ -685,36 +734,48 @@ class UnifiedCache {
         FROM favorites f
         WHERE NOT EXISTS (
           SELECT 1 FROM favorite_entries fe 
-          WHERE fe.torrent_key = f.torrent_key
+          WHERE fe.torrent_key = f.torrent_key ${
+            userId
+              ? 'AND fe.user_id = f.user_id'
+              : 'AND fe.user_id IS NULL AND f.user_id IS NULL'
+          }
         )
+        ${userFilterF}
       )
       SELECT * FROM merged_favorites
       ORDER BY sort_date DESC
       LIMIT ? OFFSET ?
     `;
 
-    const rows = await this.dbManager.all(sql, [limit, offset]);
+    const params = userId ? [userId, userId, limit, offset] : [limit, offset];
+    const rows = await this.dbManager.all(sql, params);
 
-    return rows.map((row) => {
-      try {
-        const torrentData = JSON.parse(row.torrent_data);
-        return {
-          ...torrentData,
-          favoriteEntryId: row.favorite_entry_id,
-          dateAdded: new Date(row.sort_date * 1000).toISOString(),
-        };
-      } catch (parseErr) {
-        return null;
-      }
-    }).filter(Boolean);
+    return rows
+      .map((row) => {
+        try {
+          const torrentData = JSON.parse(row.torrent_data);
+          return {
+            ...torrentData,
+            favoriteEntryId: row.favorite_entry_id,
+            dateAdded: new Date(row.sort_date * 1000).toISOString(),
+          };
+        } catch (parseErr) {
+          return null;
+        }
+      })
+      .filter(Boolean);
   }
 
   async getMergedFavoritesCount(userId = null) {
     // Get accurate count using same deduplication logic
+    const userFilterFe = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
+    const userFilterF = userId ? 'AND f.user_id = ?' : 'AND f.user_id IS NULL';
+
     const sql = `
       WITH merged_favorites AS (
         -- New favorite entries (these take precedence)
         SELECT torrent_key FROM favorite_entries
+        ${userFilterFe}
         
         UNION
         
@@ -722,13 +783,19 @@ class UnifiedCache {
         SELECT torrent_key FROM favorites f
         WHERE NOT EXISTS (
           SELECT 1 FROM favorite_entries fe 
-          WHERE fe.torrent_key = f.torrent_key
+          WHERE fe.torrent_key = f.torrent_key ${
+            userId
+              ? 'AND fe.user_id = f.user_id'
+              : 'AND fe.user_id IS NULL AND f.user_id IS NULL'
+          }
         )
+        ${userFilterF}
       )
       SELECT COUNT(*) as count FROM merged_favorites
     `;
 
-    const result = await this.dbManager.get(sql);
+    const params = userId ? [userId, userId] : [];
+    const result = await this.dbManager.get(sql, params);
     return result?.count || 0;
   }
 
@@ -736,7 +803,7 @@ class UnifiedCache {
     // First check favorite_entries (new system)
     let sql = 'SELECT * FROM favorite_entries WHERE torrent_key = ?';
     let row = await this.dbManager.get(sql, [torrentKey]);
-    
+
     if (row) {
       return {
         id: row.id,
@@ -752,7 +819,7 @@ class UnifiedCache {
     // Fall back to old favorites system
     sql = 'SELECT torrent_data, added_at FROM favorites WHERE torrent_key = ?';
     row = await this.dbManager.get(sql, [torrentKey]);
-    
+
     if (row) {
       try {
         return {
@@ -966,13 +1033,13 @@ class UnifiedCache {
 
   // === MIGRATION HELPERS ===
 
-  async getOrCreateFavoriteEntry(torrent) {
-    // Try to get existing entry
-    let entry = await this.getFavoriteEntry(torrent);
+  async getOrCreateFavoriteEntry(torrent, userId = null) {
+    // Try to get existing entry for the user
+    let entry = await this.getFavoriteEntry(torrent, userId);
 
     if (!entry) {
-      // Create new entry
-      const favoriteId = await this.createFavoriteEntry(torrent);
+      // Create new entry for the user
+      const favoriteId = await this.createFavoriteEntry(torrent, null, userId);
       if (favoriteId) {
         entry = await this.getFavoriteEntryById(favoriteId);
       }
@@ -985,7 +1052,7 @@ class UnifiedCache {
 
   generateTorrentKey(torrent) {
     if (typeof torrent === 'string') return torrent;
-    
+
     // For cached links, use a more specific identifier (matching frontend logic)
     if (torrent.isCachedLink && torrent.cachedLinkId) {
       const key = `cached_link_${torrent.cachedLinkId}`;
@@ -997,7 +1064,7 @@ class UnifiedCache {
       );
       return key;
     }
-    
+
     // Use name, source, and size to create a unique identifier (matching frontend logic)
     const identifier = `${torrent.Name}_${torrent.Source}_${torrent.Size}`;
     let key = identifier.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
@@ -1077,7 +1144,6 @@ class UnifiedCache {
     return this.dbManager.getStats();
   }
 
-
   async healthCheck() {
     return this.dbManager.healthCheck();
   }
@@ -1091,8 +1157,13 @@ class UnifiedCache {
   }
 
   async updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl) {
-    const sql = 'UPDATE torrent_details SET cover_image_url = ? WHERE favorite_entry_id = ? AND source = ?';
-    const result = await this.dbManager.run(sql, [coverImageUrl, favoriteId, source]);
+    const sql =
+      'UPDATE torrent_details SET cover_image_url = ? WHERE favorite_entry_id = ? AND source = ?';
+    const result = await this.dbManager.run(sql, [
+      coverImageUrl,
+      favoriteId,
+      source,
+    ]);
     return result.changes > 0;
   }
 
@@ -1117,7 +1188,7 @@ class UnifiedCache {
       return {
         type: 'url',
         imageUrl: favoriteEntry.coverImageUrl,
-        originalUrl: favoriteEntry.coverImageUrl
+        originalUrl: favoriteEntry.coverImageUrl,
       };
     }
 
@@ -1129,7 +1200,7 @@ class UnifiedCache {
         return {
           type: 'url',
           imageUrl: row.cover_image_url,
-          originalUrl: row.cover_image_url
+          originalUrl: row.cover_image_url,
         };
       }
     }

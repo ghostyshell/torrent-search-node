@@ -130,79 +130,9 @@ app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 console.log('app.js: Cache routes added');
 
 // --- FAVORITES ROUTES ---
-console.log('app.js: Setting up favorites routes...');
-// Note: Using optional auth to support both authenticated and guest users
-// When authenticated, favorites are user-specific. When not authenticated, returns empty results.
-const getOptionalAuth = () =>
-  authMiddleware ? authMiddleware.optionalAuth() : (req, res, next) => next();
-console.log('app.js: getOptionalAuth function created');
-
+// Note: These will be registered after authMiddleware is initialized in startServer()
 console.log(
-  'app.js: About to call getOptionalAuth() for first favorites route...'
-);
-console.log('app.js: authMiddleware is:', !!authMiddleware);
-const optionalAuth = getOptionalAuth();
-console.log('app.js: getOptionalAuth() call completed');
-
-app.post('/api/cache/favorites', optionalAuth, favoritesController.addFavorite);
-console.log('app.js: First favorites route registered');
-app.get(
-  '/api/cache/favorites',
-  getOptionalAuth(),
-  favoritesController.getFavorites
-);
-app.delete(
-  '/api/cache/favorites',
-  getOptionalAuth(),
-  favoritesController.removeFavorite
-);
-app.get(
-  '/api/favorites/:favoriteId/details',
-  getOptionalAuth(),
-  favoritesController.getFavoriteDetails
-);
-app.post(
-  '/api/favorites/:favoriteId/details',
-  getOptionalAuth(),
-  favoritesController.storeFavoriteDetails
-);
-app.get(
-  '/api/favorites/:favoriteId/screenshots',
-  getOptionalAuth(),
-  favoritesController.getFavoriteScreenshots
-);
-app.post(
-  '/api/favorites/:favoriteId/screenshots',
-  getOptionalAuth(),
-  favoritesController.storeFavoriteScreenshots
-);
-app.post(
-  '/api/favorites/check',
-  getOptionalAuth(),
-  favoritesController.checkFavorite
-);
-app.post(
-  '/api/favorites/entry',
-  getOptionalAuth(),
-  favoritesController.storeFavoriteEntry
-);
-
-// --- STORAGE ROUTES ---
-// Frontend calls /api/storage/favorites instead of /api/cache/favorites
-app.post(
-  '/api/storage/favorites',
-  getOptionalAuth(),
-  favoritesController.addFavorite
-);
-app.get(
-  '/api/storage/favorites',
-  getOptionalAuth(),
-  favoritesController.getFavorites
-);
-app.delete(
-  '/api/storage/favorites',
-  getOptionalAuth(),
-  favoritesController.removeFavorite
+  'app.js: Favorites routes will be registered after authMiddleware initialization'
 );
 
 // --- IMAGE ROUTES ---
@@ -288,6 +218,76 @@ async function startServer() {
     app.use('/api/auth', authRouter);
     console.log('app.js: Auth routes registered successfully at /api/auth');
 
+    // Now register favorites routes with proper auth middleware
+    console.log('app.js: Setting up favorites routes with auth...');
+
+    // --- FAVORITES CACHE ROUTES ---
+    app.post(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.addFavorite
+    );
+    app.get(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavorites
+    );
+    app.delete(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.removeFavorite
+    );
+    app.get(
+      '/api/favorites/:favoriteId/details',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavoriteDetails
+    );
+    app.post(
+      '/api/favorites/:favoriteId/details',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteDetails
+    );
+    app.get(
+      '/api/favorites/:favoriteId/screenshots',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavoriteScreenshots
+    );
+    app.post(
+      '/api/favorites/:favoriteId/screenshots',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteScreenshots
+    );
+    app.post(
+      '/api/favorites/check',
+      authMiddleware.requireAuth(),
+      favoritesController.checkFavorite
+    );
+    app.post(
+      '/api/favorites/entry',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteEntry
+    );
+
+    // --- FAVORITES STORAGE ROUTES ---
+    // Frontend calls /api/storage/favorites instead of /api/cache/favorites
+    app.post(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.addFavorite
+    );
+    app.get(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavorites
+    );
+    app.delete(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.removeFavorite
+    );
+
+    console.log('app.js: Favorites routes registered successfully');
+
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
@@ -322,6 +322,75 @@ async function startServer() {
     const authRouter = setupAuthRoutes(cache);
     app.use('/api/auth', authRouter);
     console.log('app.js: Auth routes registered in fallback mode');
+
+    // Register favorites routes (with fallback auth middleware)
+    console.log('app.js: Setting up favorites routes with fallback auth...');
+
+    // --- FAVORITES CACHE ROUTES ---
+    app.post(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.addFavorite
+    );
+    app.get(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavorites
+    );
+    app.delete(
+      '/api/cache/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.removeFavorite
+    );
+    app.get(
+      '/api/favorites/:favoriteId/details',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavoriteDetails
+    );
+    app.post(
+      '/api/favorites/:favoriteId/details',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteDetails
+    );
+    app.get(
+      '/api/favorites/:favoriteId/screenshots',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavoriteScreenshots
+    );
+    app.post(
+      '/api/favorites/:favoriteId/screenshots',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteScreenshots
+    );
+    app.post(
+      '/api/favorites/check',
+      authMiddleware.requireAuth(),
+      favoritesController.checkFavorite
+    );
+    app.post(
+      '/api/favorites/entry',
+      authMiddleware.requireAuth(),
+      favoritesController.storeFavoriteEntry
+    );
+
+    // --- FAVORITES STORAGE ROUTES ---
+    app.post(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.addFavorite
+    );
+    app.get(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.getFavorites
+    );
+    app.delete(
+      '/api/storage/favorites',
+      authMiddleware.requireAuth(),
+      favoritesController.removeFavorite
+    );
+
+    console.log('app.js: Favorites routes registered with fallback auth');
 
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);

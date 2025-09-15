@@ -120,7 +120,9 @@ class DatabaseManager {
       `CREATE TABLE IF NOT EXISTS favorites (
         torrent_key TEXT PRIMARY KEY,
         torrent_data TEXT NOT NULL,
-        added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        user_id TEXT,
+        added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )`,
 
       // Cached links table
@@ -140,13 +142,16 @@ class DatabaseManager {
       // Favorite entries table - each favorite gets a unique entry
       `CREATE TABLE IF NOT EXISTS favorite_entries (
         id TEXT PRIMARY KEY,
-        torrent_key TEXT NOT NULL UNIQUE,
+        torrent_key TEXT NOT NULL,
         torrent_data TEXT NOT NULL,
         magnet_link TEXT,
         torrent_name TEXT,
+        user_id TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        metadata TEXT
+        metadata TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(torrent_key, user_id)
       )`,
 
       // Torrent details table - store all torrent details linked to favorite entries
@@ -235,13 +240,19 @@ class DatabaseManager {
     // Execute schema creation
     console.log('DatabaseManager: Creating tables...');
     for (const sql of tables) {
-      console.log('DatabaseManager: Creating table:', sql.substring(0, 50) + '...');
+      console.log(
+        'DatabaseManager: Creating table:',
+        sql.substring(0, 50) + '...'
+      );
       await this.execute(sql);
     }
 
     console.log('DatabaseManager: Creating indexes...');
     for (const sql of indexes) {
-      console.log('DatabaseManager: Creating index:', sql.substring(0, 50) + '...');
+      console.log(
+        'DatabaseManager: Creating index:',
+        sql.substring(0, 50) + '...'
+      );
       await this.execute(sql);
     }
 
@@ -265,11 +276,19 @@ class DatabaseManager {
 
       console.log('DatabaseManager: All migrations completed successfully');
     } catch (migrationError) {
-      console.warn('DatabaseManager: Migration failed, continuing without migrations:', migrationError.message);
+      console.warn(
+        'DatabaseManager: Migration failed, continuing without migrations:',
+        migrationError.message
+      );
       // Continue without migrations - tables and indexes are created
     }
 
-    console.log('DatabaseManager: Schema initialization completed successfully');
+    console.log(
+      'DatabaseManager: Schema initialization completed successfully'
+    );
+
+    // Run migration to handle existing favorites without user_id
+    await this.migrateFavoritesToUserSpecific();
   }
 
   /**
@@ -390,11 +409,7 @@ class DatabaseManager {
    * Migration method to add user_id columns to existing tables
    */
   async migrateUserColumns() {
-    const tables = [
-      'favorites',
-      'cached_links',
-      'favorite_entries'
-    ];
+    const tables = ['favorites', 'cached_links', 'favorite_entries'];
 
     for (const tableName of tables) {
       try {
@@ -406,7 +421,10 @@ class DatabaseManager {
         }
       } catch (error) {
         if (!error.message.includes('duplicate column name')) {
-          console.warn(`⚠️ Failed to add user_id column to ${tableName}:`, error.message);
+          console.warn(
+            `⚠️ Failed to add user_id column to ${tableName}:`,
+            error.message
+          );
         }
       }
     }
@@ -415,7 +433,7 @@ class DatabaseManager {
     const indexes = [
       'CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_cached_links_user_id ON cached_links(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_favorite_entries_user_id ON favorite_entries(user_id)'
+      'CREATE INDEX IF NOT EXISTS idx_favorite_entries_user_id ON favorite_entries(user_id)',
     ];
 
     for (const indexSql of indexes) {
@@ -433,9 +451,12 @@ class DatabaseManager {
   async columnExists(tableName, columnName) {
     try {
       const result = await this.execute(`PRAGMA table_info(${tableName})`);
-      return result.rows.some(row => row.name === columnName);
+      return result.rows.some((row) => row.name === columnName);
     } catch (error) {
-      console.warn(`Error checking column ${columnName} in ${tableName}:`, error.message);
+      console.warn(
+        `Error checking column ${columnName} in ${tableName}:`,
+        error.message
+      );
       return false;
     }
   }
@@ -470,7 +491,9 @@ class DatabaseManager {
    */
   async get(sql, params = []) {
     if (!this.client) {
-      throw new Error('Database client not initialized. Call initializeConnection() first.');
+      throw new Error(
+        'Database client not initialized. Call initializeConnection() first.'
+      );
     }
 
     const result = await this.client.execute(sql, params);
@@ -486,7 +509,9 @@ class DatabaseManager {
    */
   async all(sql, params = []) {
     if (!this.client) {
-      throw new Error('Database client not initialized. Call initializeConnection() first.');
+      throw new Error(
+        'Database client not initialized. Call initializeConnection() first.'
+      );
     }
 
     const result = await this.client.execute(sql, params);
@@ -500,7 +525,9 @@ class DatabaseManager {
    */
   async run(sql, params = []) {
     if (!this.client) {
-      throw new Error('Database client not initialized. Call initializeConnection() first.');
+      throw new Error(
+        'Database client not initialized. Call initializeConnection() first.'
+      );
     }
 
     const result = await this.client.execute(sql, params);
@@ -629,6 +656,44 @@ class DatabaseManager {
    */
   delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Migration to handle existing favorites without user_id
+   * This cleans up orphaned favorites that can't be associated with any user
+   */
+  async migrateFavoritesToUserSpecific() {
+    try {
+      console.log('DatabaseManager: Running favorites migration...');
+
+      // Delete favorites and favorite_entries that don't have a user_id
+      // These are likely from before user authentication was implemented
+      const deleteFavorites = await this.run(
+        'DELETE FROM favorites WHERE user_id IS NULL'
+      );
+      const deleteFavoriteEntries = await this.run(
+        'DELETE FROM favorite_entries WHERE user_id IS NULL'
+      );
+
+      const deletedFavorites = deleteFavorites.changes || 0;
+      const deletedEntries = deleteFavoriteEntries.changes || 0;
+
+      if (deletedFavorites > 0 || deletedEntries > 0) {
+        console.log(
+          `DatabaseManager: Migration cleaned up ${deletedFavorites} orphaned favorites and ${deletedEntries} orphaned favorite entries`
+        );
+      } else {
+        console.log(
+          'DatabaseManager: No orphaned favorites found, migration complete'
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error('DatabaseManager: Migration error:', error);
+      // Don't fail startup, just log the error
+      return false;
+    }
   }
 }
 

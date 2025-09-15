@@ -129,7 +129,10 @@ class AuthService {
             updated_at: Math.floor(Date.now() / 1000),
           });
         } catch (updateError) {
-          console.warn('User update failed (gracefully handled):', updateError.message);
+          console.warn(
+            'User update failed (gracefully handled):',
+            updateError.message
+          );
         }
         return { ...existingUser, ...userData };
       }
@@ -147,11 +150,17 @@ class AuthService {
       try {
         await this.createUser(newUser);
       } catch (createError) {
-        console.warn('User creation failed (gracefully handled):', createError.message);
+        console.warn(
+          'User creation failed (gracefully handled):',
+          createError.message
+        );
       }
       return newUser;
     } catch (error) {
-      console.warn('findOrCreateUser error (gracefully handled):', error.message);
+      console.warn(
+        'findOrCreateUser error (gracefully handled):',
+        error.message
+      );
       // Return a temporary user object for testing/fallback scenarios
       return {
         id: uuidv4(),
@@ -247,7 +256,10 @@ class AuthService {
       const user = await this.cache.dbManager.get(sql, [googleId]);
       return user;
     } catch (error) {
-      console.warn('getUserByGoogleId error (gracefully handled):', error.message);
+      console.warn(
+        'getUserByGoogleId error (gracefully handled):',
+        error.message
+      );
       return null;
     }
   }
@@ -357,7 +369,10 @@ class AuthService {
         console.log('Session validation skipped - database not available');
         return null; // No session found (graceful degradation)
       }
-      console.warn('Session validation error (gracefully handled):', error.message);
+      console.warn(
+        'Session validation error (gracefully handled):',
+        error.message
+      );
       return null; // Gracefully handle any database errors
     }
   }
@@ -368,7 +383,10 @@ class AuthService {
       const currentTime = Math.floor(Date.now() / 1000);
       await this.cache.dbManager.run(sql, [currentTime, sessionId]);
     } catch (error) {
-      console.warn('Session access update failed (gracefully handled):', error.message);
+      console.warn(
+        'Session access update failed (gracefully handled):',
+        error.message
+      );
     }
   }
 
@@ -390,7 +408,10 @@ class AuthService {
       const result = await this.cache.dbManager.run(sql, [currentTime]);
       return result.changes;
     } catch (error) {
-      console.warn('cleanupExpiredSessions error (gracefully handled):', error.message);
+      console.warn(
+        'cleanupExpiredSessions error (gracefully handled):',
+        error.message
+      );
       return 0;
     }
   }

@@ -286,7 +286,24 @@ async function startServer() {
     // --- STORAGE ROUTES FOR CACHED LINKS ---
     app.post(
       '/api/storage/stored-links',
+      (req, res, next) => {
+        console.log('==========================================');
+        console.log('🔍 [APP.JS] POST /api/storage/stored-links called');
+        console.log('🔍 [APP.JS] Has Authorization header:', !!req.headers.authorization);
+        console.log('🔍 [APP.JS] req.userId BEFORE auth:', req.userId);
+        console.log('🔍 [APP.JS] req.user BEFORE auth:', req.user);
+        console.log('==========================================');
+        next();
+      },
       authMiddleware.optionalAuth(),
+      (req, res, next) => {
+        console.log('==========================================');
+        console.log('🔍 [APP.JS] AFTER auth middleware');
+        console.log('🔍 [APP.JS] req.userId AFTER auth:', req.userId);
+        console.log('🔍 [APP.JS] req.user AFTER auth:', req.user);
+        console.log('==========================================');
+        next();
+      },
       cacheController.addCachedLink
     );
     app.get(

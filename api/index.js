@@ -155,15 +155,27 @@ app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
 app.post(
   '/api/storage/stored-links',
   (req, res, next) => {
+    console.log('==========================================');
     console.log('🔍 [API] POST /api/storage/stored-links called');
     console.log(
       '🔍 [API] Has Authorization header:',
       !!req.headers.authorization
     );
     console.log('🔍 [API] AuthMiddleware available:', !!authMiddleware);
+    console.log('🔍 [API] req.userId BEFORE auth:', req.userId);
+    console.log('🔍 [API] req.user BEFORE auth:', req.user);
+    console.log('==========================================');
     next();
   },
   getOptionalAuth(),
+  (req, res, next) => {
+    console.log('==========================================');
+    console.log('🔍 [API] AFTER auth middleware');
+    console.log('🔍 [API] req.userId AFTER auth:', req.userId);
+    console.log('🔍 [API] req.user AFTER auth:', req.user);
+    console.log('==========================================');
+    next();
+  },
   storageController.addCachedLink
 );
 app.get(

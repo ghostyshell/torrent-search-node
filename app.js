@@ -137,16 +137,14 @@ const getOptionalAuth = () =>
   authMiddleware ? authMiddleware.optionalAuth() : (req, res, next) => next();
 console.log('app.js: getOptionalAuth function created');
 
-console.log('app.js: About to call getOptionalAuth() for first favorites route...');
+console.log(
+  'app.js: About to call getOptionalAuth() for first favorites route...'
+);
 console.log('app.js: authMiddleware is:', !!authMiddleware);
 const optionalAuth = getOptionalAuth();
 console.log('app.js: getOptionalAuth() call completed');
 
-app.post(
-  '/api/cache/favorites',
-  optionalAuth,
-  favoritesController.addFavorite
-);
+app.post('/api/cache/favorites', optionalAuth, favoritesController.addFavorite);
 console.log('app.js: First favorites route registered');
 app.get(
   '/api/cache/favorites',
@@ -256,13 +254,6 @@ app.get('/', (req, res) => {
 // console.log('app.js: Catch-all torrent search route registered');
 
 // ===========================
-// ERROR HANDLING MIDDLEWARE
-// ===========================
-
-app.use(notFoundHandler);
-app.use(errorHandler);
-
-// ===========================
 // SERVER STARTUP
 // ===========================
 
@@ -276,7 +267,10 @@ async function startServer() {
     // Add timeout to database initialization
     const initPromise = cache.initializeDatabase();
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database initialization timeout')), 10000)
+      setTimeout(
+        () => reject(new Error('Database initialization timeout')),
+        10000
+      )
     );
 
     await Promise.race([initPromise, timeoutPromise]);
@@ -294,6 +288,10 @@ async function startServer() {
     app.use('/api/auth', authRouter);
     console.log('app.js: Auth routes registered successfully at /api/auth');
 
+    // Add error handling middleware after all routes are registered
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+
     // Now start the server
     console.log('app.js: About to start server...');
     const PORT = process.env.PORT || 3001;
@@ -310,7 +308,9 @@ async function startServer() {
     // Initialize minimal cache without database
     cache = new UnifiedCache();
     app.locals.cache = cache;
-    console.log('app.js: Created cache instance without database initialization');
+    console.log(
+      'app.js: Created cache instance without database initialization'
+    );
 
     // Initialize auth middleware (will handle database unavailability gracefully)
     authMiddleware = new AuthMiddleware(cache);
@@ -322,6 +322,10 @@ async function startServer() {
     const authRouter = setupAuthRoutes(cache);
     app.use('/api/auth', authRouter);
     console.log('app.js: Auth routes registered in fallback mode');
+
+    // Add error handling middleware after all routes are registered
+    app.use(notFoundHandler);
+    app.use(errorHandler);
 
     // Start server
     const PORT = process.env.PORT || 3001;

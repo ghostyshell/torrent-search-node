@@ -179,9 +179,7 @@ app.get('/', (req, res) => {
 });
 
 // --- CATCH-ALL TORRENT SEARCH ROUTE ---
-// Note: Temporarily disabled to test auth routes
-// app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-// console.log('app.js: Catch-all torrent search route registered');
+// Note: This will be registered after auth routes to avoid conflicts
 
 // ===========================
 // SERVER STARTUP
@@ -288,6 +286,10 @@ async function startServer() {
 
     console.log('app.js: Favorites routes registered successfully');
 
+    // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES ---
+    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+    console.log('app.js: Torrent search route registered after auth routes');
+
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
@@ -391,6 +393,10 @@ async function startServer() {
     );
 
     console.log('app.js: Favorites routes registered with fallback auth');
+
+    // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES (FALLBACK) ---
+    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
+    console.log('app.js: Torrent search route registered in fallback mode');
 
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);

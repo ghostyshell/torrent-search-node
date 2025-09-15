@@ -44,6 +44,7 @@ router.get(
       memory: getMemoryUsage(),
       system: getSystemInfo(),
       services: {},
+      responseTime: 0, // Initialize responseTime
     };
 
     // Check database health
@@ -73,6 +74,7 @@ router.get(
           : 'degraded';
     }
 
+    // Calculate response time at the end
     health.responseTime = Date.now() - startTime;
 
     // Set appropriate HTTP status

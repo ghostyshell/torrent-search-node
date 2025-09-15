@@ -148,15 +148,43 @@ class AuthService {
   }
 
   async getUserById(userId) {
-    const sql = 'SELECT * FROM users WHERE id = ? AND is_active = 1';
-    const user = await this.cache.dbManager.get(sql, [userId]);
-    return user;
+    // Check if database is properly initialized
+    if (!this.cache || !this.cache.dbManager || !this.cache.dbManager.client || !this.cache.isInitialized) {
+      console.log('getUserById skipped - database not initialized');
+      return null;
+    }
+
+    try {
+      const sql = 'SELECT * FROM users WHERE id = ? AND is_active = 1';
+      const user = await this.cache.dbManager.get(sql, [userId]);
+      return user;
+    } catch (error) {
+      if (error.message.includes('Database client not initialized')) {
+        console.log('getUserById skipped - database not available');
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getUserByEmail(email) {
-    const sql = 'SELECT * FROM users WHERE email = ? AND is_active = 1';
-    const user = await this.cache.dbManager.get(sql, [email]);
-    return user;
+    // Check if database is properly initialized
+    if (!this.cache || !this.cache.dbManager || !this.cache.dbManager.client || !this.cache.isInitialized) {
+      console.log('getUserByEmail skipped - database not initialized');
+      return null;
+    }
+
+    try {
+      const sql = 'SELECT * FROM users WHERE email = ? AND is_active = 1';
+      const user = await this.cache.dbManager.get(sql, [email]);
+      return user;
+    } catch (error) {
+      if (error.message.includes('Database client not initialized')) {
+        console.log('getUserByEmail skipped - database not available');
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getUserByGoogleId(googleId) {
@@ -224,6 +252,12 @@ class AuthService {
   }
 
   async validateSession(sessionToken) {
+    // Check if database is properly initialized
+    if (!this.cache || !this.cache.dbManager || !this.cache.dbManager.client || !this.cache.isInitialized) {
+      console.log('Session validation skipped - database not initialized');
+      return null;
+    }
+
     const sql = `
       SELECT s.*, u.* FROM user_sessions s
       JOIN users u ON s.user_id = u.id

@@ -136,7 +136,9 @@ class DatabaseManager {
         is_streaming BOOLEAN DEFAULT 0,
         error TEXT,
         supports_range_requests BOOLEAN DEFAULT 0,
-        filename TEXT
+        filename TEXT,
+        user_id TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )`,
 
       // Favorite entries table - each favorite gets a unique entry

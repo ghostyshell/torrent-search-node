@@ -223,14 +223,14 @@ const storageController = {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
     );
 
     const storage = req.app.locals.cache;
-    if (!storage) {
+    if (!storage || !storage.isInitialized) {
       return res.status(503).json({
         success: false,
-        error: 'Storage not available',
+        error: 'Cache not available',
       });
     }
 
@@ -251,13 +251,16 @@ const storageController = {
         dateAdded: new Date().toISOString(),
       };
 
-      const success = await storage.addCachedLink(storedLink);
+      // Extract userId from authentication (optional)
+      const userId = req.userId || null;
+
+      const success = await storage.addCachedLink(storedLink, userId);
 
       if (success) {
         res.json({
           success: true,
           message: 'Link stored successfully',
-          storedLink,
+          cachedLink: storedLink,
         });
       } else {
         res.status(500).json({
@@ -266,6 +269,15 @@ const storageController = {
         });
       }
     } catch (error) {
+      // Check if error is due to database not being available
+      if (error.message.includes('Database client not initialized') || 
+          error.message.includes('not initialized')) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: 'Failed to store link',
@@ -279,24 +291,42 @@ const storageController = {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
     );
 
     const storage = req.app.locals.cache;
-    if (!storage) {
+    if (!storage || !storage.isInitialized) {
       return res.status(503).json({
         success: false,
-        error: 'Storage not available',
+        error: 'Cache not available',
       });
     }
 
     try {
-      const storedLinks = await storage.getCachedLinks();
+      // Extract pagination parameters
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      
+      // Extract userId from authentication (optional)
+      const userId = req.userId || null;
+
+      const result = await storage.getCachedLinks(page, limit, userId);
+      
       res.json({
         success: true,
-        storedLinks,
+        storedLinks: result.cachedLinks,
+        pagination: result.pagination,
       });
     } catch (error) {
+      // Check if error is due to database not being available
+      if (error.message.includes('Database client not initialized') || 
+          error.message.includes('not initialized')) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: 'Failed to get stored links',
@@ -310,7 +340,7 @@ const storageController = {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
     );
 
     const storage = req.app.locals.cache;
@@ -331,7 +361,10 @@ const storageController = {
         });
       }
 
-      const success = await storage.removeCachedLink(id);
+      // Extract userId from authentication (optional)
+      const userId = req.userId || null;
+
+      const success = await storage.removeCachedLink(id, userId);
 
       if (success) {
         res.json({
@@ -341,7 +374,7 @@ const storageController = {
       } else {
         res.status(404).json({
           success: false,
-          error: 'Cached link not found',
+          error: 'Cached link not found or access denied',
         });
       }
     } catch (error) {
@@ -358,7 +391,7 @@ const storageController = {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
     );
 
     const storage = req.app.locals.cache;
@@ -380,7 +413,10 @@ const storageController = {
         });
       }
 
-      const success = await storage.updateCachedLink(id, updates);
+      // Extract userId from authentication (optional)
+      const userId = req.userId || null;
+
+      const success = await storage.updateCachedLink(id, updates, userId);
 
       if (success) {
         res.json({
@@ -390,7 +426,7 @@ const storageController = {
       } else {
         res.status(404).json({
           success: false,
-          error: 'Cached link not found',
+          error: 'Cached link not found or access denied',
         });
       }
     } catch (error) {
@@ -411,10 +447,10 @@ const storageController = {
     );
 
     const storage = req.app.locals.cache;
-    if (!storage) {
+    if (!storage || !storage.isInitialized) {
       return res.status(503).json({
         success: false,
-        error: 'Storage not available',
+        error: 'Cache not available',
       });
     }
 
@@ -435,6 +471,15 @@ const storageController = {
         key,
       });
     } catch (error) {
+      // Check if error is due to database not being available
+      if (error.message.includes('Database client not initialized') || 
+          error.message.includes('not initialized')) {
+        return res.status(503).json({
+          success: false,
+          error: 'Cache not available',
+        });
+      }
+      
       res.status(500).json({
         success: false,
         error: 'Failed to cache value',

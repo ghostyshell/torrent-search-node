@@ -432,11 +432,11 @@ class UnifiedCache {
 
   // === CACHED LINKS METHODS ===
 
-  async addCachedLink(cachedLink) {
+  async addCachedLink(cachedLink, userId = null) {
     const sql = `
       INSERT OR REPLACE INTO cached_links
-      (id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, cover_image_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, cover_image_url, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const result = await this.dbManager.run(sql, [
@@ -451,36 +451,67 @@ class UnifiedCache {
       cachedLink.supportsRangeRequests || 0,
       cachedLink.filename || null,
       cachedLink.coverImageUrl || null,
+      userId,
     ]);
 
     return result.changes > 0;
   }
 
-  async removeCachedLink(id) {
-    const result = await this.dbManager.run(
-      'DELETE FROM cached_links WHERE id = ?',
-      [id]
-    );
+  async removeCachedLink(id, userId = null) {
+    let sql, params;
+    if (userId) {
+      // Only allow users to delete their own cached links
+      sql = 'DELETE FROM cached_links WHERE id = ? AND user_id = ?';
+      params = [id, userId];
+    } else {
+      // Allow deletion of cached links with no user_id (backwards compatibility)
+      sql = 'DELETE FROM cached_links WHERE id = ? AND user_id IS NULL';
+      params = [id];
+    }
+    
+    const result = await this.dbManager.run(sql, params);
     return result.changes > 0;
   }
 
-  async getCachedLinks(page = 1, limit = 20) {
+  async getCachedLinks(page = 1, limit = 20, userId = null) {
     const offset = (page - 1) * limit;
 
     // Get total count for pagination
-    const countSql = 'SELECT COUNT(*) as total FROM cached_links';
-    const countResult = await this.dbManager.get(countSql);
+    let countSql, countParams;
+    if (userId) {
+      countSql = 'SELECT COUNT(*) as total FROM cached_links WHERE user_id = ?';
+      countParams = [userId];
+    } else {
+      countSql = 'SELECT COUNT(*) as total FROM cached_links WHERE user_id IS NULL';
+      countParams = [];
+    }
+    
+    const countResult = await this.dbManager.get(countSql, countParams);
     const totalCount = countResult.total;
     const totalPages = Math.ceil(totalCount / limit);
 
-    const sql = `
-      SELECT id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename
-      FROM cached_links 
-      ORDER BY date_added DESC
-      LIMIT ? OFFSET ?
-    `;
+    let sql, params;
+    if (userId) {
+      sql = `
+        SELECT id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, user_id
+        FROM cached_links 
+        WHERE user_id = ?
+        ORDER BY date_added DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [userId, limit, offset];
+    } else {
+      sql = `
+        SELECT id, url, title, date_added, stream_url, stream_url_cached_at, is_streaming, error, supports_range_requests, filename, user_id
+        FROM cached_links 
+        WHERE user_id IS NULL
+        ORDER BY date_added DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [limit, offset];
+    }
 
-    const rows = await this.dbManager.all(sql, [limit, offset]);
+    const rows = await this.dbManager.all(sql, params);
 
     try {
       const cachedLinks = rows.map((row) => ({
@@ -494,6 +525,7 @@ class UnifiedCache {
         error: row.error,
         supportsRangeRequests: !!row.supports_range_requests,
         filename: row.filename,
+        userId: row.user_id,
       }));
 
       return {
@@ -522,7 +554,7 @@ class UnifiedCache {
     }
   }
 
-  async updateCachedLink(id, updates) {
+  async updateCachedLink(id, updates, userId = null) {
     // Build dynamic update query
     const updateFields = [];
     const updateValues = [];
@@ -560,11 +592,17 @@ class UnifiedCache {
       return false;
     }
 
-    updateValues.push(id); // Add id for WHERE clause
-
-    const sql = `UPDATE cached_links SET ${updateFields.join(
-      ', '
-    )} WHERE id = ?`;
+    let sql;
+    if (userId) {
+      // Only allow users to update their own cached links
+      updateValues.push(id, userId);
+      sql = `UPDATE cached_links SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?`;
+    } else {
+      // Allow update of cached links with no user_id (backwards compatibility)
+      updateValues.push(id);
+      sql = `UPDATE cached_links SET ${updateFields.join(', ')} WHERE id = ? AND user_id IS NULL`;
+    }
+    
     const result = await this.dbManager.run(sql, updateValues);
 
     return result.changes > 0;

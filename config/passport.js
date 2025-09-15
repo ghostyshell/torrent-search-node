@@ -231,13 +231,23 @@ class AuthService {
     `;
 
     const currentTime = Math.floor(Date.now() / 1000);
-    const session = await this.cache.dbManager.get(sql, [sessionToken, currentTime]);
 
-    if (session) {
-      await this.updateSessionAccess(session.id);
+    try {
+      const session = await this.cache.dbManager.get(sql, [sessionToken, currentTime]);
+
+      if (session) {
+        await this.updateSessionAccess(session.id);
+      }
+
+      return session;
+    } catch (error) {
+      // Handle database unavailability gracefully
+      if (error.message.includes('Database client not initialized')) {
+        console.log('Session validation skipped - database not available');
+        return null; // No session found (graceful degradation)
+      }
+      throw error; // Re-throw other errors
     }
-
-    return session;
   }
 
   async updateSessionAccess(sessionId) {

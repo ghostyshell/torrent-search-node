@@ -130,6 +130,36 @@ const setupAuthRoutes = (cache) => {
     }
   });
 
+  router.get(
+    '/realdebrid/api-key',
+    authMiddleware.requireAuth(),
+    async (req, res) => {
+      try {
+        const user = await authService.getUserById(req.userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            error: 'User not found',
+            code: 'USER_NOT_FOUND',
+          });
+        }
+
+        res.json({
+          success: true,
+          apiKey: user.real_debrid_api_key || null,
+          hasApiKey: !!user.real_debrid_api_key,
+        });
+      } catch (error) {
+        console.error('Get Real Debrid API key error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Error fetching API key',
+          code: 'FETCH_ERROR',
+        });
+      }
+    }
+  );
+
   router.post(
     '/realdebrid/api-key',
     authMiddleware.requireAuth(),

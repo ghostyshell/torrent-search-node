@@ -450,6 +450,10 @@ class DatabaseManager {
    * Get a single row
    */
   async get(sql, params = []) {
+    if (!this.client) {
+      throw new Error('Database client not initialized. Call initializeConnection() first.');
+    }
+
     const result = await this.client.execute(sql, params);
 
     if (result.rows.length === 0) return null;
@@ -462,6 +466,10 @@ class DatabaseManager {
    * Get all rows
    */
   async all(sql, params = []) {
+    if (!this.client) {
+      throw new Error('Database client not initialized. Call initializeConnection() first.');
+    }
+
     const result = await this.client.execute(sql, params);
 
     // libsql client returns rows as objects, return directly
@@ -472,6 +480,10 @@ class DatabaseManager {
    * Run a query (INSERT, UPDATE, DELETE)
    */
   async run(sql, params = []) {
+    if (!this.client) {
+      throw new Error('Database client not initialized. Call initializeConnection() first.');
+    }
+
     const result = await this.client.execute(sql, params);
     return {
       changes: result.rowsAffected || 0,

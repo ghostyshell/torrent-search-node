@@ -111,25 +111,28 @@ console.log('app.js: Health routes added');
 
 // Initialize a minimal cache for auth routes during startup
 console.log('app.js: Setting up minimal cache for auth routes...');
-try {
-  cache = new UnifiedCache();
-  app.locals.cache = cache;
-  console.log('app.js: Minimal cache instance created');
+(async () => {
+  try {
+    cache = new UnifiedCache();
+    await cache.initializeDatabase();
+    app.locals.cache = cache;
+    console.log('app.js: Minimal cache instance created and database initialized');
 
-  // Initialize auth middleware
-  authMiddleware = new AuthMiddleware(cache);
-  console.log('app.js: AuthMiddleware created with minimal cache');
+    // Initialize auth middleware
+    authMiddleware = new AuthMiddleware(cache);
+    console.log('app.js: AuthMiddleware created with minimal cache');
 
-  // Register auth routes immediately during startup
-  console.log('app.js: Registering auth routes during startup...');
-  const setupAuthRoutes = require('./routes/auth');
-  const authRouter = setupAuthRoutes(cache);
-  app.use('/api/auth', authRouter);
-  console.log('app.js: Auth routes registered successfully at /api/auth');
-} catch (error) {
-  logger.error('Failed to initialize auth during startup:', error);
-  console.log('app.js: Continuing without auth routes');
-}
+    // Register auth routes immediately during startup
+    console.log('app.js: Registering auth routes during startup...');
+    const setupAuthRoutes = require('./routes/auth');
+    const authRouter = setupAuthRoutes(cache);
+    app.use('/api/auth', authRouter);
+    console.log('app.js: Auth routes registered successfully at /api/auth');
+  } catch (error) {
+    logger.error('Failed to initialize auth during startup:', error);
+    console.log('app.js: Continuing without auth routes');
+  }
+})()
 
 // --- CACHE ROUTES ---
 console.log('app.js: Setting up cache routes...');

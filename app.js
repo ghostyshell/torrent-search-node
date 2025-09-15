@@ -154,8 +154,20 @@ const initializeAuthRoutes = () => {
       app.use('/api/auth-test', testRouter);
       logger.info('Test router registered successfully');
 
+      // Test with minimal auth router first
+      logger.info('Creating minimal auth router...');
+      const minimalAuthRouter = express.Router();
+      minimalAuthRouter.get('/google', (req, res) => {
+        res.json({ message: 'Minimal Google auth route' });
+      });
+      logger.info('Minimal auth router created, registering...');
+      app.use('/api/auth-minimal', minimalAuthRouter);
+      logger.info('Minimal auth router registered successfully');
+
       // Now try the actual auth router
+      logger.info('About to call setupAuthRoutes...');
       const authRouter = setupAuthRoutes(cache);
+      logger.info('setupAuthRoutes returned, router object received');
       logger.info('Auth router created, registering with Express...');
 
       app.use('/api/auth', authRouter);

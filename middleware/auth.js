@@ -21,25 +21,77 @@ class AuthMiddleware {
           });
         }
 
+        // First try database session validation
         const userSession = await this.authService.validateSession(sessionToken);
-        if (!userSession) {
-          return res.status(401).json({
-            success: false,
-            error: 'Invalid or expired session',
-            code: 'INVALID_SESSION'
-          });
+        if (userSession) {
+          req.user = {
+            id: userSession.user_id,
+            email: userSession.email,
+            name: userSession.name,
+            picture: userSession.picture,
+            sessionId: userSession.id
+          };
+          req.userId = userSession.user_id;
+          next();
+          return;
         }
 
-        req.user = {
-          id: userSession.user_id,
-          email: userSession.email,
-          name: userSession.name,
-          picture: userSession.picture,
-          sessionId: userSession.id
-        };
+        // Fallback: Try to validate as base64 temporary token
+        try {
+          const tokenData = JSON.parse(Buffer.from(sessionToken, 'base64').toString());
 
-        req.userId = userSession.user_id;
-        next();
+          // Basic validation - check if token has required fields and isn't too old
+          if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
+            throw new Error('Invalid token format');
+          }
+
+          // Check if token is less than 24 hours old
+          const tokenAge = Date.now() - tokenData.timestamp;
+          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+          if (tokenAge > maxAge) {
+            throw new Error('Token expired');
+          }
+
+          console.log('Using temporary token for user:', tokenData.email);
+
+          // Create or get user from database using token data
+          const userData = {
+            id: tokenData.id,
+            google_id: tokenData.id,
+            email: tokenData.email,
+            name: tokenData.name || 'Unknown User',
+            picture: tokenData.picture || null,
+            last_login_at: Math.floor(Date.now() / 1000)
+          };
+
+          // Try to find or create user in database
+          let user = await this.authService.getUserByEmail(tokenData.email);
+          if (!user) {
+            // Create new user
+            const newUser = await this.authService.findOrCreateUser(userData);
+            user = newUser;
+          }
+
+          req.user = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+            sessionId: null // No session ID for temporary tokens
+          };
+          req.userId = user.id;
+          next();
+          return;
+        } catch (tokenError) {
+          console.warn('Both session and token validation failed:', tokenError.message);
+        }
+
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or expired session',
+          code: 'INVALID_SESSION'
+        });
       } catch (error) {
         console.error('Auth middleware error:', error);
         return res.status(500).json({

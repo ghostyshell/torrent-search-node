@@ -43,7 +43,7 @@ console.log();
 console.log('🔑 API Configuration:');
 console.log(
   `   Google Service Account: ${
-    config.google.serviceAccountPath ? '✅ Set' : '❌ Missing'
+    config.google.serviceAccountJson ? '✅ Set' : '❌ Missing'
   }`
 );
 console.log(

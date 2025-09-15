@@ -188,7 +188,7 @@ async function checkDatabaseHealth(req) {
 async function checkGoogleApiHealth() {
   try {
     // Simple check - verify configuration exists
-    if (!config.google.serviceAccountPath && !config.google.apiKey) {
+    if (!config.google.serviceAccountJson) {
       return {
         status: 'unhealthy',
         error: 'Google API credentials not configured',

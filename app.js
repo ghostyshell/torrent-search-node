@@ -69,48 +69,8 @@ if (config.security.trustProxy) {
 let cache = null;
 let authMiddleware = null;
 
-const initializeCache = async () => {
-  try {
-    console.log('Starting cache initialization...');
-    cache = new UnifiedCache();
-    console.log('UnifiedCache instance created');
-
-    // Skip database initialization for now to avoid hang
-    console.log('Skipping database initialization temporarily');
-
-    // Make cache available to health checks and controllers (even if not fully initialized)
-    app.locals.cache = cache;
-    console.log('Cache made available to app.locals');
-
-    console.log('Initializing auth middleware...');
-    // Initialize auth middleware with cache instance
-    authMiddleware = new AuthMiddleware(cache);
-    console.log('AuthMiddleware created');
-
-    console.log('Cache setup completed (DB initialization skipped)');
-
-    // Initialize auth routes now that cache instance is ready
-    console.log('About to call initializeAuthRoutes...');
-    initializeAuthRoutes();
-    console.log('initializeAuthRoutes call completed');
-    console.log('Auth routes initialization completed');
-  } catch (error) {
-    logger.error('Cache initialization failed', {
-      error: error.message,
-      stack: config.isDevelopment ? error.stack : undefined,
-    });
-    logger.warn('Continuing without cache - some features may be limited');
-    // Continue without cache - graceful degradation
-    initializeAuthRoutes();
-  }
-};
-
-// Initialize cache asynchronously after server startup
-console.log('app.js: Deferring cache initialization to after server startup...');
-setTimeout(() => {
-  console.log('app.js: Starting async cache initialization...');
-  initializeCache();
-}, 1000);
+// Database initialization can be added later if needed
+console.log('app.js: Cache and auth setup completed during startup');
 
 // ===========================
 // MIDDLEWARE SETUP
@@ -149,62 +109,27 @@ console.log('app.js: Setting up routes...');
 app.use('/', healthRoutes);
 console.log('app.js: Health routes added');
 
-// Auth routes (must be before catch-all routes)
-// Note: Auth routes need cache to be initialized, so they're set up after cache init
-const initializeAuthRoutes = () => {
-  console.log('initializeAuthRoutes called', { cacheAvailable: !!cache });
+// Initialize a minimal cache for auth routes during startup
+console.log('app.js: Setting up minimal cache for auth routes...');
+try {
+  cache = new UnifiedCache();
+  app.locals.cache = cache;
+  console.log('app.js: Minimal cache instance created');
 
-  if (cache) {
-    try {
-      console.log('Setting up auth routes with cache...');
+  // Initialize auth middleware
+  authMiddleware = new AuthMiddleware(cache);
+  console.log('app.js: AuthMiddleware created with minimal cache');
 
-      // Test with a minimal router first
-      const express = require('express');
-      const testRouter = express.Router();
-      testRouter.get('/test', (req, res) => {
-        res.json({ message: 'Test route works' });
-      });
-
-      console.log('Test router created, registering with Express...');
-      app.use('/api/auth-test', testRouter);
-      console.log('Test router registered successfully');
-
-      // Test with minimal auth router first
-      console.log('Creating minimal auth router...');
-      const minimalAuthRouter = express.Router();
-      minimalAuthRouter.get('/google', (req, res) => {
-        res.json({ message: 'Minimal Google auth route' });
-      });
-      console.log('Minimal auth router created, registering...');
-      app.use('/api/auth-minimal', minimalAuthRouter);
-      console.log('Minimal auth router registered successfully');
-
-      // Test with minimal auth routes (no passport)
-      console.log('Testing minimal auth routes without passport...');
-      const setupMinimalAuthRoutes = require('./routes/auth-minimal');
-      const minimalAuthRouter2 = setupMinimalAuthRoutes(cache);
-      console.log('Minimal auth router created successfully');
-      app.use('/api/auth-minimal2', minimalAuthRouter2);
-      console.log('Minimal auth router 2 registered successfully');
-
-      // Setup auth router directly
-      console.log('About to call setupAuthRoutes...');
-      const authRouter = setupAuthRoutes(cache);
-      console.log('setupAuthRoutes returned, router object received');
-
-      app.use('/api/auth', authRouter);
-      console.log('Auth routes registered successfully at /api/auth');
-    } catch (error) {
-      logger.error('Failed to initialize auth routes:', {
-        error: error.message,
-        stack: error.stack
-      });
-      logger.warn('Continuing without auth routes');
-    }
-  } else {
-    logger.warn('Auth routes not initialized - cache not available');
-  }
-};
+  // Register auth routes immediately during startup
+  console.log('app.js: Registering auth routes during startup...');
+  const setupAuthRoutes = require('./routes/auth');
+  const authRouter = setupAuthRoutes(cache);
+  app.use('/api/auth', authRouter);
+  console.log('app.js: Auth routes registered successfully at /api/auth');
+} catch (error) {
+  logger.error('Failed to initialize auth during startup:', error);
+  console.log('app.js: Continuing without auth routes');
+}
 
 // --- CACHE ROUTES ---
 console.log('app.js: Setting up cache routes...');

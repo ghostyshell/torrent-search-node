@@ -26,3 +26,5 @@ uploads/
 pm2.json
 
 playwright-report/
+
+test-results/

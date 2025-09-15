@@ -15,17 +15,19 @@ const setupAuthRoutes = (cache) => {
   const authMiddleware = new AuthMiddleware(cache, authService);
   console.log('AuthMiddleware created');
 
-  router.get('/google',
+  router.get(
+    '/google',
     passport.authenticate('google', {
       scope: ['profile', 'email'],
-      prompt: 'select_account'
+      prompt: 'select_account',
     })
   );
 
-  router.get('/google/callback',
+  router.get(
+    '/google/callback',
     passport.authenticate('google', {
       failureRedirect: process.env.FRONTEND_URL + '/login?error=auth_failed',
-      session: false
+      session: false,
     }),
     async (req, res) => {
       try {
@@ -33,24 +35,31 @@ const setupAuthRoutes = (cache) => {
 
         // Temporary: Skip database session creation and just redirect with user data
         // TODO: Re-enable session creation once database is properly initialized
-        const redirectUrl = new URL(process.env.FRONTEND_URL || 'http://localhost:3000');
+        const redirectUrl = new URL(
+          process.env.FRONTEND_URL || 'http://localhost:3000'
+        );
 
         // Create a temporary token (in production, this should be a proper JWT or session token)
-        const tempToken = Buffer.from(JSON.stringify({
-          id: req.user.id,
-          email: req.user.email,
-          name: req.user.name,
-          picture: req.user.picture,
-          timestamp: Date.now()
-        })).toString('base64');
+        const tempToken = Buffer.from(
+          JSON.stringify({
+            id: req.user.id,
+            email: req.user.email,
+            name: req.user.name,
+            picture: req.user.picture,
+            timestamp: Date.now(),
+          })
+        ).toString('base64');
 
         redirectUrl.searchParams.append('token', tempToken);
-        redirectUrl.searchParams.append('user', JSON.stringify({
-          id: req.user.id,
-          name: req.user.name,
-          email: req.user.email,
-          picture: req.user.picture
-        }));
+        redirectUrl.searchParams.append(
+          'user',
+          JSON.stringify({
+            id: req.user.id,
+            name: req.user.name,
+            email: req.user.email,
+            picture: req.user.picture,
+          })
+        );
 
         console.log('Redirecting to:', redirectUrl.toString());
         res.redirect(redirectUrl.toString());
@@ -63,9 +72,10 @@ const setupAuthRoutes = (cache) => {
 
   router.post('/logout', authMiddleware.requireAuth(), async (req, res) => {
     try {
-      const sessionToken = req.headers.authorization?.replace('Bearer ', '') ||
-                         req.cookies?.sessionToken ||
-                         req.session?.sessionToken;
+      const sessionToken =
+        req.headers.authorization?.replace('Bearer ', '') ||
+        req.cookies?.sessionToken ||
+        req.session?.sessionToken;
 
       if (sessionToken) {
         await authService.deleteSession(sessionToken);
@@ -75,14 +85,14 @@ const setupAuthRoutes = (cache) => {
 
       res.json({
         success: true,
-        message: 'Logged out successfully'
+        message: 'Logged out successfully',
       });
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({
         success: false,
         error: 'Logout failed',
-        code: 'LOGOUT_ERROR'
+        code: 'LOGOUT_ERROR',
       });
     }
   });
@@ -94,7 +104,7 @@ const setupAuthRoutes = (cache) => {
         return res.status(404).json({
           success: false,
           error: 'User not found',
-          code: 'USER_NOT_FOUND'
+          code: 'USER_NOT_FOUND',
         });
       }
 
@@ -107,84 +117,92 @@ const setupAuthRoutes = (cache) => {
           picture: user.picture,
           hasRealDebridKey: !!user.real_debrid_api_key,
           createdAt: user.created_at,
-          lastLoginAt: user.last_login_at
-        }
+          lastLoginAt: user.last_login_at,
+        },
       });
     } catch (error) {
       console.error('Get user error:', error);
       res.status(500).json({
         success: false,
         error: 'Error fetching user data',
-        code: 'USER_FETCH_ERROR'
+        code: 'USER_FETCH_ERROR',
       });
     }
   });
 
-  router.post('/realdebrid/api-key', authMiddleware.requireAuth(), async (req, res) => {
-    try {
-      const { apiKey } = req.body;
+  router.post(
+    '/realdebrid/api-key',
+    authMiddleware.requireAuth(),
+    async (req, res) => {
+      try {
+        const { apiKey } = req.body;
 
-      if (!apiKey || typeof apiKey !== 'string') {
-        return res.status(400).json({
+        if (!apiKey || typeof apiKey !== 'string') {
+          return res.status(400).json({
+            success: false,
+            error: 'Valid API key is required',
+            code: 'INVALID_API_KEY',
+          });
+        }
+
+        const success = await authService.updateUser(req.userId, {
+          real_debrid_api_key: apiKey,
+        });
+
+        if (!success) {
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to save API key',
+            code: 'SAVE_ERROR',
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'Real Debrid API key saved successfully',
+        });
+      } catch (error) {
+        console.error('Save Real Debrid API key error:', error);
+        res.status(500).json({
           success: false,
-          error: 'Valid API key is required',
-          code: 'INVALID_API_KEY'
+          error: 'Error saving API key',
+          code: 'SAVE_ERROR',
         });
       }
-
-      const success = await authService.updateUser(req.userId, {
-        real_debrid_api_key: apiKey
-      });
-
-      if (!success) {
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to save API key',
-          code: 'SAVE_ERROR'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Real Debrid API key saved successfully'
-      });
-    } catch (error) {
-      console.error('Save Real Debrid API key error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Error saving API key',
-        code: 'SAVE_ERROR'
-      });
     }
-  });
+  );
 
-  router.delete('/realdebrid/api-key', authMiddleware.requireAuth(), async (req, res) => {
-    try {
-      const success = await authService.updateUser(req.userId, {
-        real_debrid_api_key: null
-      });
+  router.delete(
+    '/realdebrid/api-key',
+    authMiddleware.requireAuth(),
+    async (req, res) => {
+      try {
+        const success = await authService.updateUser(req.userId, {
+          real_debrid_api_key: null,
+        });
 
-      if (!success) {
-        return res.status(500).json({
+        if (!success) {
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to remove API key',
+            code: 'REMOVE_ERROR',
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'Real Debrid API key removed successfully',
+        });
+      } catch (error) {
+        console.error('Remove Real Debrid API key error:', error);
+        res.status(500).json({
           success: false,
-          error: 'Failed to remove API key',
-          code: 'REMOVE_ERROR'
+          error: 'Error removing API key',
+          code: 'REMOVE_ERROR',
         });
       }
-
-      res.json({
-        success: true,
-        message: 'Real Debrid API key removed successfully'
-      });
-    } catch (error) {
-      console.error('Remove Real Debrid API key error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Error removing API key',
-        code: 'REMOVE_ERROR'
-      });
     }
-  });
+  );
 
   router.post('/validate', async (req, res) => {
     try {
@@ -194,14 +212,38 @@ const setupAuthRoutes = (cache) => {
         return res.status(400).json({
           success: false,
           error: 'Token is required',
-          code: 'MISSING_TOKEN'
+          code: 'MISSING_TOKEN',
         });
       }
 
-      console.log('Token validation request received:', { token: token.substring(0, 20) + '...' });
+      console.log('Token validation request received:', {
+        token: token.substring(0, 20) + '...',
+      });
 
-      // Temporary: Validate our base64 temporary token instead of database lookup
-      // TODO: Re-enable database session validation once database is properly initialized
+      // First try database session validation
+      const userSession = await authService.validateSession(token);
+      if (userSession) {
+        console.log(
+          'Token validation successful via database session for user:',
+          userSession.email
+        );
+
+        res.json({
+          success: true,
+          user: {
+            id: userSession.user_id,
+            email: userSession.email,
+            name: userSession.name,
+            picture: userSession.picture,
+            hasRealDebridKey: !!userSession.real_debrid_api_key,
+            createdAt: userSession.created_at,
+            lastLoginAt: userSession.last_login_at,
+          },
+        });
+        return;
+      }
+
+      // Fallback: Validate base64 temporary token and lookup user in database
       try {
         const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
 
@@ -220,6 +262,9 @@ const setupAuthRoutes = (cache) => {
 
         console.log('Token validation successful for user:', tokenData.email);
 
+        // Get user data from database to check Real Debrid key status
+        const user = await authService.getUserById(tokenData.id);
+
         // Return user session format expected by frontend
         res.json({
           success: true,
@@ -228,25 +273,25 @@ const setupAuthRoutes = (cache) => {
             email: tokenData.email,
             name: tokenData.name || 'Unknown User',
             picture: tokenData.picture || null,
-            hasRealDebridKey: false // Temporary: no Real Debrid key support without database
-          }
+            hasRealDebridKey: user ? !!user.real_debrid_api_key : false,
+            createdAt: user?.created_at || null,
+            lastLoginAt: user?.last_login_at || null,
+          },
         });
-
       } catch (tokenError) {
         console.error('Token parsing/validation error:', tokenError.message);
         return res.status(401).json({
           success: false,
           error: 'Invalid or expired token',
-          code: 'INVALID_TOKEN'
+          code: 'INVALID_TOKEN',
         });
       }
-
     } catch (error) {
       console.error('Token validation endpoint error:', error);
       res.status(500).json({
         success: false,
         error: 'Token validation failed',
-        code: 'VALIDATION_ERROR'
+        code: 'VALIDATION_ERROR',
       });
     }
   });
@@ -261,25 +306,31 @@ const setupAuthRoutes = (cache) => {
       `;
 
       const currentTime = Math.floor(Date.now() / 1000);
-      const sessions = await cache.dbManager.all(sql, [req.userId, currentTime]);
+      const sessions = await cache.dbManager.all(sql, [
+        req.userId,
+        currentTime,
+      ]);
 
       res.json({
         success: true,
-        sessions: sessions.map(session => ({
+        sessions: sessions.map((session) => ({
           id: session.id,
-          isCurrentSession: session.session_token === (req.headers.authorization?.replace('Bearer ', '') || req.cookies?.sessionToken),
+          isCurrentSession:
+            session.session_token ===
+            (req.headers.authorization?.replace('Bearer ', '') ||
+              req.cookies?.sessionToken),
           createdAt: session.created_at,
           lastAccessedAt: session.last_accessed_at,
           userAgent: session.user_agent,
-          ipAddress: session.ip_address
-        }))
+          ipAddress: session.ip_address,
+        })),
       });
     } catch (error) {
       console.error('Get sessions error:', error);
       res.status(500).json({
         success: false,
         error: 'Error fetching sessions',
-        code: 'SESSIONS_FETCH_ERROR'
+        code: 'SESSIONS_FETCH_ERROR',
       });
     }
   });

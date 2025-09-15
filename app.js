@@ -2,6 +2,8 @@
 // IMPORTS AND ENVIRONMENT SETUP
 // ===========================
 
+console.log('app.js: Starting application initialization...');
+
 // Load environment configuration
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
@@ -106,8 +108,9 @@ const initializeCache = async () => {
   }
 };
 
-// Initialize cache on startup
-initializeCache();
+// Skip cache initialization for testing
+console.log('app.js: Skipping cache initialization for testing...');
+// initializeCache();
 
 // ===========================
 // MIDDLEWARE SETUP

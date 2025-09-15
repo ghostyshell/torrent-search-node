@@ -30,7 +30,6 @@ const storageController = {
     }
   },
 
-
   // Store cover image
   storeCoverImage: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -270,14 +269,16 @@ const storageController = {
       }
     } catch (error) {
       // Check if error is due to database not being available
-      if (error.message.includes('Database client not initialized') || 
-          error.message.includes('not initialized')) {
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
         return res.status(503).json({
           success: false,
           error: 'Cache not available',
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: 'Failed to store link',
@@ -306,12 +307,12 @@ const storageController = {
       // Extract pagination parameters
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
-      
+
       // Extract userId from authentication (optional)
       const userId = req.userId || null;
 
       const result = await storage.getCachedLinks(page, limit, userId);
-      
+
       res.json({
         success: true,
         storedLinks: result.cachedLinks,
@@ -319,14 +320,16 @@ const storageController = {
       });
     } catch (error) {
       // Check if error is due to database not being available
-      if (error.message.includes('Database client not initialized') || 
-          error.message.includes('not initialized')) {
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
         return res.status(503).json({
           success: false,
           error: 'Cache not available',
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: 'Failed to get stored links',
@@ -472,14 +475,16 @@ const storageController = {
       });
     } catch (error) {
       // Check if error is due to database not being available
-      if (error.message.includes('Database client not initialized') || 
-          error.message.includes('not initialized')) {
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
         return res.status(503).json({
           success: false,
           error: 'Cache not available',
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: 'Failed to cache value',
@@ -590,7 +595,10 @@ const storageController = {
         });
       }
 
-      const success = await storage.updateFavoriteEntryCoverImage(favoriteId, coverImageUrl);
+      const success = await storage.updateFavoriteEntryCoverImage(
+        favoriteId,
+        coverImageUrl
+      );
 
       if (success) {
         res.json({
@@ -635,11 +643,16 @@ const storageController = {
       if (!favoriteId || !source || !coverImageUrl) {
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: favoriteId, source, and coverImageUrl',
+          error:
+            'Missing required fields: favoriteId, source, and coverImageUrl',
         });
       }
 
-      const success = await storage.updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl);
+      const success = await storage.updateTorrentDetailsCoverImage(
+        favoriteId,
+        source,
+        coverImageUrl
+      );
 
       if (success) {
         res.json({
@@ -688,7 +701,10 @@ const storageController = {
         });
       }
 
-      const success = await storage.updateCachedLinkCoverImage(cachedLinkId, coverImageUrl);
+      const success = await storage.updateCachedLinkCoverImage(
+        cachedLinkId,
+        coverImageUrl
+      );
 
       if (success) {
         res.json({
@@ -790,8 +806,10 @@ module.exports = {
   setCacheValue: storageController.setCacheValue,
   getCacheValue: storageController.getCacheValue,
   deleteCacheValue: storageController.deleteCacheValue,
-  updateFavoriteEntryCoverImage: storageController.updateFavoriteEntryCoverImage,
-  updateTorrentDetailsCoverImage: storageController.updateTorrentDetailsCoverImage,
+  updateFavoriteEntryCoverImage:
+    storageController.updateFavoriteEntryCoverImage,
+  updateTorrentDetailsCoverImage:
+    storageController.updateTorrentDetailsCoverImage,
   updateCachedLinkCoverImage: storageController.updateStoredLinkCoverImage,
   getCoverImageForTorrent: storageController.getCoverImageForTorrent,
 };

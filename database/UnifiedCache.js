@@ -468,7 +468,7 @@ class UnifiedCache {
       sql = 'DELETE FROM cached_links WHERE id = ? AND user_id IS NULL';
       params = [id];
     }
-    
+
     const result = await this.dbManager.run(sql, params);
     return result.changes > 0;
   }
@@ -482,10 +482,11 @@ class UnifiedCache {
       countSql = 'SELECT COUNT(*) as total FROM cached_links WHERE user_id = ?';
       countParams = [userId];
     } else {
-      countSql = 'SELECT COUNT(*) as total FROM cached_links WHERE user_id IS NULL';
+      countSql =
+        'SELECT COUNT(*) as total FROM cached_links WHERE user_id IS NULL';
       countParams = [];
     }
-    
+
     const countResult = await this.dbManager.get(countSql, countParams);
     const totalCount = countResult.total;
     const totalPages = Math.ceil(totalCount / limit);
@@ -596,13 +597,17 @@ class UnifiedCache {
     if (userId) {
       // Only allow users to update their own cached links
       updateValues.push(id, userId);
-      sql = `UPDATE cached_links SET ${updateFields.join(', ')} WHERE id = ? AND user_id = ?`;
+      sql = `UPDATE cached_links SET ${updateFields.join(
+        ', '
+      )} WHERE id = ? AND user_id = ?`;
     } else {
       // Allow update of cached links with no user_id (backwards compatibility)
       updateValues.push(id);
-      sql = `UPDATE cached_links SET ${updateFields.join(', ')} WHERE id = ? AND user_id IS NULL`;
+      sql = `UPDATE cached_links SET ${updateFields.join(
+        ', '
+      )} WHERE id = ? AND user_id IS NULL`;
     }
-    
+
     const result = await this.dbManager.run(sql, updateValues);
 
     return result.changes > 0;

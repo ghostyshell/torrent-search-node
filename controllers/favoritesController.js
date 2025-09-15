@@ -59,14 +59,16 @@ const favoritesController = {
       }
     } catch (error) {
       // Check if error is due to database not being available
-      if (error.message.includes('Database client not initialized') || 
-          error.message.includes('not initialized')) {
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
         return res.status(503).json({
           success: false,
           error: 'Cache not available',
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: 'Failed to add favorite',
@@ -118,14 +120,16 @@ const favoritesController = {
       });
     } catch (error) {
       // Check if error is due to database not being available
-      if (error.message.includes('Database client not initialized') || 
-          error.message.includes('not initialized')) {
+      if (
+        error.message.includes('Database client not initialized') ||
+        error.message.includes('not initialized')
+      ) {
         return res.status(503).json({
           success: false,
           error: 'Cache not available',
         });
       }
-      
+
       res.status(500).json({
         success: false,
         error: 'Failed to get favorites',

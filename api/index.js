@@ -143,10 +143,26 @@ app.put(
 // );
 app.post('/api/storage/stream-url', storageController.storeStreamUrl);
 app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
-app.post('/api/storage/stored-links', storageController.addCachedLink);
-app.get('/api/storage/stored-links', storageController.getCachedLinks);
-app.delete('/api/storage/stored-links/:id', storageController.removeCachedLink);
-app.put('/api/storage/stored-links/:id', storageController.updateCachedLink);
+app.post(
+  '/api/storage/stored-links',
+  getOptionalAuth(),
+  storageController.addCachedLink
+);
+app.get(
+  '/api/storage/stored-links',
+  getOptionalAuth(),
+  storageController.getCachedLinks
+);
+app.delete(
+  '/api/storage/stored-links/:id',
+  getOptionalAuth(),
+  storageController.removeCachedLink
+);
+app.put(
+  '/api/storage/stored-links/:id',
+  getOptionalAuth(),
+  storageController.updateCachedLink
+);
 app.post('/api/storage/set', storageController.setCacheValue);
 app.get('/api/storage/get/:key', storageController.getCacheValue);
 app.delete('/api/storage/delete/:key', storageController.deleteCacheValue);

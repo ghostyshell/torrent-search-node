@@ -88,10 +88,12 @@ const initializeCache = async () => {
     // Print database stats on startup
     logger.info('Printing database stats...');
     await cache.printStats();
+    logger.info('Database stats printed successfully');
 
     // Initialize auth routes now that cache is ready
-    logger.info('Initializing auth routes...');
+    logger.info('About to call initializeAuthRoutes...');
     initializeAuthRoutes();
+    logger.info('initializeAuthRoutes call completed');
     logger.info('Auth routes initialization completed');
   } catch (error) {
     logger.error('Database initialization failed', {

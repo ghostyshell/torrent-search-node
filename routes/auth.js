@@ -6,8 +6,13 @@ const AuthMiddleware = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
 const setupAuthRoutes = (cache) => {
+  console.log('setupAuthRoutes called with cache:', !!cache);
+
   const authService = new AuthService(cache);
+  console.log('AuthService created');
+
   const authMiddleware = new AuthMiddleware(cache);
+  console.log('AuthMiddleware created');
 
   router.get('/google',
     passport.authenticate('google', {
@@ -251,6 +256,7 @@ const setupAuthRoutes = (cache) => {
     }
   });
 
+  console.log('setupAuthRoutes completed, returning router');
   return router;
 };
 

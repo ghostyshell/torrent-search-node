@@ -137,12 +137,28 @@ app.use('/', healthRoutes);
 // Auth routes (must be before catch-all routes)
 // Note: Auth routes need cache to be initialized, so they're set up after cache init
 const initializeAuthRoutes = () => {
+  logger.info('initializeAuthRoutes called', { cacheAvailable: !!cache });
+
   if (cache) {
     try {
-      app.use('/api/auth', setupAuthRoutes(cache));
-      logger.info('Auth routes initialized');
+      logger.info('Setting up auth routes with cache...');
+      const authRouter = setupAuthRoutes(cache);
+      app.use('/api/auth', authRouter);
+      logger.info('Auth routes registered successfully at /api/auth');
+
+      // Log all registered routes for debugging
+      app._router.stack.forEach((middleware, index) => {
+        if (middleware.route) {
+          logger.info(`Route registered: ${middleware.route.path}`);
+        } else if (middleware.name === 'router') {
+          logger.info(`Router middleware registered at: ${middleware.regexp}`);
+        }
+      });
     } catch (error) {
-      logger.error('Failed to initialize auth routes:', error.message);
+      logger.error('Failed to initialize auth routes:', {
+        error: error.message,
+        stack: error.stack
+      });
       logger.warn('Continuing without auth routes');
     }
 

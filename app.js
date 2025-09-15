@@ -164,14 +164,30 @@ const initializeAuthRoutes = () => {
       app.use('/api/auth-minimal', minimalAuthRouter);
       logger.info('Minimal auth router registered successfully');
 
-      // Now try the actual auth router
-      logger.info('About to call setupAuthRoutes...');
-      const authRouter = setupAuthRoutes(cache);
-      logger.info('setupAuthRoutes returned, router object received');
-      logger.info('Auth router created, registering with Express...');
+      // Test with minimal auth routes (no passport)
+      logger.info('Testing minimal auth routes without passport...');
+      const setupMinimalAuthRoutes = require('./routes/auth-minimal');
+      const minimalAuthRouter2 = setupMinimalAuthRoutes(cache);
+      logger.info('Minimal auth router created successfully');
+      app.use('/api/auth-minimal2', minimalAuthRouter2);
+      logger.info('Minimal auth router 2 registered successfully');
 
-      app.use('/api/auth', authRouter);
-      logger.info('Auth routes registered successfully at /api/auth');
+      // Try async router setup to avoid blocking
+      logger.info('About to call setupAuthRoutes...');
+      setTimeout(() => {
+        try {
+          logger.info('Setting up auth router in timeout...');
+          const authRouter = setupAuthRoutes(cache);
+          logger.info('setupAuthRoutes returned, router object received');
+
+          app.use('/api/auth', authRouter);
+          logger.info('Auth routes registered successfully at /api/auth');
+        } catch (error) {
+          logger.error('Error in async auth setup:', error);
+        }
+      }, 0);
+
+      logger.info('Async auth setup initiated, continuing...');
     } catch (error) {
       logger.error('Failed to initialize auth routes:', {
         error: error.message,

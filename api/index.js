@@ -51,11 +51,22 @@ let authMiddleware = null;
 
 // Auth routes initialization function
 const initializeAuthRoutes = () => {
+  console.log('API initializeAuthRoutes called', { cacheAvailable: !!cache });
+
   if (cache) {
-    app.use('/api/auth', setupAuthRoutes(cache));
-    logger.info('Auth routes initialized');
+    try {
+      console.log('API: Setting up auth routes with cache...');
+      const authRouter = setupAuthRoutes(cache);
+      console.log('API: Auth router created, registering with Express...');
+
+      app.use('/api/auth', authRouter);
+      console.log('API: Auth routes registered successfully at /api/auth');
+    } catch (error) {
+      console.error('API: Failed to initialize auth routes:', error);
+      console.warn('API: Continuing without auth routes');
+    }
   } else {
-    logger.warn('Auth routes not initialized - cache not available');
+    console.warn('API: Auth routes not initialized - cache not available');
   }
 };
 

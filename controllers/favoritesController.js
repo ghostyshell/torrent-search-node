@@ -30,11 +30,6 @@ const favoritesController = {
         });
       }
 
-      console.log(
-        `❤️ [FavoritesController] Adding favorite for "${torrent.Name}" with coverImageUrl:`,
-        coverImageUrl ? `${coverImageUrl.substring(0, 50)}...` : 'none'
-      );
-
       // If coverImageUrl is provided, try to create/update favorite entry with cover image
       if (coverImageUrl) {
         const favoriteEntry = await cache.getOrCreateFavoriteEntry(
@@ -42,17 +37,9 @@ const favoritesController = {
           req.userId
         );
         if (favoriteEntry) {
-          const coverUpdateSuccess = await cache.updateFavoriteEntryCoverImage(
+          await cache.updateFavoriteEntryCoverImage(
             favoriteEntry.id,
             coverImageUrl
-          );
-          console.log(
-            `❤️ [FavoritesController] Cover image update for favorite entry ${favoriteEntry.id}:`,
-            coverUpdateSuccess ? 'SUCCESS' : 'FAILED'
-          );
-        } else {
-          console.warn(
-            `❤️ [FavoritesController] Could not get/create favorite entry for "${torrent.Name}"`
           );
         }
       }

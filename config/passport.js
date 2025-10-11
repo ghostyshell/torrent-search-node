@@ -73,12 +73,6 @@ class AuthService {
                 last_login_at: Math.floor(Date.now() / 1000),
               };
 
-              console.log('Google OAuth callback - profile received:', {
-                id: profile.id,
-                email: profile.emails[0].value,
-                name: profile.displayName,
-              });
-
               // Temporary: Skip database operations and return user data directly
               // TODO: Re-enable database operations once database is properly initialized
               return done(null, userData);
@@ -103,7 +97,6 @@ class AuthService {
         }
       });
 
-      console.log('✓ Google OAuth Strategy initialized successfully');
     } catch (error) {
       console.error(
         '✗ Failed to initialize Google OAuth Strategy:',
@@ -207,7 +200,7 @@ class AuthService {
       !this.cache.dbManager.client ||
       !this.cache.isInitialized
     ) {
-      console.log('getUserById skipped - database not initialized');
+
       return null;
     }
 
@@ -217,7 +210,7 @@ class AuthService {
       return user;
     } catch (error) {
       if (error.message.includes('Database client not initialized')) {
-        console.log('getUserById skipped - database not available');
+
         return null;
       }
       throw error;
@@ -232,7 +225,7 @@ class AuthService {
       !this.cache.dbManager.client ||
       !this.cache.isInitialized
     ) {
-      console.log('getUserByEmail skipped - database not initialized');
+
       return null;
     }
 
@@ -242,7 +235,7 @@ class AuthService {
       return user;
     } catch (error) {
       if (error.message.includes('Database client not initialized')) {
-        console.log('getUserByEmail skipped - database not available');
+
         return null;
       }
       console.warn('getUserByEmail error (gracefully handled):', error.message);
@@ -340,7 +333,7 @@ class AuthService {
       !this.cache.dbManager.client ||
       !this.cache.isInitialized
     ) {
-      console.log('Session validation skipped - database not initialized');
+
       return null;
     }
 
@@ -366,7 +359,7 @@ class AuthService {
     } catch (error) {
       // Handle database unavailability gracefully
       if (error.message.includes('Database client not initialized')) {
-        console.log('Session validation skipped - database not available');
+
         return null; // No session found (graceful degradation)
       }
       console.warn(

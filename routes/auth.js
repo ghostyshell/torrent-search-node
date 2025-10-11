@@ -6,14 +6,11 @@ const AuthMiddleware = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 
 const setupAuthRoutes = (cache) => {
-  console.log('setupAuthRoutes called with cache:', !!cache);
 
   const authService = new AuthService(cache);
-  console.log('AuthService created');
 
   // Pass the authService instance to AuthMiddleware instead of creating a new one
   const authMiddleware = new AuthMiddleware(cache, authService);
-  console.log('AuthMiddleware created');
 
   router.get(
     '/google',
@@ -31,7 +28,6 @@ const setupAuthRoutes = (cache) => {
     }),
     async (req, res) => {
       try {
-        console.log('Google callback - user data received:', req.user);
 
         // Temporary: Skip database session creation and just redirect with user data
         // TODO: Re-enable session creation once database is properly initialized
@@ -61,7 +57,6 @@ const setupAuthRoutes = (cache) => {
           })
         );
 
-        console.log('Redirecting to:', redirectUrl.toString());
         res.redirect(redirectUrl.toString());
       } catch (error) {
         console.error('Google callback error:', error);
@@ -246,17 +241,9 @@ const setupAuthRoutes = (cache) => {
         });
       }
 
-      console.log('Token validation request received:', {
-        token: token.substring(0, 20) + '...',
-      });
-
       // First try database session validation
       const userSession = await authService.validateSession(token);
       if (userSession) {
-        console.log(
-          'Token validation successful via database session for user:',
-          userSession.email
-        );
 
         res.json({
           success: true,
@@ -290,16 +277,8 @@ const setupAuthRoutes = (cache) => {
           throw new Error('Token expired');
         }
 
-        console.log('Token validation successful for user:', tokenData.email);
-
         // Get user data from database to check Real Debrid key status
         const user = await authService.getUserByEmail(tokenData.email);
-        console.log(
-          'User found in database:',
-          !!user,
-          'hasRealDebridKey:',
-          !!user?.real_debrid_api_key
-        );
 
         // Return user session format expected by frontend
         res.json({
@@ -371,7 +350,6 @@ const setupAuthRoutes = (cache) => {
     }
   });
 
-  console.log('setupAuthRoutes completed, returning router');
   return router;
 };
 

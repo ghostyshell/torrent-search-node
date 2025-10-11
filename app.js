@@ -2,8 +2,6 @@
 // IMPORTS AND ENVIRONMENT SETUP
 // ===========================
 
-console.log('app.js: Starting application initialization...');
-
 // Load environment configuration
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
@@ -70,51 +68,40 @@ let cache = null;
 let authMiddleware = null;
 
 // Database initialization can be added later if needed
-console.log('app.js: Cache and auth setup completed during startup');
 
 // ===========================
 // MIDDLEWARE SETUP
 // ===========================
 
-console.log('app.js: Setting up middleware...');
-
 // Request logging middleware
 app.use(logger.requestMiddleware());
-console.log('app.js: Logger middleware added');
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-console.log('app.js: Body parsing middleware added');
 
 // CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
-console.log('app.js: CORS middleware added');
 
 // Initialize passport middleware
 app.use(passport.initialize());
-console.log('app.js: Passport middleware added');
 
 // Static file serving
 app.use(express.static(path.join(__dirname, 'public')));
-console.log('app.js: Static file middleware added');
 
 // ===========================
 // ROUTE DEFINITIONS
 // ===========================
 
-console.log('app.js: Setting up routes...');
-
 // Health check routes (before other routes)
 app.use('/', healthRoutes);
-console.log('app.js: Health routes added');
 
 // Initialize a minimal cache for auth routes during startup
-console.log('app.js: Setting up minimal cache for auth routes...');
+
 // Note: Server startup will happen after async initialization completes
 
 // --- CACHE ROUTES ---
-console.log('app.js: Setting up cache routes...');
+
 app.get('/api/cache/stats', cacheController.getStats);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
@@ -124,13 +111,9 @@ app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
 app.post('/api/cache/set', cacheController.setCacheValue);
 app.get('/api/cache/get/:key', cacheController.getCacheValue);
 app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
-console.log('app.js: Cache routes added');
 
 // --- FAVORITES ROUTES ---
 // Note: These will be registered after authMiddleware is initialized in startServer()
-console.log(
-  'app.js: Favorites routes will be registered after authMiddleware initialization'
-);
 
 // --- IMAGE ROUTES ---
 app.get('/api/google-images/search', imageController.searchGoogleImages);
@@ -186,7 +169,7 @@ app.get('/', (req, res) => {
 async function startServer() {
   try {
     // Initialize cache and database first with timeout
-    console.log('app.js: Initializing cache and database...');
+
     cache = new UnifiedCache();
 
     // Add timeout to database initialization
@@ -200,21 +183,17 @@ async function startServer() {
 
     await Promise.race([initPromise, timeoutPromise]);
     app.locals.cache = cache;
-    console.log('app.js: Cache instance created and database initialized');
 
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(cache);
-    console.log('app.js: AuthMiddleware created with cache');
 
     // Register auth routes
-    console.log('app.js: Registering auth routes...');
+
     const setupAuthRoutes = require('./routes/auth');
     const authRouter = setupAuthRoutes(cache);
     app.use('/api/auth', authRouter);
-    console.log('app.js: Auth routes registered successfully at /api/auth');
 
     // Now register favorites routes with proper auth middleware
-    console.log('app.js: Setting up favorites routes with auth...');
 
     // --- FAVORITES CACHE ROUTES ---
     app.post(
@@ -281,52 +260,23 @@ async function startServer() {
       favoritesController.removeFavorite
     );
 
-    console.log('app.js: Favorites routes registered successfully');
-
     // --- STORAGE ROUTES FOR CACHED LINKS ---
-    console.log(
-      '🔍 [APP.JS] Setting up storage route with authMiddleware:',
-      !!authMiddleware
-    );
-    console.log(
-      '🔍 [APP.JS] authMiddleware.optionalAuth type:',
-      typeof authMiddleware?.optionalAuth
-    );
+
     const optionalAuthFn = authMiddleware?.optionalAuth();
-    console.log(
-      '🔍 [APP.JS] authMiddleware.optionalAuth() returns:',
-      typeof optionalAuthFn
-    );
 
     app.post(
       '/api/storage/stored-links',
       (req, res, next) => {
-        console.log('==========================================');
-        console.log('🔍 [APP.JS] POST /api/storage/stored-links called');
-        console.log(
-          '🔍 [APP.JS] Has Authorization header:',
-          !!req.headers.authorization
-        );
-        console.log('🔍 [APP.JS] req.userId BEFORE auth:', req.userId);
-        console.log('🔍 [APP.JS] req.user BEFORE auth:', req.user);
-        console.log('==========================================');
+
         next();
       },
       (req, res, next) => {
-        console.log('🔍 [APP.JS] About to call auth middleware...');
-        console.log(
-          '🔍 [APP.JS] Auth middleware function type:',
-          typeof optionalAuthFn
-        );
+
         next();
       },
       optionalAuthFn,
       (req, res, next) => {
-        console.log('==========================================');
-        console.log('🔍 [APP.JS] AFTER auth middleware');
-        console.log('🔍 [APP.JS] req.userId AFTER auth:', req.userId);
-        console.log('🔍 [APP.JS] req.user AFTER auth:', req.user);
-        console.log('==========================================');
+
         next();
       },
       cacheController.addCachedLink
@@ -364,10 +314,6 @@ async function startServer() {
       try {
         const cache = req.app.locals.cache;
         const { favoriteEntryId } = req.params;
-
-        console.log(
-          `🔍 [DEBUG ENDPOINT] Checking favorite entry: ${favoriteEntryId}`
-        );
 
         const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
         const row = await cache.dbManager.get(sql, [favoriteEntryId]);
@@ -411,49 +357,39 @@ async function startServer() {
       cacheController.updateCachedLink
     );
 
-    console.log('app.js: Storage routes registered successfully');
-
     // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES ---
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-    console.log('app.js: Torrent search route registered after auth routes');
 
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
 
     // Now start the server
-    console.log('app.js: About to start server...');
+
     const PORT = process.env.PORT || 3001;
-    console.log('app.js: Starting server on port:', PORT);
+
     const server = app.listen(PORT, () => {
-      console.log('app.js: Server started successfully on port:', PORT);
+
     });
 
     return server;
   } catch (error) {
     logger.error('Failed to initialize application:', error);
-    console.log('app.js: Starting server without full database initialization');
 
     // Initialize minimal cache without database
     cache = new UnifiedCache();
     app.locals.cache = cache;
-    console.log(
-      'app.js: Created cache instance without database initialization'
-    );
 
     // Initialize auth middleware (will handle database unavailability gracefully)
     authMiddleware = new AuthMiddleware(cache);
-    console.log('app.js: AuthMiddleware created with minimal cache');
 
     // Register auth routes with minimal setup
-    console.log('app.js: Registering auth routes with minimal setup...');
+
     const setupAuthRoutes = require('./routes/auth');
     const authRouter = setupAuthRoutes(cache);
     app.use('/api/auth', authRouter);
-    console.log('app.js: Auth routes registered in fallback mode');
 
     // Register favorites routes (with fallback auth middleware)
-    console.log('app.js: Setting up favorites routes with fallback auth...');
 
     // --- FAVORITES CACHE ROUTES ---
     app.post(
@@ -519,8 +455,6 @@ async function startServer() {
       favoritesController.removeFavorite
     );
 
-    console.log('app.js: Favorites routes registered with fallback auth');
-
     // --- STORAGE ROUTES FOR CACHED LINKS (FALLBACK) ---
     app.post(
       '/api/storage/stored-links',
@@ -580,11 +514,8 @@ async function startServer() {
       cacheController.updateCachedLink
     );
 
-    console.log('app.js: Storage routes registered in fallback mode');
-
     // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES (FALLBACK) ---
     app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-    console.log('app.js: Torrent search route registered in fallback mode');
 
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
@@ -593,7 +524,7 @@ async function startServer() {
     // Start server
     const PORT = process.env.PORT || 3001;
     const server = app.listen(PORT, () => {
-      console.log('app.js: Server started in fallback mode on port:', PORT);
+
     });
 
     return server;

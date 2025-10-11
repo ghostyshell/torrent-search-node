@@ -50,7 +50,6 @@ class GoogleImagesService {
         auth: auth,
       });
 
-      console.log('✓ Google Images Service initialized successfully');
     } catch (error) {
       console.warn('⚠ Google Images Service initialization failed:', error.message, '- image search will be unavailable');
       this.customsearch = null;

@@ -51,16 +51,14 @@ let authMiddleware = null;
 
 // Auth routes initialization function
 const initializeAuthRoutes = () => {
-  console.log('API initializeAuthRoutes called', { cacheAvailable: !!cache });
 
   if (cache) {
     try {
-      console.log('API: Setting up auth routes with cache...');
+
       const authRouter = setupAuthRoutes(cache);
-      console.log('API: Auth router created, registering with Express...');
 
       app.use('/api/auth', authRouter);
-      console.log('API: Auth routes registered successfully at /api/auth');
+
     } catch (error) {
       console.error('API: Failed to initialize auth routes:', error);
       console.warn('API: Continuing without auth routes');
@@ -72,14 +70,14 @@ const initializeAuthRoutes = () => {
 
 const initializeCache = async () => {
   try {
-    console.log('API: Starting cache initialization...');
+
     cache = new UnifiedCache();
 
     // Initialize database for proper authentication and storage
-    console.log('API: Initializing database for authentication...');
+
     try {
       await cache.initializeDatabase();
-      console.log('API: Database initialized successfully');
+
     } catch (dbError) {
       console.warn(
         'API: Database initialization failed, continuing with limited functionality:',
@@ -90,16 +88,13 @@ const initializeCache = async () => {
     // Make cache available to health checks and controllers
     app.locals.cache = cache;
 
-    console.log('API: Cache instance created, initializing auth middleware...');
     // Initialize auth middleware with cache instance
     authMiddleware = new AuthMiddleware(cache);
 
-    console.log('API: Cache setup completed');
-
     // Initialize auth routes now that cache instance is ready
-    console.log('API: About to call initializeAuthRoutes...');
+
     initializeAuthRoutes();
-    console.log('API: initializeAuthRoutes call completed');
+
   } catch (error) {
     logger.error('Cache initialization failed', {
       error: error.message,
@@ -112,7 +107,7 @@ const initializeCache = async () => {
 };
 
 // Initialize cache on startup
-console.log('API: About to call initializeCache...');
+
 initializeCache();
 
 // Middleware
@@ -155,25 +150,12 @@ app.get('/api/storage/stream-url/:magnetHash', storageController.getStreamUrl);
 app.post(
   '/api/storage/stored-links',
   (req, res, next) => {
-    console.log('==========================================');
-    console.log('🔍 [API] POST /api/storage/stored-links called');
-    console.log(
-      '🔍 [API] Has Authorization header:',
-      !!req.headers.authorization
-    );
-    console.log('🔍 [API] AuthMiddleware available:', !!authMiddleware);
-    console.log('🔍 [API] req.userId BEFORE auth:', req.userId);
-    console.log('🔍 [API] req.user BEFORE auth:', req.user);
-    console.log('==========================================');
+
     next();
   },
   getOptionalAuth(),
   (req, res, next) => {
-    console.log('==========================================');
-    console.log('🔍 [API] AFTER auth middleware');
-    console.log('🔍 [API] req.userId AFTER auth:', req.userId);
-    console.log('🔍 [API] req.user AFTER auth:', req.user);
-    console.log('==========================================');
+
     next();
   },
   storageController.addCachedLink

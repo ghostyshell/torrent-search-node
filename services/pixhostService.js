@@ -26,11 +26,9 @@ class PixhostService {
       const cacheKey = this.getCacheKey(imageUrl);
       if (this.uploadCache.has(cacheKey)) {
         const cached = this.uploadCache.get(cacheKey);
-        console.log(`📋 [PixhostService] Using cached upload for: ${imageUrl.substring(0, 50)}...`);
+
         return cached;
       }
-
-      console.log(`📤 [PixhostService] Uploading image to Pixhost: ${imageUrl.substring(0, 50)}...`);
 
       // Fetch the image
       const response = await fetch(imageUrl, {
@@ -58,7 +56,6 @@ class PixhostService {
         keysToDelete.forEach(key => this.uploadCache.delete(key));
       }
 
-      console.log(`✅ [PixhostService] Upload successful: ${result.directImageUrl.substring(0, 50)}...`);
       return result;
 
     } catch (error) {
@@ -146,7 +143,7 @@ class PixhostService {
    */
   clearCache() {
     this.uploadCache.clear();
-    console.log('🗑️ [PixhostService] Upload cache cleared');
+
   }
 
   /**
@@ -172,7 +169,6 @@ if (process.env.NODE_ENV === 'development') {
     getCacheStats: () => pixhostService.getCacheStats(),
   };
 
-  console.log('🚀 PixhostService available at global.pixhostService in development');
 }
 
 module.exports = pixhostService;

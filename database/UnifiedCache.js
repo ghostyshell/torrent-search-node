@@ -79,15 +79,6 @@ class UnifiedCache {
     const torrentKey = this.generateTorrentKey(torrent);
 
     try {
-      console.log(
-        `🖼️ [UnifiedCache] Setting cover image for torrent: ${torrent.Name}`
-      );
-      console.log(`🖼️ [UnifiedCache] Torrent properties:`, {
-        isCachedLink: torrent.isCachedLink,
-        cachedLinkId: torrent.cachedLinkId,
-        favoriteEntryId: torrent.favoriteEntryId,
-        source: torrent.Source,
-      });
 
       let pixhostUrl = imageUrl;
 
@@ -97,22 +88,11 @@ class UnifiedCache {
         !imageUrl.includes('pixhost.to') &&
         !imageUrl.includes('img1.pixhost.to')
       ) {
-        console.log(
-          `📤 [UnifiedCache] Uploading to Pixhost: ${imageUrl.substring(
-            0,
-            50
-          )}...`
-        );
 
         try {
           const uploadResult = await pixhostService.uploadFromUrl(imageUrl);
           pixhostUrl = uploadResult.directImageUrl;
-          console.log(
-            `✅ [UnifiedCache] Pixhost upload successful: ${pixhostUrl.substring(
-              0,
-              50
-            )}...`
-          );
+
         } catch (uploadError) {
           console.warn(
             `⚠️ [UnifiedCache] Pixhost upload failed, using original URL:`,
@@ -138,9 +118,7 @@ class UnifiedCache {
       let success = result.changes > 0;
 
       if (success) {
-        console.log(
-          `✅ [UnifiedCache] Cover image stored in images table for: ${torrent.Name}`
-        );
+
       } else {
         console.warn(
           `❌ [UnifiedCache] Failed to store cover image in images table for: ${torrent.Name}`
@@ -153,17 +131,13 @@ class UnifiedCache {
       // If this is a cached link, store in cached_links table
       if (torrent.isCachedLink && torrent.cachedLinkId) {
         try {
-          console.log(
-            `💾 [UnifiedCache] Storing cover image for cached link: ${torrent.cachedLinkId}`
-          );
+
           const cachedLinkSuccess = await this.updateCachedLinkCoverImage(
             torrent.cachedLinkId,
             pixhostUrl
           );
           if (cachedLinkSuccess) {
-            console.log(
-              `✅ [UnifiedCache] Cover image stored in cached_links table for: ${torrent.Name}`
-            );
+
           } else {
             console.warn(
               `⚠️ [UnifiedCache] Failed to store cover image in cached_links table for: ${torrent.Name}`
@@ -182,17 +156,13 @@ class UnifiedCache {
       // If this torrent has a favoriteEntryId, store in favorite_entries table
       if (torrent.favoriteEntryId) {
         try {
-          console.log(
-            `💾 [UnifiedCache] Storing cover image for favorite entry: ${torrent.favoriteEntryId}`
-          );
+
           const favoriteSuccess = await this.updateFavoriteEntryCoverImage(
             torrent.favoriteEntryId,
             pixhostUrl
           );
           if (favoriteSuccess) {
-            console.log(
-              `✅ [UnifiedCache] Cover image stored in favorite_entries table for: ${torrent.Name}`
-            );
+
           } else {
             console.warn(
               `⚠️ [UnifiedCache] Failed to store cover image in favorite_entries table for: ${torrent.Name}`
@@ -213,17 +183,13 @@ class UnifiedCache {
         try {
           const favoriteEntry = await this.getOrCreateFavoriteEntry(torrent);
           if (favoriteEntry && favoriteEntry.id) {
-            console.log(
-              `💾 [UnifiedCache] Found/created favorite entry, storing cover image: ${favoriteEntry.id}`
-            );
+
             const favoriteSuccess = await this.updateFavoriteEntryCoverImage(
               favoriteEntry.id,
               pixhostUrl
             );
             if (favoriteSuccess) {
-              console.log(
-                `✅ [UnifiedCache] Cover image stored in favorite_entries table (auto-detected) for: ${torrent.Name}`
-              );
+
             } else {
               console.warn(
                 `⚠️ [UnifiedCache] Failed to store cover image in favorite_entries table (auto-detected) for: ${torrent.Name}`
@@ -231,10 +197,7 @@ class UnifiedCache {
             }
           }
         } catch (error) {
-          console.log(
-            `ℹ️ [UnifiedCache] Could not auto-detect favorite entry for cover image storage:`,
-            error.message
-          );
+
           // This is not an error - just means this torrent is not a favorite
         }
       }
@@ -531,13 +494,6 @@ class UnifiedCache {
   // === CACHED LINKS METHODS ===
 
   async addCachedLink(cachedLink, userId = null) {
-    console.log('🔍 [UnifiedCache] Adding cached link with userId:', userId);
-    console.log('🔍 [UnifiedCache] Cached link data:', {
-      id: cachedLink.id,
-      url: cachedLink.url,
-      title: cachedLink.title,
-      dateAdded: cachedLink.dateAdded,
-    });
 
     const sql = `
       INSERT OR REPLACE INTO cached_links
@@ -560,11 +516,8 @@ class UnifiedCache {
       userId,
     ];
 
-    console.log('🔍 [UnifiedCache] SQL values:', values);
-
     const result = await this.dbManager.run(sql, values);
 
-    console.log('🔍 [UnifiedCache] Insert result:', result);
     return result.changes > 0;
   }
 
@@ -1210,12 +1163,7 @@ class UnifiedCache {
     // For cached links, use a more specific identifier (matching frontend logic)
     if (torrent.isCachedLink && torrent.cachedLinkId) {
       const key = `cached_link_${torrent.cachedLinkId}`;
-      console.log(
-        '🔑 [UnifiedCache] Generated key for cached link:',
-        key,
-        'from torrent:',
-        torrent.Name
-      );
+
       return key;
     }
 
@@ -1330,23 +1278,10 @@ class UnifiedCache {
   async getCoverImageForTorrent(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 
-    console.log(
-      `🔍 [UnifiedCache] Getting cover image for torrent: "${torrent.Name}"`
-    );
-    console.log(`🔍 [UnifiedCache] Torrent lookup details:`, {
-      torrentKey,
-      favoriteEntryId: torrent.favoriteEntryId,
-      isCachedLink: torrent.isCachedLink,
-      cachedLinkId: torrent.cachedLinkId,
-      source: torrent.Source,
-    });
-
     // First check if we have the image stored in the images table
     const coverImage = await this.getCoverImageByKey(torrentKey);
     if (coverImage) {
-      console.log(
-        `✅ [UnifiedCache] Found cover image in images table for: "${torrent.Name}"`
-      );
+
       return coverImage;
     }
 
@@ -1355,18 +1290,10 @@ class UnifiedCache {
 
     // First try using the provided favoriteEntryId if available
     if (torrent.favoriteEntryId) {
-      console.log(
-        `🔍 [UnifiedCache] Looking up favorite entry by ID: ${torrent.favoriteEntryId}`
-      );
 
       // Special debugging for the specific failing favorite entry
       if (torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81') {
-        console.log(
-          '🔍 [SPECIAL DEBUG - Backend] This is the failing favorite entry - enhanced debugging'
-        );
-        console.log(
-          '🔍 [SPECIAL DEBUG - Backend] Full torrent object received:',
-          JSON.stringify(torrent, null, 2)
+
         );
       }
 
@@ -1378,64 +1305,42 @@ class UnifiedCache {
           id: row.id,
           coverImageUrl: row.cover_image_url,
         };
-        console.log(
-          `✅ [UnifiedCache] Found favorite entry by ID: ${
-            torrent.favoriteEntryId
-          }, cover_image_url: ${row.cover_image_url || 'null'}`
-        );
 
         // Special debugging for the specific failing favorite entry
         if (
           torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81'
         ) {
-          console.log(
-            '🔍 [SPECIAL DEBUG - Backend] Database row for failing entry:',
-            JSON.stringify(row, null, 2)
+
           );
         }
       } else {
-        console.log(
-          `❌ [UnifiedCache] No favorite entry found for ID: ${torrent.favoriteEntryId}`
-        );
 
         // Special debugging for the specific failing favorite entry
         if (
           torrent.favoriteEntryId === '02d7d8d4-77fd-43e7-b2ef-1a2598917f81'
         ) {
-          console.log(
-            '🔍 [SPECIAL DEBUG - Backend] No database row found for failing entry - checking if entry exists at all'
-          );
+
           const checkSql =
             'SELECT id, cover_image_url, torrent_name FROM favorite_entries WHERE id = ?';
           const checkRow = await this.dbManager.get(checkSql, [
             torrent.favoriteEntryId,
           ]);
-          console.log('🔍 [SPECIAL DEBUG - Backend] Check result:', checkRow);
+
         }
       }
     } else {
       // Fallback to the existing getFavoriteEntry method
-      console.log(
-        `🔍 [UnifiedCache] No favoriteEntryId provided, trying getFavoriteEntry method`
-      );
+
       favoriteEntry = await this.getFavoriteEntry(torrent);
       if (favoriteEntry) {
-        console.log(
-          `✅ [UnifiedCache] Found favorite entry via getFavoriteEntry: ${
-            favoriteEntry.id
-          }, cover_image_url: ${favoriteEntry.coverImageUrl || 'null'}`
-        );
+
       } else {
-        console.log(
-          `❌ [UnifiedCache] No favorite entry found via getFavoriteEntry`
-        );
+
       }
     }
 
     if (favoriteEntry && favoriteEntry.coverImageUrl) {
-      console.log(
-        `✅ [UnifiedCache] Returning cover image from favorite entry: ${favoriteEntry.coverImageUrl}`
-      );
+
       return {
         type: 'url',
         imageUrl: favoriteEntry.coverImageUrl,
@@ -1445,30 +1350,21 @@ class UnifiedCache {
 
     // Check if this is a cached link with a cover image URL
     if (torrent.isCachedLink && torrent.cachedLinkId) {
-      console.log(
-        `🔍 [UnifiedCache] Looking up cached link cover image: ${torrent.cachedLinkId}`
-      );
+
       const sql = 'SELECT cover_image_url FROM cached_links WHERE id = ?';
       const row = await this.dbManager.get(sql, [torrent.cachedLinkId]);
       if (row && row.cover_image_url) {
-        console.log(
-          `✅ [UnifiedCache] Found cover image in cached_links table: ${row.cover_image_url}`
-        );
+
         return {
           type: 'url',
           imageUrl: row.cover_image_url,
           originalUrl: row.cover_image_url,
         };
       } else {
-        console.log(
-          `❌ [UnifiedCache] No cover image found in cached_links table for: ${torrent.cachedLinkId}`
-        );
+
       }
     }
 
-    console.log(
-      `❌ [UnifiedCache] No cover image found for torrent: "${torrent.Name}"`
-    );
     return null;
   }
 

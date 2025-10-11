@@ -53,7 +53,7 @@ class Logger {
           console.warn(formattedMessage);
           break;
         default:
-          console.log(formattedMessage);
+
       }
     }
 

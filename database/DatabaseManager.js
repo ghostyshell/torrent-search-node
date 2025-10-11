@@ -78,7 +78,7 @@ class DatabaseManager {
    * Initialize database schema
    */
   async initializeSchema() {
-    console.log('DatabaseManager: Starting schema initialization...');
+
     const tables = [
       // Cache table for general key-value storage
       `CREATE TABLE IF NOT EXISTS cache (
@@ -240,43 +240,34 @@ class DatabaseManager {
     ];
 
     // Execute schema creation
-    console.log('DatabaseManager: Creating tables...');
+
     for (const sql of tables) {
-      console.log(
-        'DatabaseManager: Creating table:',
-        sql.substring(0, 50) + '...'
-      );
+
       await this.execute(sql);
     }
 
-    console.log('DatabaseManager: Creating indexes...');
     for (const sql of indexes) {
-      console.log(
-        'DatabaseManager: Creating index:',
-        sql.substring(0, 50) + '...'
-      );
+
       await this.execute(sql);
     }
 
-    console.log('DatabaseManager: Running migrations...');
     try {
       // Migration: Add missing columns to cached_links table
-      console.log('DatabaseManager: Running migrateCachedLinksTable...');
+
       await this.migrateCachedLinksTable();
 
       // Migration: Add cover image columns to other tables
-      console.log('DatabaseManager: Running migrateCoverImageColumns...');
+
       await this.migrateCoverImageColumns();
 
       // Migration: Update images table to use URLs only
-      console.log('DatabaseManager: Running migrateImagesToUrlOnly...');
+
       await this.migrateImagesToUrlOnly();
 
       // Migration: Add user_id columns for user-specific data
-      console.log('DatabaseManager: Running migrateUserColumns...');
+
       await this.migrateUserColumns();
 
-      console.log('DatabaseManager: All migrations completed successfully');
     } catch (migrationError) {
       console.warn(
         'DatabaseManager: Migration failed, continuing without migrations:',
@@ -284,10 +275,6 @@ class DatabaseManager {
       );
       // Continue without migrations - tables and indexes are created
     }
-
-    console.log(
-      'DatabaseManager: Schema initialization completed successfully'
-    );
 
     // Run migration to handle existing favorites without user_id
     await this.migrateFavoritesToUserSpecific();
@@ -361,7 +348,7 @@ class DatabaseManager {
       if (!hasPixhostUrl) {
         // Add pixhost_url column
         await this.execute('ALTER TABLE images ADD COLUMN pixhost_url TEXT');
-        console.log('✅ Added pixhost_url column to images table');
+
       }
 
       // Check if we need to drop the image_data column
@@ -400,7 +387,6 @@ class DatabaseManager {
         await this.execute('DROP TABLE images');
         await this.execute('ALTER TABLE images_new RENAME TO images');
 
-        console.log('✅ Migrated images table to URL-only storage');
       }
     } catch (error) {
       console.warn('⚠️ Images table migration warning:', error.message);
@@ -419,7 +405,7 @@ class DatabaseManager {
         if (!columnExists) {
           const sql = `ALTER TABLE ${tableName} ADD COLUMN user_id TEXT`;
           await this.execute(sql);
-          console.log(`✅ Added user_id column to ${tableName} table`);
+
         }
       } catch (error) {
         if (!error.message.includes('duplicate column name')) {
@@ -666,7 +652,6 @@ class DatabaseManager {
    */
   async migrateFavoritesToUserSpecific() {
     try {
-      console.log('DatabaseManager: Running favorites migration...');
 
       // Delete favorites and favorite_entries that don't have a user_id
       // These are likely from before user authentication was implemented
@@ -681,13 +666,9 @@ class DatabaseManager {
       const deletedEntries = deleteFavoriteEntries.changes || 0;
 
       if (deletedFavorites > 0 || deletedEntries > 0) {
-        console.log(
-          `DatabaseManager: Migration cleaned up ${deletedFavorites} orphaned favorites and ${deletedEntries} orphaned favorite entries`
-        );
+
       } else {
-        console.log(
-          'DatabaseManager: No orphaned favorites found, migration complete'
-        );
+
       }
 
       return true;

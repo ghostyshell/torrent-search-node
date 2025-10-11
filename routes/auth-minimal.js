@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 
 const setupMinimalAuthRoutes = (cache) => {
-  console.log('setupMinimalAuthRoutes called with cache:', !!cache);
 
   // Simple routes without passport
   router.get('/google', (req, res) => {
@@ -20,7 +19,6 @@ const setupMinimalAuthRoutes = (cache) => {
     res.json({ message: 'User endpoint (minimal)' });
   });
 
-  console.log('setupMinimalAuthRoutes completed, returning router');
   return router;
 };
 

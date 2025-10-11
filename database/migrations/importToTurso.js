@@ -33,11 +33,10 @@ class TursoImporter {
   }
 
   async testConnection() {
-    console.log('🔍 Testing Turso connection...');
 
     try {
       const response = await this.executeBatch(['SELECT 1 as test']);
-      console.log('✅ Turso connection successful');
+
       return true;
     } catch (error) {
       console.error('❌ Turso connection failed:', error.message);
@@ -122,7 +121,6 @@ class TursoImporter {
   }
 
   async importFromFile(filePath) {
-    console.log(`📥 Importing from file: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`Import file not found: ${filePath}`);
@@ -131,10 +129,8 @@ class TursoImporter {
     const content = fs.readFileSync(filePath, 'utf8');
     const statements = this.parseSqlStatements(content);
 
-    console.log(`📋 Found ${statements.length} SQL statements`);
-
     if (statements.length === 0) {
-      console.log('⚠️  No statements to execute');
+
       return { imported: 0, errors: [] };
     }
 
@@ -199,13 +195,11 @@ class TursoImporter {
     }
 
     if (oversizedStatements.length > 0) {
-      console.log(
-        `⚠️  Skipping ${oversizedStatements.length} oversized statements`
-      );
+
     }
 
     if (validStatements.length === 0) {
-      console.log('⚠️  No valid statements to execute');
+
       return results;
     }
 
@@ -213,17 +207,9 @@ class TursoImporter {
     const optimalBatchSize = 50; // Smaller batches for better reliability
     const totalBatches = Math.ceil(validStatements.length / optimalBatchSize);
 
-    console.log(
-      `🚀 Executing ${validStatements.length} statements in ${totalBatches} optimized batches...`
-    );
-
     for (let i = 0; i < validStatements.length; i += optimalBatchSize) {
       const batch = validStatements.slice(i, i + optimalBatchSize);
       const batchNumber = Math.floor(i / optimalBatchSize) + 1;
-
-      console.log(
-        `   Batch ${batchNumber}/${totalBatches} (${batch.length} statements)`
-      );
 
       try {
         // Try batch execution first
@@ -252,9 +238,7 @@ class TursoImporter {
         }
 
         results.imported += batchImported;
-        console.log(
-          `   Batch ${batchNumber}: ${batchImported}/${batch.length} statements imported`
-        );
+
       }
 
       // Minimal delay between batches
@@ -271,14 +255,11 @@ class TursoImporter {
         statement: oversized.statement,
       });
     }
-    console.log(
-      `📊 Import summary: ${results.imported} imported, ${results.skipped} skipped, ${results.errors.length} errors`
-    );
+
     return results;
   }
 
   async importAllExports(exportDir = './database/migrations/exports') {
-    console.log(`📂 Importing all exports from: ${exportDir}`);
 
     if (!fs.existsSync(exportDir)) {
       throw new Error(`Export directory not found: ${exportDir}`);
@@ -299,12 +280,8 @@ class TursoImporter {
     const skippedFiles = files.filter((file) => skipFiles.includes(file));
 
     if (skippedFiles.length > 0) {
-      console.log(
-        `⚠️  Skipping files with large binary data: ${skippedFiles.join(', ')}`
-      );
-    }
 
-    console.log(`📋 Found ${filesToProcess.length} export files to process`);
+    }
 
     const importResults = {};
     let totalImported = 0;
@@ -312,7 +289,6 @@ class TursoImporter {
 
     for (const file of filesToProcess) {
       const filePath = path.join(exportDir, file);
-      console.log(`\n📥 Processing: ${file}`);
 
       try {
         const result = await this.importFromFile(filePath);
@@ -320,11 +296,6 @@ class TursoImporter {
         totalImported += result.imported;
         totalErrors += result.errors.length;
 
-        console.log(
-          `✅ ${file}: ${result.imported} statements imported, ${
-            result.skipped || 0
-          } skipped, ${result.errors.length} errors`
-        );
       } catch (error) {
         console.error(`❌ ${file}: ${error.message}`);
         importResults[file] = { error: error.message, imported: 0, errors: [] };
@@ -342,11 +313,6 @@ class TursoImporter {
       };
     }
 
-    console.log(`\n🎉 Import completed!`);
-    console.log(`   Total statements imported: ${totalImported}`);
-    console.log(`   Total errors: ${totalErrors}`);
-    console.log(`   Files skipped: ${skippedFiles.length}`);
-
     return {
       files: importResults,
       summary: {
@@ -359,7 +325,6 @@ class TursoImporter {
   }
 
   async verifyImport() {
-    console.log('🔍 Verifying import...');
 
     const tables = [
       'cache',
@@ -378,14 +343,14 @@ class TursoImporter {
         const countValue = result.result?.rows?.[0]?.[0];
         const count = countValue?.value ? parseInt(countValue.value) : 0;
         verification[table] = { count, success: true };
-        console.log(`   ${table}: ${count} rows`);
+
       } catch (error) {
         verification[table] = {
           count: 0,
           success: false,
           error: error.message,
         };
-        console.log(`   ${table}: ERROR - ${error.message}`);
+
       }
     }
 
@@ -393,7 +358,6 @@ class TursoImporter {
   }
 
   async clearAllData() {
-    console.log('🗑️  Clearing all data from Turso database...');
 
     const tables = [
       'cache',
@@ -406,7 +370,7 @@ class TursoImporter {
 
     try {
       await this.executeBatch(statements);
-      console.log('✅ All data cleared');
+
       return true;
     } catch (error) {
       console.error('❌ Failed to clear data:', error.message);
@@ -426,22 +390,7 @@ if (require.main === module) {
     const filePath = process.argv[3];
 
     if (!command) {
-      console.log('Usage:');
-      console.log(
-        '  node importToTurso.js test                    # Test connection'
-      );
-      console.log(
-        '  node importToTurso.js import <file>           # Import specific file'
-      );
-      console.log(
-        '  node importToTurso.js import-all [directory]  # Import all files'
-      );
-      console.log(
-        '  node importToTurso.js verify                  # Verify import'
-      );
-      console.log(
-        '  node importToTurso.js clear                   # Clear all data'
-      );
+
       process.exit(1);
     }
 
@@ -460,16 +409,14 @@ if (require.main === module) {
           }
           await importer.testConnection();
           const result = await importer.importFromFile(filePath);
-          console.log(
-            `✅ Import completed: ${result.imported} statements, ${result.errors.length} errors`
-          );
+
           break;
 
         case 'import-all':
           const exportDir = filePath || './database/migrations/exports';
           await importer.testConnection();
           const allResults = await importer.importAllExports(exportDir);
-          console.log('\n📊 Final Summary:', allResults.summary);
+
           break;
 
         case 'verify':

@@ -16,7 +16,7 @@ const {
 const express = require('express');
 const path = require('path');
 const passport = require('passport');
-const UnifiedCache = require('./database/UnifiedCache');
+const StorageManager = require('./database/StorageManager');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
 const AuthMiddleware = require('./middleware/auth');
@@ -63,8 +63,8 @@ if (config.security.trustProxy) {
 // DATABASE INITIALIZATION
 // ===========================
 
-// Initialize unified cache (supports both local SQLite and Turso cloud)
-let cache = null;
+// Initialize storage manager (uses Turso cloud database)
+let storage = null;
 let authMiddleware = null;
 
 // Database initialization can be added later if needed
@@ -168,12 +168,12 @@ app.get('/', (req, res) => {
 // Server startup will happen after async initialization
 async function startServer() {
   try {
-    // Initialize cache and database first with timeout
+    // Initialize storage manager and database first with timeout
 
-    cache = new UnifiedCache();
+    storage = new StorageManager();
 
     // Add timeout to database initialization
-    const initPromise = cache.initializeDatabase();
+    const initPromise = storage.initialize();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error('Database initialization timeout')),
@@ -182,15 +182,17 @@ async function startServer() {
     );
 
     await Promise.race([initPromise, timeoutPromise]);
-    app.locals.cache = cache;
+    app.locals.storage = storage;
+    // Backward compatibility: expose as cache
+    app.locals.cache = storage;
 
     // Initialize auth middleware
-    authMiddleware = new AuthMiddleware(cache);
+    authMiddleware = new AuthMiddleware(storage);
 
     // Register auth routes
 
     const setupAuthRoutes = require('./routes/auth');
-    const authRouter = setupAuthRoutes(cache);
+    const authRouter = setupAuthRoutes(storage);
     app.use('/api/auth', authRouter);
 
     // Now register favorites routes with proper auth middleware
@@ -312,11 +314,11 @@ async function startServer() {
     // Debug endpoint for troubleshooting favorite entries
     app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
       try {
-        const cache = req.app.locals.cache;
+        const storage = req.app.locals.storage;
         const { favoriteEntryId } = req.params;
 
         const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
-        const row = await cache.dbManager.get(sql, [favoriteEntryId]);
+        const row = await storage.dbManager.get(sql, [favoriteEntryId]);
 
         res.json({
           success: true,
@@ -376,17 +378,19 @@ async function startServer() {
   } catch (error) {
     logger.error('Failed to initialize application:', error);
 
-    // Initialize minimal cache without database
-    cache = new UnifiedCache();
-    app.locals.cache = cache;
+    // Initialize minimal storage without database
+    storage = new StorageManager();
+    app.locals.storage = storage;
+    // Backward compatibility
+    app.locals.cache = storage;
 
     // Initialize auth middleware (will handle database unavailability gracefully)
-    authMiddleware = new AuthMiddleware(cache);
+    authMiddleware = new AuthMiddleware(storage);
 
     // Register auth routes with minimal setup
 
     const setupAuthRoutes = require('./routes/auth');
-    const authRouter = setupAuthRoutes(cache);
+    const authRouter = setupAuthRoutes(storage);
     app.use('/api/auth', authRouter);
 
     // Register favorites routes (with fallback auth middleware)
@@ -548,10 +552,10 @@ const gracefulShutdown = (signal) => {
   server.close(async () => {
     logger.info('HTTP server closed');
 
-    if (cache) {
+    if (storage) {
       try {
-        await cache.cleanup();
-        await cache.close();
+        await storage.cleanup();
+        await storage.close();
         logger.info('Database connections closed');
       } catch (error) {
         logger.error('Error during database cleanup', { error: error.message });
@@ -573,15 +577,15 @@ const gracefulShutdown = (signal) => {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Periodic cache cleanup handler
-const startPeriodicCacheCleanup = () => {
-  if (!cache) {
-    logger.warn('Cache not available - skipping periodic cleanup');
+// Periodic storage cleanup handler
+const startPeriodicStorageCleanup = () => {
+  if (!storage) {
+    logger.warn('Storage not available - skipping periodic cleanup');
     return;
   }
 
   const cleanupInterval = 60 * 60 * 1000; // 1 hour
-  logger.info('Starting periodic cache cleanup', {
+  logger.info('Starting periodic storage cleanup', {
     intervalMinutes: cleanupInterval / (60 * 1000),
     cleanupScope:
       'Expired cache entries and old stream URLs (keeps 100 most recent)',
@@ -589,12 +593,12 @@ const startPeriodicCacheCleanup = () => {
 
   setInterval(async () => {
     try {
-      logger.info('Running periodic cache cleanup', {
+      logger.info('Running periodic storage cleanup', {
         cleanupTypes: ['expired_cache_entries', 'old_stream_urls'],
         note: 'Favorites, images, and non-expired data are preserved',
       });
-      await cache.cleanup();
-      logger.info('Periodic cache cleanup completed successfully');
+      await storage.cleanup();
+      logger.info('Periodic storage cleanup completed successfully');
     } catch (error) {
       logger.error('Error during scheduled cleanup', { error: error.message });
     }
@@ -602,6 +606,6 @@ const startPeriodicCacheCleanup = () => {
 };
 
 // Initialize periodic cleanup
-startPeriodicCacheCleanup();
+startPeriodicStorageCleanup();
 
 module.exports = app;

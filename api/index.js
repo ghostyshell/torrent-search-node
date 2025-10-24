@@ -30,7 +30,7 @@ if (corsErrors.length > 0) {
 
 const express = require('express');
 const combo = require('../torrent/COMBO.js');
-const UnifiedCache = require('../database/UnifiedCache');
+const StorageManager = require('../database/StorageManager');
 const googleImagesService = require('../services/googleImagesService');
 const setupAuthRoutes = require('../routes/auth');
 const AuthMiddleware = require('../middleware/auth');
@@ -45,17 +45,17 @@ const proxyController = require('../controllers/proxyController');
 
 const app = express();
 
-// Initialize cache
-let cache = null;
+// Initialize storage
+let storage = null;
 let authMiddleware = null;
 
 // Auth routes initialization function
 const initializeAuthRoutes = () => {
 
-  if (cache) {
+  if (storage) {
     try {
 
-      const authRouter = setupAuthRoutes(cache);
+      const authRouter = setupAuthRoutes(storage);
 
       app.use('/api/auth', authRouter);
 
@@ -64,19 +64,19 @@ const initializeAuthRoutes = () => {
       console.warn('API: Continuing without auth routes');
     }
   } else {
-    console.warn('API: Auth routes not initialized - cache not available');
+    console.warn('API: Auth routes not initialized - storage not available');
   }
 };
 
-const initializeCache = async () => {
+const initializeStorage = async () => {
   try {
 
-    cache = new UnifiedCache();
+    storage = new StorageManager();
 
     // Initialize database for proper authentication and storage
 
     try {
-      await cache.initializeDatabase();
+      await storage.initialize();
 
     } catch (dbError) {
       console.warn(
@@ -85,30 +85,32 @@ const initializeCache = async () => {
       );
     }
 
-    // Make cache available to health checks and controllers
-    app.locals.cache = cache;
+    // Make storage available to health checks and controllers
+    app.locals.storage = storage;
+    // Backward compatibility
+    app.locals.cache = storage;
 
-    // Initialize auth middleware with cache instance
-    authMiddleware = new AuthMiddleware(cache);
+    // Initialize auth middleware with storage instance
+    authMiddleware = new AuthMiddleware(storage);
 
-    // Initialize auth routes now that cache instance is ready
+    // Initialize auth routes now that storage instance is ready
 
     initializeAuthRoutes();
 
   } catch (error) {
-    logger.error('Cache initialization failed', {
+    logger.error('Storage initialization failed', {
       error: error.message,
       stack: config.isDevelopment ? error.stack : undefined,
     });
-    logger.warn('Continuing without cache - some features may be limited');
-    // Continue without cache - graceful degradation
+    logger.warn('Continuing without storage - some features may be limited');
+    // Continue without storage - graceful degradation
     initializeAuthRoutes();
   }
 };
 
-// Initialize cache on startup
+// Initialize storage on startup
 
-initializeCache();
+initializeStorage();
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));

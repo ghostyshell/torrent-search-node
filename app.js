@@ -195,10 +195,8 @@ async function startServer() {
     const torrentRouter = setupTorrentRoutes(storageProvider);
     app.use('/api/torrents', torrentRouter);
 
-    // Backward compatibility for old torrent routes
-    app.use('/api', torrentRouter);
-
     // Now register favorites routes with proper auth middleware
+    // Note: Backward compatibility torrent routes will be added at the end
 
     // --- FAVORITES CACHE ROUTES ---
     app.post(
@@ -272,16 +270,13 @@ async function startServer() {
     app.post(
       '/api/storage/stored-links',
       (req, res, next) => {
-
         next();
       },
       (req, res, next) => {
-
         next();
       },
       optionalAuthFn,
       (req, res, next) => {
-
         next();
       },
       cacheController.addCachedLink
@@ -321,7 +316,9 @@ async function startServer() {
         const { favoriteEntryId } = req.params;
 
         const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
-        const row = await storageProvider.tursoClient.get(sql, [favoriteEntryId]);
+        const row = await storageProvider.tursoClient.get(sql, [
+          favoriteEntryId,
+        ]);
 
         res.json({
           success: true,
@@ -362,6 +359,11 @@ async function startServer() {
       cacheController.updateCachedLink
     );
 
+    // --- BACKWARD COMPATIBILITY TORRENT ROUTES ---
+    // IMPORTANT: This must be LAST to avoid catching other /api/* routes
+    // Backward compatibility for old torrent routes (e.g., /api/:website/:query/:page)
+    app.use('/api', torrentRouter);
+
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
@@ -370,9 +372,7 @@ async function startServer() {
 
     const PORT = process.env.PORT || 3001;
 
-    const server = app.listen(PORT, () => {
-
-    });
+    const server = app.listen(PORT, () => {});
 
     return server;
   } catch (error) {
@@ -402,9 +402,9 @@ async function startServer() {
     // Register torrent routes
     const torrentRouter = setupTorrentRoutes(storageProvider);
     app.use('/api/torrents', torrentRouter);
-    app.use('/api', torrentRouter);
 
     // Register favorites routes (with fallback auth middleware)
+    // Note: Backward compatibility torrent routes will be added at the end
 
     // --- FAVORITES CACHE ROUTES ---
     app.post(
@@ -529,15 +529,18 @@ async function startServer() {
       cacheController.updateCachedLink
     );
 
+    // --- BACKWARD COMPATIBILITY TORRENT ROUTES (FALLBACK) ---
+    // IMPORTANT: This must be LAST to avoid catching other /api/* routes
+    // Backward compatibility for old torrent routes (e.g., /api/:website/:query/:page)
+    app.use('/api', torrentRouter);
+
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
 
     // Start server
     const PORT = process.env.PORT || 3001;
-    const server = app.listen(PORT, () => {
-
-    });
+    const server = app.listen(PORT, () => {});
 
     return server;
   }

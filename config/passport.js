@@ -96,7 +96,6 @@ class AuthService {
           done(error, null);
         }
       });
-
     } catch (error) {
       console.error(
         '✗ Failed to initialize Google OAuth Strategy:',
@@ -173,7 +172,7 @@ class AuthService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      const result = await this.cache.dbManager.run(sql, [
+      const result = await this.cache.tursoClient.run(sql, [
         userData.id,
         userData.email,
         userData.name,
@@ -196,21 +195,19 @@ class AuthService {
     // Check if database is properly initialized
     if (
       !this.cache ||
-      !this.cache.dbManager ||
-      !this.cache.dbManager.client ||
+      !this.cache.tursoClient ||
+      !this.cache.tursoClient.client ||
       !this.cache.isInitialized
     ) {
-
       return null;
     }
 
     try {
       const sql = 'SELECT * FROM users WHERE id = ? AND is_active = 1';
-      const user = await this.cache.dbManager.get(sql, [userId]);
+      const user = await this.cache.tursoClient.get(sql, [userId]);
       return user;
     } catch (error) {
       if (error.message.includes('Database client not initialized')) {
-
         return null;
       }
       throw error;
@@ -221,21 +218,19 @@ class AuthService {
     // Check if database is properly initialized
     if (
       !this.cache ||
-      !this.cache.dbManager ||
-      !this.cache.dbManager.client ||
+      !this.cache.tursoClient ||
+      !this.cache.tursoClient.client ||
       !this.cache.isInitialized
     ) {
-
       return null;
     }
 
     try {
       const sql = 'SELECT * FROM users WHERE email = ? AND is_active = 1';
-      const user = await this.cache.dbManager.get(sql, [email]);
+      const user = await this.cache.tursoClient.get(sql, [email]);
       return user;
     } catch (error) {
       if (error.message.includes('Database client not initialized')) {
-
         return null;
       }
       console.warn('getUserByEmail error (gracefully handled):', error.message);
@@ -246,7 +241,7 @@ class AuthService {
   async getUserByGoogleId(googleId) {
     try {
       const sql = 'SELECT * FROM users WHERE google_id = ? AND is_active = 1';
-      const user = await this.cache.dbManager.get(sql, [googleId]);
+      const user = await this.cache.tursoClient.get(sql, [googleId]);
       return user;
     } catch (error) {
       console.warn(
@@ -266,7 +261,7 @@ class AuthService {
       const setClause = fields.map((field) => `${field} = ?`).join(', ');
 
       const sql = `UPDATE users SET ${setClause} WHERE id = ?`;
-      const result = await this.cache.dbManager.run(sql, [...values, userId]);
+      const result = await this.cache.tursoClient.run(sql, [...values, userId]);
 
       return result.changes > 0;
     } catch (error) {
@@ -301,7 +296,7 @@ class AuthService {
         VALUES (?, ?, ?, ?, ?, ?)
       `;
 
-      const result = await this.cache.dbManager.run(sql, [
+      const result = await this.cache.tursoClient.run(sql, [
         sessionId,
         userId,
         sessionToken,
@@ -329,11 +324,10 @@ class AuthService {
     // Check if database is properly initialized
     if (
       !this.cache ||
-      !this.cache.dbManager ||
-      !this.cache.dbManager.client ||
+      !this.cache.tursoClient ||
+      !this.cache.tursoClient.client ||
       !this.cache.isInitialized
     ) {
-
       return null;
     }
 
@@ -346,7 +340,7 @@ class AuthService {
     const currentTime = Math.floor(Date.now() / 1000);
 
     try {
-      const session = await this.cache.dbManager.get(sql, [
+      const session = await this.cache.tursoClient.get(sql, [
         sessionToken,
         currentTime,
       ]);
@@ -359,7 +353,6 @@ class AuthService {
     } catch (error) {
       // Handle database unavailability gracefully
       if (error.message.includes('Database client not initialized')) {
-
         return null; // No session found (graceful degradation)
       }
       console.warn(
@@ -374,7 +367,7 @@ class AuthService {
     try {
       const sql = 'UPDATE user_sessions SET last_accessed_at = ? WHERE id = ?';
       const currentTime = Math.floor(Date.now() / 1000);
-      await this.cache.dbManager.run(sql, [currentTime, sessionId]);
+      await this.cache.tursoClient.run(sql, [currentTime, sessionId]);
     } catch (error) {
       console.warn(
         'Session access update failed (gracefully handled):',
@@ -386,7 +379,7 @@ class AuthService {
   async deleteSession(sessionToken) {
     try {
       const sql = 'DELETE FROM user_sessions WHERE session_token = ?';
-      const result = await this.cache.dbManager.run(sql, [sessionToken]);
+      const result = await this.cache.tursoClient.run(sql, [sessionToken]);
       return result.changes > 0;
     } catch (error) {
       console.warn('deleteSession error (gracefully handled):', error.message);
@@ -398,7 +391,7 @@ class AuthService {
     try {
       const sql = 'DELETE FROM user_sessions WHERE expires_at <= ?';
       const currentTime = Math.floor(Date.now() / 1000);
-      const result = await this.cache.dbManager.run(sql, [currentTime]);
+      const result = await this.cache.tursoClient.run(sql, [currentTime]);
       return result.changes;
     } catch (error) {
       console.warn(

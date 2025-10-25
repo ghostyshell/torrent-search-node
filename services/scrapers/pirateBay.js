@@ -1,6 +1,6 @@
 const cheerio = require('cheerio');
 const axios = require('axios');
-const { extractImageLinks } = require('./imageExtractors');
+const { extractImageLinks } = require('../imageExtractorService');
 
 async function pirateBay(query, page = '1', options = {}) {
   const allTorrents = [];

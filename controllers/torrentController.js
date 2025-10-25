@@ -1,27 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const combo = require('../torrent/COMBO.js');
-
-// Import torrent modules directly
-const limeTorrent = require('../torrent/limeTorrent');
-const nyaaSI = require('../torrent/nyaaSI');
-const pirateBay = require('../torrent/pirateBay');
-const torrentProject = require('../torrent/torrentProject');
-const yts = require('../torrent/yts');
-
-// Create torrents object
-const torrents = {
-  limetorrent: limeTorrent,
-  nyaasi: nyaaSI,
-  piratebay: pirateBay,
-  torrentproject: torrentProject,
-  yts: yts,
-};
+const torrentScraperService = require('../services/torrentScraperService');
 
 // Torrent controller for all torrent search and details endpoints
 const torrentController = {
   // Get torrent details
-  getTorrentDetails: (req, res) => {
+  getTorrentDetails: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
       'Access-Control-Allow-Headers',
@@ -31,30 +15,14 @@ const torrentController = {
     const website = req.params.website.toLowerCase();
     const torrentUrl = decodeURIComponent(req.params.torrentUrl);
 
-    if (
-      website === 'piratebay' &&
-      torrents[website] &&
-      torrents[website].getDetails
-    ) {
-      torrents[website]
-        .getDetails(torrentUrl)
-        .then((details) => {
-          res.json(details);
-        })
-        .catch((error) => {
-          res.status(500).json({
-            error: 'Failed to fetch torrent details',
-            message: error.message,
-          });
-        });
-    } else {
-      res.status(404).json({
-        error: `Torrent details not supported for "${website}" or website not found`,
-        debug: {
-          website,
-          hasModule: !!torrents[website],
-          hasGetDetails: !!(torrents[website] && torrents[website].getDetails),
-        },
+    try {
+      const details = await torrentScraperService.getTorrentDetails(website, torrentUrl);
+      res.json(details);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to fetch torrent details',
+        message: error.message,
+        website: website,
       });
     }
   },
@@ -82,15 +50,9 @@ const torrentController = {
       let results;
 
       if (website === 'all') {
-        results = await combo(query, page, options);
-      } else if (torrents[website]) {
-        results = await torrents[website](query, page, options);
-        // Handle null responses by returning empty array
-        results = results || [];
+        results = await torrentScraperService.searchAllTorrents(query, page, options);
       } else {
-        return res.json({
-          error: `Please select "${Object.keys(torrents).join(' | ')}"`,
-        });
+        results = await torrentScraperService.searchTorrents(website, query, page, options);
       }
 
       // Add cover images to results if requested
@@ -109,7 +71,7 @@ const torrentController = {
 
   // Get available torrent websites
   getTorrentWebsites: (req, res) => {
-    res.json(Object.keys(torrents));
+    res.json(torrentScraperService.getAvailableScrapers());
   },
 
   // Single torrent search endpoint for specific websites
@@ -125,13 +87,6 @@ const torrentController = {
 
     const websiteLower = website.toLowerCase();
 
-    if (!torrents[websiteLower]) {
-      return res.status(404).json({
-        error: `Website "${website}" not supported`,
-        availableWebsites: Object.keys(torrents),
-      });
-    }
-
     const options = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
       maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
@@ -139,7 +94,7 @@ const torrentController = {
     };
 
     try {
-      let results = await torrents[websiteLower](query, page, options);
+      let results = await torrentScraperService.searchTorrents(websiteLower, query, page, options);
 
       // Add cover images to results if requested
       if (options.includeCoverImages && req.app.locals.cache) {
@@ -200,21 +155,18 @@ const torrentController = {
       let results = [];
 
       if (websites.includes('all') || websites.length === 0) {
-        // Search all websites using combo
-        results = await combo(query, 1, searchOptions);
+        // Search all websites
+        results = await torrentScraperService.searchAllTorrents(query, 1, searchOptions);
       } else {
         // Search specific websites
         const searchPromises = websites.map(async (website) => {
           const websiteLower = website.toLowerCase();
-          if (torrents[websiteLower]) {
-            try {
-              return await torrents[websiteLower](query, 1, searchOptions);
-            } catch (error) {
-              console.error(`Error searching ${website}:`, error);
-              return [];
-            }
+          try {
+            return await torrentScraperService.searchTorrents(websiteLower, query, 1, searchOptions);
+          } catch (error) {
+            console.error(`Error searching ${website}:`, error);
+            return [];
           }
-          return [];
         });
 
         const websiteResults = await Promise.all(searchPromises);

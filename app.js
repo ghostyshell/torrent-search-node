@@ -19,13 +19,13 @@ const passport = require('passport');
 const StorageProvider = require('./database/StorageProvider');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
+const setupTorrentRoutes = require('./routes/torrents');
+const setupImageRoutes = require('./routes/images');
 const AuthMiddleware = require('./middleware/auth');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
 const favoritesController = require('./controllers/favoritesController');
-const torrentController = require('./controllers/torrentController');
-const imageController = require('./controllers/imageController');
 const videoController = require('./controllers/videoController');
 const proxyController = require('./controllers/proxyController');
 
@@ -116,14 +116,7 @@ app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 // Note: These will be registered after authMiddleware is initialized in startServer()
 
 // --- IMAGE ROUTES ---
-app.get('/api/google-images/search', imageController.searchGoogleImages);
-app.get(
-  '/api/google-images/suggestions',
-  imageController.getGoogleImagesSuggestions
-);
-app.post('/api/pixhost/upload', imageController.uploadToPixhost);
-app.get('/api/proxy/image', imageController.proxyImage);
-app.post('/api/images/batch-process', imageController.batchProcessImages);
+// Note: These will be registered in startServer() using setupImageRoutes()
 
 // --- VIDEO ROUTES ---
 app.post('/api/video/screenshot', videoController.generateScreenshot);
@@ -138,12 +131,7 @@ app.post(
 );
 
 // --- TORRENT ROUTES ---
-// Note: More specific routes first to avoid conflicts
-app.get(
-  '/api/torrent-details/:website/:torrentUrl',
-  torrentController.getTorrentDetails
-);
-app.get('/api/torrents', torrentController.getTorrentWebsites);
+// Note: These will be registered in startServer() using setupTorrentRoutes()
 
 // --- PROXY ROUTES ---
 // Note: MUST be before the catch-all torrent search route
@@ -191,10 +179,24 @@ async function startServer() {
     authMiddleware = new AuthMiddleware(storageProvider);
 
     // Register auth routes
-
-    const setupAuthRoutes = require('./routes/auth');
     const authRouter = setupAuthRoutes(storageProvider);
     app.use('/api/auth', authRouter);
+
+    // Register image routes
+    const imageRouter = setupImageRoutes(storageProvider);
+    app.use('/api/images', imageRouter);
+
+    // Register old image route paths for backward compatibility
+    app.use('/api/google-images', imageRouter);
+    app.use('/api/pixhost', imageRouter);
+    app.use('/api/proxy', imageRouter);
+
+    // Register torrent routes
+    const torrentRouter = setupTorrentRoutes(storageProvider);
+    app.use('/api/torrents', torrentRouter);
+
+    // Backward compatibility for old torrent routes
+    app.use('/api', torrentRouter);
 
     // Now register favorites routes with proper auth middleware
 
@@ -360,9 +362,6 @@ async function startServer() {
       cacheController.updateCachedLink
     );
 
-    // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES ---
-    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
-
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);
     app.use(errorHandler);
@@ -390,10 +389,20 @@ async function startServer() {
     authMiddleware = new AuthMiddleware(storageProvider);
 
     // Register auth routes with minimal setup
-
-    const setupAuthRoutes = require('./routes/auth');
     const authRouter = setupAuthRoutes(storageProvider);
     app.use('/api/auth', authRouter);
+
+    // Register image routes
+    const imageRouter = setupImageRoutes(storageProvider);
+    app.use('/api/images', imageRouter);
+    app.use('/api/google-images', imageRouter);
+    app.use('/api/pixhost', imageRouter);
+    app.use('/api/proxy', imageRouter);
+
+    // Register torrent routes
+    const torrentRouter = setupTorrentRoutes(storageProvider);
+    app.use('/api/torrents', torrentRouter);
+    app.use('/api', torrentRouter);
 
     // Register favorites routes (with fallback auth middleware)
 
@@ -519,9 +528,6 @@ async function startServer() {
       authMiddleware.optionalAuth(),
       cacheController.updateCachedLink
     );
-
-    // --- REGISTER TORRENT SEARCH ROUTE AFTER AUTH ROUTES (FALLBACK) ---
-    app.get('/api/:website/:query/:page?', torrentController.searchTorrents);
 
     // Add error handling middleware after all routes are registered
     app.use(notFoundHandler);

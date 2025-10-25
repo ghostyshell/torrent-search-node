@@ -5,42 +5,42 @@
  * Verifies Turso cloud database connectivity and basic operations
  */
 
-const StorageManager = require('./StorageManager');
+const StorageProvider = require('./StorageProvider');
 
 async function healthCheck() {
 
   try {
     // Initialize database connection
-    const storage = new StorageManager();
-    await storage.initialize();
+    const storageProvider = new StorageProvider();
+    await storageProvider.initialize();
 
     // Get database statistics
-    const stats = await storage.getStats();
+    const stats = await storageProvider.getStats();
 
     // Test basic operations
     const testKey = `health_check_${Date.now()}`;
     const testValue = { timestamp: new Date().toISOString(), test: true };
 
-    await storage.cache.set(testKey, testValue, 60); // 1 minute TTL
+    await storageProvider.cache.set(testKey, testValue, 60); // 1 minute TTL
 
-    const retrievedValue = await storage.cache.get(testKey);
+    const retrievedValue = await storageProvider.cache.get(testKey);
     if (JSON.stringify(retrievedValue) === JSON.stringify(testValue)) {
 
     } else {
       throw new Error('Read operation returned incorrect data');
     }
 
-    await storage.cache.delete(testKey);
+    await storageProvider.cache.delete(testKey);
 
     // Verify deletion
-    const deletedValue = await storage.cache.get(testKey);
+    const deletedValue = await storageProvider.cache.get(testKey);
     if (deletedValue === null) {
 
     } else {
       throw new Error('Delete operation did not remove the data');
     }
 
-    await storage.close();
+    await storageProvider.close();
 
     process.exit(0);
   } catch (error) {

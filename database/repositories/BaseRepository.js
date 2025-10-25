@@ -3,11 +3,11 @@
  * All specific repositories extend this base class
  */
 class BaseRepository {
-  constructor(dbManager) {
-    if (!dbManager) {
-      throw new Error('DatabaseManager instance is required');
+  constructor(tursoClient) {
+    if (!tursoClient) {
+      throw new Error('TursoClient instance is required');
     }
-    this.db = dbManager;
+    this.db = tursoClient;
   }
 
   /**

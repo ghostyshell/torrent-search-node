@@ -1,10 +1,10 @@
 /**
- * Database abstraction layer for Turso cloud database
+ * Turso cloud database client
  * Provides connection pooling, retry logic, and optimized cloud database operations
  */
 const { createClient } = require('@libsql/client');
 
-class DatabaseManager {
+class TursoClient {
   constructor(config = {}) {
     // Load environment variables
     require('dotenv').config();
@@ -270,7 +270,7 @@ class DatabaseManager {
 
     } catch (migrationError) {
       console.warn(
-        'DatabaseManager: Migration failed, continuing without migrations:',
+        'TursoClient: Migration failed, continuing without migrations:',
         migrationError.message
       );
       // Continue without migrations - tables and indexes are created
@@ -673,11 +673,11 @@ class DatabaseManager {
 
       return true;
     } catch (error) {
-      console.error('DatabaseManager: Migration error:', error);
+      console.error('TursoClient: Migration error:', error);
       // Don't fail startup, just log the error
       return false;
     }
   }
 }
 
-module.exports = DatabaseManager;
+module.exports = TursoClient;

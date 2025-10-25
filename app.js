@@ -16,7 +16,7 @@ const {
 const express = require('express');
 const path = require('path');
 const passport = require('passport');
-const StorageManager = require('./database/StorageManager');
+const StorageProvider = require('./database/StorageProvider');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
 const AuthMiddleware = require('./middleware/auth');
@@ -63,8 +63,8 @@ if (config.security.trustProxy) {
 // DATABASE INITIALIZATION
 // ===========================
 
-// Initialize storage manager (uses Turso cloud database)
-let storage = null;
+// Initialize storage provider (uses Turso cloud database)
+let storageProvider = null;
 let authMiddleware = null;
 
 // Database initialization can be added later if needed
@@ -168,12 +168,12 @@ app.get('/', (req, res) => {
 // Server startup will happen after async initialization
 async function startServer() {
   try {
-    // Initialize storage manager and database first with timeout
+    // Initialize storage provider and database first with timeout
 
-    storage = new StorageManager();
+    storageProvider = new StorageProvider();
 
     // Add timeout to database initialization
-    const initPromise = storage.initialize();
+    const initPromise = storageProvider.initialize();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error('Database initialization timeout')),
@@ -182,17 +182,18 @@ async function startServer() {
     );
 
     await Promise.race([initPromise, timeoutPromise]);
-    app.locals.storage = storage;
-    // Backward compatibility: expose as cache
-    app.locals.cache = storage;
+    app.locals.storageProvider = storageProvider;
+    // Backward compatibility: expose as storage and cache
+    app.locals.storage = storageProvider;
+    app.locals.cache = storageProvider;
 
     // Initialize auth middleware
-    authMiddleware = new AuthMiddleware(storage);
+    authMiddleware = new AuthMiddleware(storageProvider);
 
     // Register auth routes
 
     const setupAuthRoutes = require('./routes/auth');
-    const authRouter = setupAuthRoutes(storage);
+    const authRouter = setupAuthRoutes(storageProvider);
     app.use('/api/auth', authRouter);
 
     // Now register favorites routes with proper auth middleware
@@ -314,11 +315,11 @@ async function startServer() {
     // Debug endpoint for troubleshooting favorite entries
     app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
       try {
-        const storage = req.app.locals.storage;
+        const storageProvider = req.app.locals.storageProvider;
         const { favoriteEntryId } = req.params;
 
         const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
-        const row = await storage.dbManager.get(sql, [favoriteEntryId]);
+        const row = await storageProvider.tursoClient.get(sql, [favoriteEntryId]);
 
         res.json({
           success: true,
@@ -379,18 +380,19 @@ async function startServer() {
     logger.error('Failed to initialize application:', error);
 
     // Initialize minimal storage without database
-    storage = new StorageManager();
-    app.locals.storage = storage;
+    storageProvider = new StorageProvider();
+    app.locals.storageProvider = storageProvider;
     // Backward compatibility
-    app.locals.cache = storage;
+    app.locals.storage = storageProvider;
+    app.locals.cache = storageProvider;
 
     // Initialize auth middleware (will handle database unavailability gracefully)
-    authMiddleware = new AuthMiddleware(storage);
+    authMiddleware = new AuthMiddleware(storageProvider);
 
     // Register auth routes with minimal setup
 
     const setupAuthRoutes = require('./routes/auth');
-    const authRouter = setupAuthRoutes(storage);
+    const authRouter = setupAuthRoutes(storageProvider);
     app.use('/api/auth', authRouter);
 
     // Register favorites routes (with fallback auth middleware)
@@ -552,10 +554,10 @@ const gracefulShutdown = (signal) => {
   server.close(async () => {
     logger.info('HTTP server closed');
 
-    if (storage) {
+    if (storageProvider) {
       try {
-        await storage.cleanup();
-        await storage.close();
+        await storageProvider.cleanup();
+        await storageProvider.close();
         logger.info('Database connections closed');
       } catch (error) {
         logger.error('Error during database cleanup', { error: error.message });
@@ -579,7 +581,7 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Periodic storage cleanup handler
 const startPeriodicStorageCleanup = () => {
-  if (!storage) {
+  if (!storageProvider) {
     logger.warn('Storage not available - skipping periodic cleanup');
     return;
   }
@@ -597,7 +599,7 @@ const startPeriodicStorageCleanup = () => {
         cleanupTypes: ['expired_cache_entries', 'old_stream_urls'],
         note: 'Favorites, images, and non-expired data are preserved',
       });
-      await storage.cleanup();
+      await storageProvider.cleanup();
       logger.info('Periodic storage cleanup completed successfully');
     } catch (error) {
       logger.error('Error during scheduled cleanup', { error: error.message });

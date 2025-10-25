@@ -1,4 +1,4 @@
-const DatabaseManager = require('./DatabaseManager');
+const TursoClient = require('./TursoClient');
 const CacheRepository = require('./repositories/CacheRepository');
 const ImageRepository = require('./repositories/ImageRepository');
 const StreamUrlRepository = require('./repositories/StreamUrlRepository');
@@ -7,13 +7,13 @@ const CachedLinkRepository = require('./repositories/CachedLinkRepository');
 const TorrentDetailsRepository = require('./repositories/TorrentDetailsRepository');
 
 /**
- * StorageManager - Central coordinator for all data repositories
- * Replaces the old UnifiedCache with a proper repository pattern
+ * StorageProvider - Central coordinator for all data repositories
+ * Provides a clean interface for application data operations
  * Uses Turso as the persistent storage backend
  */
-class StorageManager {
+class StorageProvider {
   constructor(config = {}) {
-    this.dbManager = new DatabaseManager(config);
+    this.tursoClient = new TursoClient(config);
     this.isInitialized = false;
 
     // Initialize repositories
@@ -30,15 +30,15 @@ class StorageManager {
    */
   async initialize() {
     if (!this.isInitialized) {
-      await this.dbManager.initializeConnection();
+      await this.tursoClient.initializeConnection();
 
       // Initialize all repositories
-      this.cache = new CacheRepository(this.dbManager);
-      this.images = new ImageRepository(this.dbManager);
-      this.streamUrls = new StreamUrlRepository(this.dbManager);
-      this.favorites = new FavoriteRepository(this.dbManager);
-      this.cachedLinks = new CachedLinkRepository(this.dbManager);
-      this.torrentDetails = new TorrentDetailsRepository(this.dbManager);
+      this.cache = new CacheRepository(this.tursoClient);
+      this.images = new ImageRepository(this.tursoClient);
+      this.streamUrls = new StreamUrlRepository(this.tursoClient);
+      this.favorites = new FavoriteRepository(this.tursoClient);
+      this.cachedLinks = new CachedLinkRepository(this.tursoClient);
+      this.torrentDetails = new TorrentDetailsRepository(this.tursoClient);
 
       this.isInitialized = true;
     }
@@ -152,12 +152,12 @@ class StorageManager {
    * Get comprehensive statistics across all repositories
    */
   async getStats() {
-    const stats = await this.dbManager.getStats();
+    const stats = await this.tursoClient.getStats();
 
     return {
       ...stats,
       databaseType: 'Turso Cloud',
-      environment: this.dbManager.config.environment,
+      environment: this.tursoClient.config.environment,
     };
   }
 
@@ -165,14 +165,14 @@ class StorageManager {
    * Health check for the storage system
    */
   async healthCheck() {
-    return this.dbManager.healthCheck();
+    return this.tursoClient.healthCheck();
   }
 
   /**
    * Close all database connections
    */
   async close() {
-    return this.dbManager.close();
+    return this.tursoClient.close();
   }
 
   // Legacy compatibility methods - these forward to the appropriate repositories
@@ -503,4 +503,4 @@ class StorageManager {
   }
 }
 
-module.exports = StorageManager;
+module.exports = StorageProvider;

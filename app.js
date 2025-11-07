@@ -105,6 +105,7 @@ app.use('/', healthRoutes);
 app.get('/api/cache/stats', cacheController.getStats);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
+app.post('/api/cache/cover-image/torrent', cacheController.getCoverImageForTorrent);
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
 app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
 // Note: Cached links routes moved to startServer() for proper auth middleware
@@ -308,6 +309,7 @@ async function startServer() {
       '/api/storage/cover-image/:torrentKey',
       cacheController.getCoverImage
     );
+    app.post('/api/storage/cover-image/torrent', cacheController.getCoverImageForTorrent);
 
     // Debug endpoint for troubleshooting favorite entries
     app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
@@ -503,6 +505,7 @@ async function startServer() {
       '/api/storage/cover-image/:torrentKey',
       cacheController.getCoverImage
     );
+    app.post('/api/storage/cover-image/torrent', cacheController.getCoverImageForTorrent);
     app.post('/api/storage/set', cacheController.setCacheValue);
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);

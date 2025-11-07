@@ -769,7 +769,8 @@ const storageController = {
       if (coverImage) {
         res.json({
           success: true,
-          coverImage,
+          imageUrl: coverImage.imageUrl || coverImage,
+          originalUrl: coverImage.originalUrl || coverImage,
         });
       } else {
         res.status(404).json({

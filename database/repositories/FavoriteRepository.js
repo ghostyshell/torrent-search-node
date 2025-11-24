@@ -314,11 +314,28 @@ class FavoriteRepository extends BaseRepository {
    * @returns {Promise<Array>} Array of {userId, favorites: [{id, magnetLink, torrentName}]}
    */
   async getAllFavoritesForStreamRefresh() {
+    // Query both favorite_entries and old favorites table
+    // Extract magnet link from column or from torrent_data JSON
     const sql = `
-      SELECT id, magnet_link, torrent_name, user_id
+      SELECT
+        id,
+        COALESCE(magnet_link, json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) as magnet_link,
+        COALESCE(torrent_name, json_extract(torrent_data, '$.Name'), json_extract(torrent_data, '$.name')) as torrent_name,
+        user_id
       FROM favorite_entries
-      WHERE magnet_link IS NOT NULL AND magnet_link != ''
-      ORDER BY user_id, created_at DESC
+      WHERE COALESCE(magnet_link, json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) IS NOT NULL
+
+      UNION ALL
+
+      SELECT
+        torrent_key as id,
+        COALESCE(json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) as magnet_link,
+        COALESCE(json_extract(torrent_data, '$.Name'), json_extract(torrent_data, '$.name')) as torrent_name,
+        user_id
+      FROM favorites
+      WHERE COALESCE(json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) IS NOT NULL
+
+      ORDER BY user_id
     `;
 
     const rows = await this.all(sql);
@@ -326,6 +343,8 @@ class FavoriteRepository extends BaseRepository {
     // Group by user_id
     const userFavorites = {};
     for (const row of rows) {
+      if (!row.magnet_link) continue;
+
       const userId = row.user_id || 'anonymous';
       if (!userFavorites[userId]) {
         userFavorites[userId] = [];
@@ -333,7 +352,7 @@ class FavoriteRepository extends BaseRepository {
       userFavorites[userId].push({
         id: row.id,
         magnetLink: row.magnet_link,
-        torrentName: row.torrent_name,
+        torrentName: row.torrent_name || 'Unknown',
       });
     }
 

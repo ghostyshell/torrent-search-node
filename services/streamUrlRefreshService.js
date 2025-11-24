@@ -20,6 +20,39 @@ class StreamUrlRefreshService {
   }
 
   /**
+   * Check if filename is a video file
+   */
+  isVideoFile(filename) {
+    const videoExtensions = [
+      '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm',
+      '.m4v', '.3gp', '.mpg', '.mpeg', '.ogv', '.ts', '.m2ts'
+    ];
+    const lowerName = filename.toLowerCase();
+    return videoExtensions.some(ext => lowerName.endsWith(ext));
+  }
+
+  /**
+   * Get the largest video file from torrent files
+   */
+  getLargestVideoFile(files) {
+    const videoFiles = files.filter(file => this.isVideoFile(file.path));
+    if (videoFiles.length === 0) return null;
+    return videoFiles.reduce((largest, current) =>
+      current.bytes > largest.bytes ? current : largest
+    );
+  }
+
+  /**
+   * Check if host supports range requests
+   */
+  checkRangeRequestSupport(host) {
+    const supportedHosts = ['real-debrid.com', 'rdeb.io', 'rdb.io'];
+    return supportedHosts.some(supported =>
+      host.toLowerCase().includes(supported.toLowerCase())
+    );
+  }
+
+  /**
    * Refresh stream URLs for all favorites
    * @returns {Promise<object>} Results summary
    */
@@ -141,6 +174,9 @@ class StreamUrlRefreshService {
 
       const torrentId = addResponse.id;
 
+      // Wait for torrent to be processed (like frontend)
+      await this.sleep(2000);
+
       // Step 2: Get torrent info
       const infoResponse = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
@@ -148,40 +184,35 @@ class StreamUrlRefreshService {
         return { success: false, error: 'Magnet error' };
       }
 
-      // Step 3: Select files if needed
-      if (infoResponse.status === 'waiting_files_selection') {
-        // Select all files
-        const fileIds = infoResponse.files
-          .filter(f => f.selected === 0)
-          .map(f => f.id)
-          .join(',');
-
-        if (fileIds) {
-          await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
-            files: fileIds || 'all',
-          });
-        } else {
-          await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
-            files: 'all',
-          });
-        }
-
-        // Wait for file selection to process
-        await this.sleep(2000);
-
-        // Get updated info
-        const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
-        if (updatedInfo && updatedInfo.links && updatedInfo.links.length > 0) {
-          return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
-        }
+      if (!infoResponse.files || infoResponse.files.length === 0) {
+        return { success: false, error: 'No files found in torrent' };
       }
 
-      // Step 4: If already has links, unrestrict the first one
-      if (infoResponse.links && infoResponse.links.length > 0) {
-        return await this.unrestrictAndCache(infoResponse.links[0], apiKey, magnetLink, torrentName);
+      // Step 3: Find and select the largest video file (like frontend)
+      const videoFile = this.getLargestVideoFile(infoResponse.files);
+      if (!videoFile) {
+        return { success: false, error: 'No video files found in torrent' };
       }
 
-      return { success: false, error: 'No links available' };
+      // Select the video file if needed
+      if (infoResponse.status === 'waiting_files_selection' || videoFile.selected === 0) {
+        await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
+          files: videoFile.id.toString(),
+        });
+
+        // Wait for file selection to process (like frontend)
+        await this.sleep(3000);
+      }
+
+      // Step 4: Get updated torrent info with links
+      const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
+
+      if (!updatedInfo.links || updatedInfo.links.length === 0) {
+        return { success: false, error: 'No download links available. Torrent may not be cached on Real-Debrid.' };
+      }
+
+      // Step 5: Unrestrict the first available link
+      return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -201,16 +232,19 @@ class StreamUrlRefreshService {
         return { success: false, error: 'Failed to unrestrict link' };
       }
 
+      // Check range request support based on host (like frontend)
+      const supportsRangeRequests = this.checkRangeRequestSupport(unrestrictResponse.host || '');
+
       // Cache the stream URL
       await this.storage.setStreamUrl(magnetLink, {
         streamUrl: unrestrictResponse.download,
         filename: unrestrictResponse.filename || torrentName,
         filesize: unrestrictResponse.filesize || 0,
-        supportsRangeRequests: true,
+        supportsRangeRequests,
         torrentName: torrentName,
       });
 
-      logger.debug('Stream URL refreshed', { torrentName });
+      logger.debug('Stream URL refreshed', { torrentName, supportsRangeRequests });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

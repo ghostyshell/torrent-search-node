@@ -35,14 +35,21 @@ class TursoClient {
    */
   async initializeConnection() {
     try {
+      console.log('TursoClient: Creating client with URL:', this.config.tursoUrl ? 'SET' : 'NOT SET');
+      console.log('TursoClient: Auth token:', this.config.tursoAuthToken ? 'SET' : 'NOT SET');
+
       this.client = createClient({
         url: this.config.tursoUrl,
         authToken: this.config.tursoAuthToken,
       });
 
+      console.log('TursoClient: Client created, testing connection...');
       await this.testTursoConnection();
+      console.log('TursoClient: Connection test passed, initializing schema...');
       await this.initializeSchema();
+      console.log('TursoClient: Schema initialized successfully');
     } catch (error) {
+      console.error('TursoClient: Initialization failed:', error.message);
       throw error;
     }
   }

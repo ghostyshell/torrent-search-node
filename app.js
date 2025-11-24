@@ -161,14 +161,21 @@ app.get('/', (req, res) => {
 async function startServer() {
   try {
     // Initialize storage provider and database first with timeout
+    logger.info('Starting database initialization...');
 
     storageProvider = new StorageProvider();
 
     // Add timeout to database initialization
-    const initPromise = storageProvider.initialize();
+    const initPromise = storageProvider.initialize().then(() => {
+      logger.info('Database initialization completed successfully');
+    }).catch((err) => {
+      logger.error('Database initialization failed:', { error: err.message, stack: err.stack });
+      throw err;
+    });
+
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(
-        () => reject(new Error('Database initialization timeout')),
+        () => reject(new Error('Database initialization timeout after 30s')),
         30000
       )
     );
@@ -384,7 +391,8 @@ async function startServer() {
 
     // Start periodic tasks after successful initialization
     startPeriodicStorageCleanup();
-    startPeriodicTokenRefresh();
+    // TODO: Re-enable after fixing DB init issue
+    // startPeriodicTokenRefresh();
 
     return server;
   } catch (error) {

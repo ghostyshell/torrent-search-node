@@ -638,6 +638,9 @@ const startPeriodicStorageCleanup = () => {
       'Expired cache entries and old stream URLs (keeps 100 most recent)',
   });
 
+  // Initialize next run time
+  monitoringController.backgroundTaskStats.storageCleanup.nextRun = new Date(Date.now() + cleanupInterval).toISOString();
+
   setInterval(async () => {
     try {
       logger.info('Running periodic storage cleanup', {
@@ -709,10 +712,14 @@ const startPeriodicStreamUrlRefresh = () => {
   const refreshService = new StreamUrlRefreshService(storageProvider, authService);
 
   const refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
+  const initialDelay = 5 * 60 * 1000; // 5 minutes
   logger.info('Starting periodic stream URL refresh for favorites', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
     note: 'Refreshes Real-Debrid stream URLs for all favorites with magnet links',
   });
+
+  // Initialize next run time (first run after 5 minutes)
+  monitoringController.backgroundTaskStats.streamUrlRefresh.nextRun = new Date(Date.now() + initialDelay).toISOString();
 
   // Run initial refresh after 5 minutes to let server fully initialize
   setTimeout(async () => {
@@ -741,7 +748,7 @@ const startPeriodicStreamUrlRefresh = () => {
       logger.error('Error during initial stream URL refresh', { error: error.message });
       monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
     }
-  }, 5 * 60 * 1000);
+  }, initialDelay);
 
   // Then run every 24 hours
   setInterval(async () => {

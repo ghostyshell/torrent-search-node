@@ -144,7 +144,6 @@ class StorageProvider {
    */
   async cleanup() {
     await this.cache.cleanupExpired();
-    await this.streamUrls.cleanupOldStreamUrls();
     return this.getStats();
   }
 

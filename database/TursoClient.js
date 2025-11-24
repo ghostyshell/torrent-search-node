@@ -268,6 +268,9 @@ class TursoClient {
 
       await this.migrateUserColumns();
 
+      // Migration: Add Google OAuth token columns to users table
+      await this.migrateGoogleTokenColumns();
+
     } catch (migrationError) {
       console.warn(
         'TursoClient: Migration failed, continuing without migrations:',
@@ -429,6 +432,32 @@ class TursoClient {
         await this.execute(indexSql);
       } catch (error) {
         console.warn('⚠️ Index creation warning:', error.message);
+      }
+    }
+  }
+
+  /**
+   * Migration method to add Google OAuth token columns to users table
+   */
+  async migrateGoogleTokenColumns() {
+    const columns = [
+      { name: 'google_access_token', type: 'TEXT' },
+      { name: 'google_refresh_token', type: 'TEXT' },
+      { name: 'google_token_expires_at', type: 'INTEGER' },
+    ];
+
+    for (const column of columns) {
+      try {
+        const sql = `ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`;
+        await this.execute(sql);
+      } catch (error) {
+        // Column might already exist, ignore duplicate column errors
+        if (!error.message.includes('duplicate column name')) {
+          console.warn(
+            `⚠️ Failed to add column ${column.name} to users:`,
+            error.message
+          );
+        }
       }
     }
   }

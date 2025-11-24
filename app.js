@@ -105,7 +105,10 @@ app.use('/', healthRoutes);
 app.get('/api/cache/stats', cacheController.getStats);
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
-app.post('/api/cache/cover-image/torrent', cacheController.getCoverImageForTorrent);
+app.post(
+  '/api/cache/cover-image/torrent',
+  cacheController.getCoverImageForTorrent
+);
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
 app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
 // Note: Cached links routes moved to startServer() for proper auth middleware
@@ -309,7 +312,10 @@ async function startServer() {
       '/api/storage/cover-image/:torrentKey',
       cacheController.getCoverImage
     );
-    app.post('/api/storage/cover-image/torrent', cacheController.getCoverImageForTorrent);
+    app.post(
+      '/api/storage/cover-image/torrent',
+      cacheController.getCoverImageForTorrent
+    );
 
     // Debug endpoint for troubleshooting favorite entries
     app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
@@ -505,7 +511,10 @@ async function startServer() {
       '/api/storage/cover-image/:torrentKey',
       cacheController.getCoverImage
     );
-    app.post('/api/storage/cover-image/torrent', cacheController.getCoverImageForTorrent);
+    app.post(
+      '/api/storage/cover-image/torrent',
+      cacheController.getCoverImageForTorrent
+    );
     app.post('/api/storage/set', cacheController.setCacheValue);
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
@@ -619,7 +628,52 @@ const startPeriodicStorageCleanup = () => {
   }, cleanupInterval);
 };
 
+// Periodic Google token refresh handler
+const startPeriodicTokenRefresh = () => {
+  if (!storageProvider) {
+    logger.warn('Storage not available - skipping token refresh');
+    return;
+  }
+
+  const AuthService = require('./config/passport');
+  const authService = new AuthService(storageProvider);
+
+  // Google access tokens expire in 1 hour, refresh every 45 minutes
+  const refreshInterval = 45 * 60 * 1000; // 45 minutes
+  logger.info('Starting periodic Google token refresh', {
+    intervalMinutes: refreshInterval / (60 * 1000),
+    note: 'Keeps user sessions alive by refreshing Google access tokens',
+  });
+
+  // Run initial refresh after 1 minute to let server fully initialize
+  setTimeout(async () => {
+    try {
+      const result = await authService.refreshAllGoogleTokens();
+      if (result.refreshed > 0 || result.failed > 0) {
+        logger.info('Initial Google token refresh completed', result);
+      }
+    } catch (error) {
+      logger.error('Error during initial token refresh', { error: error.message });
+    }
+  }, 60 * 1000);
+
+  // Then run periodically
+  setInterval(async () => {
+    try {
+      const result = await authService.refreshAllGoogleTokens();
+      if (result.refreshed > 0 || result.failed > 0) {
+        logger.info('Periodic Google token refresh completed', result);
+      }
+    } catch (error) {
+      logger.error('Error during scheduled token refresh', { error: error.message });
+    }
+  }, refreshInterval);
+};
+
 // Initialize periodic cleanup
 startPeriodicStorageCleanup();
+
+// Initialize periodic token refresh
+startPeriodicTokenRefresh();
 
 module.exports = app;

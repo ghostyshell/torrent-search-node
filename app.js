@@ -114,6 +114,39 @@ app.get('/api/monitoring/logs', monitoringController.getLogs);
 app.get('/api/monitoring/tasks', monitoringController.getBackgroundTaskStats);
 app.get('/api/monitoring/api-usage', monitoringController.getApiUsageStats);
 
+// Debug endpoint to check favorites data
+app.get('/api/monitoring/debug-favorites', async (req, res) => {
+  try {
+    const storage = req.app.locals.storageProvider;
+    if (!storage) {
+      return res.json({ error: 'No storage provider' });
+    }
+
+    // Get stats
+    const stats = await storage.favorites.getStats();
+
+    // Sample raw data from both tables
+    const sampleNew = await storage.tursoClient.client.execute(
+      'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
+    );
+    const sampleOld = await storage.tursoClient.client.execute(
+      'SELECT torrent_key, user_id, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorites LIMIT 3'
+    );
+
+    // Test the refresh query
+    const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
+
+    res.json({
+      stats,
+      sampleNewFavorites: sampleNew.rows,
+      sampleOldFavorites: sampleOld.rows,
+      refreshQueryResult: refreshData
+    });
+  } catch (error) {
+    res.json({ error: error.message, stack: error.stack });
+  }
+});
+
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
 app.post(

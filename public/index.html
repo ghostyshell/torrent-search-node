@@ -426,10 +426,6 @@
                     <div class="stat-item-value" id="nodeVersion">-</div>
                     <div class="stat-item-label">Node.js</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-item-value" id="environment">-</div>
-                    <div class="stat-item-label">Environment</div>
-                </div>
             </div>
         </div>
 
@@ -507,7 +503,6 @@
                 document.getElementById('uptime').textContent = formatUptime(data.system.uptime);
                 document.getElementById('memory').textContent = data.system.memory.heapUsed;
                 document.getElementById('nodeVersion').textContent = data.system.nodeVersion;
-                document.getElementById('environment').textContent = data.system.environment;
 
                 // API stats
                 document.getElementById('totalRequests').textContent = data.api.totalRequests.toLocaleString();
@@ -531,7 +526,7 @@
                 if (data.database) {
                     const dbStats = document.getElementById('dbStats');
                     dbStats.innerHTML = Object.entries(data.database)
-                        .filter(([key]) => !['databaseType', 'environment'].includes(key))
+                        .filter(([key]) => !['databaseType', 'environment', 'torrentDetails', 'favoriteScreenshots', 'cache'].includes(key))
                         .map(([key, value]) => `
                             <div class="db-stat">
                                 <div class="db-stat-value">${value}</div>

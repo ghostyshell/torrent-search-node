@@ -28,6 +28,7 @@ const cacheController = require('./controllers/storageController');
 const favoritesController = require('./controllers/favoritesController');
 const videoController = require('./controllers/videoController');
 const proxyController = require('./controllers/proxyController');
+const monitoringController = require('./controllers/monitoringController');
 
 // ===========================
 // ENVIRONMENT VALIDATION
@@ -76,6 +77,9 @@ let authMiddleware = null;
 // Request logging middleware
 app.use(logger.requestMiddleware());
 
+// API usage tracking middleware
+app.use(monitoringController.apiTrackingMiddleware());
+
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -103,6 +107,13 @@ app.use('/', healthRoutes);
 // --- CACHE ROUTES ---
 
 app.get('/api/cache/stats', cacheController.getStats);
+
+// Monitoring routes
+app.get('/api/monitoring/dashboard', monitoringController.getDashboardData);
+app.get('/api/monitoring/logs', monitoringController.getLogs);
+app.get('/api/monitoring/tasks', monitoringController.getBackgroundTaskStats);
+app.get('/api/monitoring/api-usage', monitoringController.getApiUsageStats);
+
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
 app.post(
@@ -635,8 +646,10 @@ const startPeriodicStorageCleanup = () => {
       });
       await storageProvider.cleanup();
       logger.info('Periodic storage cleanup completed successfully');
+      monitoringController.updateTaskStats('storageCleanup', { success: true });
     } catch (error) {
       logger.error('Error during scheduled cleanup', { error: error.message });
+      monitoringController.updateTaskStats('storageCleanup', { success: false, error: error.message });
     }
   }, cleanupInterval);
 };
@@ -716,8 +729,17 @@ const startPeriodicStreamUrlRefresh = () => {
       if (result.errors.length > 0) {
         logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
       }
+      monitoringController.updateTaskStats('streamUrlRefresh', {
+        success: true,
+        totalFavorites: result.totalFavorites,
+        usersProcessed: result.usersProcessed,
+        refreshed: result.refreshed,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
     } catch (error) {
       logger.error('Error during initial stream URL refresh', { error: error.message });
+      monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
     }
   }, 5 * 60 * 1000);
 
@@ -736,8 +758,17 @@ const startPeriodicStreamUrlRefresh = () => {
       if (result.errors.length > 0) {
         logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
       }
+      monitoringController.updateTaskStats('streamUrlRefresh', {
+        success: true,
+        totalFavorites: result.totalFavorites,
+        usersProcessed: result.usersProcessed,
+        refreshed: result.refreshed,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
     } catch (error) {
       logger.error('Error during scheduled stream URL refresh', { error: error.message });
+      monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
     }
   }, refreshInterval);
 };

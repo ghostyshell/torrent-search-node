@@ -1,373 +1,699 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Torrent Search Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <title>Backend Monitoring Dashboard</title>
     <style>
-:root {
-    --primary-color: #007bff;
-    --secondary-color: #0056b3;
-    --background-color: #f4f4f4;
-    --card-background: #fff;
-    --text-color: #333;
-    --text-secondary-color: #666;
-    --border-color: #ccc;
-    --border-radius: 5px;
-    --box-shadow-light: rgba(0, 0, 0, 0.1);
-    --box-shadow-hover: rgba(0, 0, 0, 0.2);
-    --spinner-color: #007bff;
-    --spinner-size: 50px;
-    --font-family: 'Poppins', sans-serif;
-    --font-size-base: 0.9rem;
-    --font-size-small: 0.85rem;
-    --header-font-size: 1.8rem;
-    --header-font-size-mobile: 1.5rem;
-    --max-card-height: 400px;
-}
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-body {
-    font-family: var(--font-family);
-    background-color: var(--background-color);
-    color: var(--text-color);
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-    box-sizing: border-box;
-}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-*, *::before, *::after {
-    box-sizing: border-box;
-}
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #334155;
+        }
 
-header {
-    background-color: var(--text-color);
-    color: #fff;
-    padding: 20px 0;
-    text-align: center;
-    box-shadow: 0 2px 5px var(--box-shadow-light);
-}
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
 
-header h1 {
-    font-size: var(--header-font-size);
-    margin: 0;
-}
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
 
-.search-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 2px 5px var(--box-shadow-light);
-    width: 100%;
-    max-width: 100vw;
-    box-sizing: border-box;
-}
+        .refresh-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
 
-.search-container input,
-.search-container select {
-    padding: 10px;
-    font-size: var(--font-size-base);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--border-color);
-    margin-right: 10px;
-    flex: 1;
-    min-width: 0;
-    box-sizing: border-box;
-}
+        .refresh-btn:hover {
+            background: #2563eb;
+        }
 
-.search-container button {
-    background-color: var(--primary-color);
-    padding: 10px 15px;
-    color: white;
-    font-size: var(--font-size-base);
-    border: none;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s;
-}
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
 
-.search-container button:hover {
-    background-color: var(--secondary-color);
-    transform: scale(1.05);
-}
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
 
-.movie-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 15px;
-    max-width: 1200px;
-    width: 100%;
-    margin: 40px auto;
-    padding: 20px;
-    box-sizing: border-box;
-}
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #334155;
+        }
 
-.movie-card {
-    background-color: var(--card-background);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px var(--box-shadow-light);
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s, box-shadow 0.3s;
-    height: 100%;
-    max-height: var(--max-card-height);
-    position: relative;
-}
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-.movie-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 16px var(--box-shadow-hover);
-}
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
 
-.movie-card img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    transition: opacity 0.3s;
-}
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
 
-.movie-card img:hover {
-    opacity: 0.8;
-}
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
 
-.movie-details {
-    padding: 10px;
-    text-align: left;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-}
+        .stat-item {
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
 
-.movie-details h5 {
-    font-size: 1rem;
-    margin: 0;
-    color: var(--primary-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+        .stat-item-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
 
-.movie-details p {
-    font-size: var(--font-size-small);
-    color: var(--text-secondary-color);
-    margin: 5px 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+        .stat-item-label {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+        }
 
-.button-container {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-top: auto;
-    padding: 10px;
-}
+        .full-width {
+            grid-column: 1 / -1;
+        }
 
-.btn-custom {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 8px;
-    text-decoration: none;
-    border-radius: var(--border-radius);
-    display: block;
-    transition: background-color 0.3s, transform 0.2s;
-    font-size: var(--font-size-small);
-    text-align: center;
-}
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
 
-.btn-custom:hover {
-    background-color: var(--secondary-color);
-    transform: scale(1.05);
-}
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
 
-.spinner-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0.8);
-    z-index: 1000;
-}
+        .task-info {
+            flex: 1;
+        }
 
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--spinner-color);
-    border-radius: 50%;
-    width: var(--spinner-size);
-    height: var(--spinner-size);
-    animation: spin 1s linear infinite;
-}
+        .task-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+        .task-time {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+        }
 
-@media (max-width: 768px) {
-    header h1 {
-        font-size: var(--header-font-size-mobile);
-        padding: 0 15px;
-    }
+        .task-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
 
-    .search-container {
-        flex-direction: column;
-        padding: 15px;
-        margin: 0;
-    }
+        .status-idle {
+            background: #1e3a5f;
+            color: #60a5fa;
+        }
 
-    .search-container input,
-    .search-container select,
-    .search-container button {
-        margin-bottom: 10px;
-        margin-right: 0;
-        width: 100%;
-        max-width: 100%;
-    }
+        .status-completed {
+            background: #14532d;
+            color: #4ade80;
+        }
 
-    .movie-grid {
-        grid-template-columns: 1fr;
-        padding: 15px;
-        margin: 20px auto;
-        gap: 12px;
-    }
+        .status-disabled {
+            background: #3f3f46;
+            color: #a1a1aa;
+        }
 
-    .movie-card {
-        max-width: 100%;
-    }
-}
+        .status-error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
 
-    </style>
-</head>
+        .logs-container {
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
 
-<body>
+        .log-entry {
+            padding: 8px 12px;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            gap: 12px;
+        }
 
-    <header>
-        <h1>Ultimate Torrent Finder</h1>
-    </header>
+        .log-entry:hover {
+            background: #1e293b;
+        }
 
-    <div class="search-container">
-        <input type="text" id="query" class="form-control" placeholder="Enter torrent name...">
-        <select id="website" class="form-select">
-            <option value="1337x">1337x</option>
-            <option value="yts">YTS</option>
-            <option value="torlock">Torlock</option>
-        </select>
-        <input type="number" id="page" class="form-control" placeholder="Page (optional)" min="1">
-        <button onclick="searchTorrents()">Search</button>
-    </div>
+        .log-time {
+            color: #64748b;
+            white-space: nowrap;
+        }
 
-    <div id="results" class="movie-grid">
-        <!-- Movie cards will be generated here -->
-    </div>
+        .log-level {
+            font-weight: 600;
+            width: 50px;
+        }
 
-    <!-- Spinner container for loading state -->
-    <div id="spinner-container" class="spinner-container" style="display: none;">
-        <div class="spinner"></div>
-    </div>
+        .log-level-info { color: #60a5fa; }
+        .log-level-warn { color: #fbbf24; }
+        .log-level-error { color: #f87171; }
+        .log-level-debug { color: #a78bfa; }
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        async function searchTorrents() {
-            const query = $('#query').val();
-            const website = $('#website').val();
-            const page = $('#page').val();
-            const resultsDiv = $('#results');
-            const spinnerContainer = $('#spinner-container');
+        .log-message {
+            flex: 1;
+            word-break: break-word;
+        }
 
-            // Show the spinner
-            spinnerContainer.show();
+        .endpoint-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
 
-            let apiUrl = `https://itorrentsearch.vercel.app/api/${website}/${query}`;
-            if (page) {
-                apiUrl += `/${page}`;
+        .endpoint-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #0f172a;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .endpoint-path {
+            font-family: monospace;
+            color: #94a3b8;
+        }
+
+        .endpoint-count {
+            font-weight: 600;
+            color: #60a5fa;
+        }
+
+        .method-stats {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .method-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .method-get { background: #14532d; color: #4ade80; }
+        .method-post { background: #1e3a5f; color: #60a5fa; }
+        .method-put { background: #78350f; color: #fbbf24; }
+        .method-delete { background: #7f1d1d; color: #f87171; }
+
+        .status-stats {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-2xx { background: #14532d; color: #4ade80; }
+        .status-3xx { background: #1e3a5f; color: #60a5fa; }
+        .status-4xx { background: #78350f; color: #fbbf24; }
+        .status-5xx { background: #7f1d1d; color: #f87171; }
+
+        .recent-requests {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .request-item {
+            display: flex;
+            gap: 12px;
+            padding: 8px 12px;
+            border-bottom: 1px solid #1e293b;
+            font-size: 12px;
+            align-items: center;
+        }
+
+        .request-method {
+            font-weight: 600;
+            width: 50px;
+        }
+
+        .request-path {
+            flex: 1;
+            font-family: monospace;
+            color: #94a3b8;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .request-status {
+            font-weight: 500;
+        }
+
+        .request-duration {
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .tab.active {
+            background: #334155;
+            color: #f8fafc;
+        }
+
+        .tab:hover:not(.active) {
+            color: #94a3b8;
+        }
+
+        .db-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .db-stat {
+            text-align: center;
+            padding: 12px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+
+        .db-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .db-stat-label {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .error-message {
+            background: #7f1d1d;
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
             }
 
-            try {
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-
-                if (!data || data.length === 0) {
-                    resultsDiv.html('<div class="text-center col-12">No results found.</div>');
-                    return;
-                }
-
-                resultsDiv.empty();
-
-                if (website === '1337x') {
-                    data.forEach(torrent => {
-                        resultsDiv.append(
-                            `<div class="movie-card">
-                                <div class="movie-details">
-                                    <h5>${torrent.Name}</h5>
-                                    <p><strong>Category:</strong> ${torrent.Category || 'N/A'}</p>
-                                    <p><strong>Size:</strong> ${torrent.Size || 'N/A'}</p>
-                                    <p><strong>Seeders:</strong> ${torrent.Seeders || 'N/A'}</p>
-                                    <div class="button-container">
-                                        <a href="${torrent.Magnet}" class="btn-custom">Magnet</a>
-                                    </div>
-                                </div>
-                            </div>`
-                        );
-                    });
-                } else if (website === 'yts') {
-                    data.forEach(movie => {
-                        resultsDiv.append(
-                            `<div class="movie-card">
-                                <img src="${movie.Poster}" alt="${movie.Name}">
-                                <div class="movie-details">
-                                    <h5>${movie.Name}</h5>
-                                    <p><strong>Released Date:</strong> ${movie.ReleasedDate || 'N/A'}</p>
-                                    <p><strong>Genre:</strong> ${movie.Genre || 'N/A'}</p>
-                                    <p><strong>Rating:</strong> ${movie.Rating || 'N/A'}</p>
-                                    <div class="button-container">
-                                        <a href="${movie.Url}" class="btn-custom">More Details</a>
-                                        ${movie.Files.map(file => 
-                                            `<a href="${file.Magnet}" class="btn-custom">${file.Quality}</a>`
-                                        ).join('')}
-                                    </div>
-                                </div>
-                            </div>`
-                        );
-                    });
-                } else if (website === 'torlock') {
-                    data.forEach(movie => {
-                        resultsDiv.append(
-                            `<div class="movie-card">
-                                <div class="movie-details">
-                                    <h5>${movie.Name}</h5>
-                                    <p><strong>DateUploaded:</strong> ${movie.DateUploaded || 'N/A'}</p>
-                                    <p><strong>Size:</strong> ${movie.Size || 'N/A'}</p>
-                                    <p><strong>Seeders:</strong> ${movie.Leechers || 'N/A'}</p>
-                                    <div class="button-container">
-                                        <a href="${torrent.Magnet}" class="btn-custom">Magnet</a>
-                                        <a href="${torrent.Torrent}" class="btn-custom">Torrent</a>
-                                    </div>
-                                </div>
-                            </div>`
-                        );
-                    });
-                }
-            } catch (error) {
-                resultsDiv.html('<div class="text-center text-danger col-12">Failed to load results.</div>');
-            } finally {
-                spinnerContainer.hide();
+            .header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
             }
         }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Backend Monitoring Dashboard</h1>
+        <div class="header-controls">
+            <label class="auto-refresh">
+                <input type="checkbox" id="autoRefresh" checked>
+                Auto-refresh (10s)
+            </label>
+            <button class="refresh-btn" onclick="refreshAll()">Refresh Now</button>
+        </div>
+    </div>
+
+    <div id="error-container"></div>
+
+    <div class="grid">
+        <!-- System Stats -->
+        <div class="card">
+            <div class="card-title">System</div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-item-value" id="uptime">-</div>
+                    <div class="stat-item-label">Uptime</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-item-value" id="memory">-</div>
+                    <div class="stat-item-label">Memory (MB)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-item-value" id="nodeVersion">-</div>
+                    <div class="stat-item-label">Node.js</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-item-value" id="environment">-</div>
+                    <div class="stat-item-label">Environment</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Stats -->
+        <div class="card">
+            <div class="card-title">API Usage</div>
+            <div class="stat-value" id="totalRequests">-</div>
+            <div class="stat-label">Total Requests</div>
+            <div style="margin-top: 12px; font-size: 14px; color: #94a3b8;">
+                <span id="requestsPerMin">-</span> req/min
+            </div>
+            <div class="method-stats" id="methodStats"></div>
+            <div class="status-stats" id="statusStats"></div>
+        </div>
+
+        <!-- Database Stats -->
+        <div class="card">
+            <div class="card-title">Database</div>
+            <div class="db-stats" id="dbStats">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Background Tasks -->
+        <div class="card">
+            <div class="card-title">Background Tasks</div>
+            <div class="task-list" id="taskList">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Top Endpoints -->
+        <div class="card">
+            <div class="card-title">Top Endpoints</div>
+            <div class="endpoint-list" id="topEndpoints">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Recent Requests -->
+        <div class="card">
+            <div class="card-title">Recent Requests</div>
+            <div class="recent-requests" id="recentRequests">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="card full-width">
+            <div class="card-title">Application Logs</div>
+            <div class="tabs">
+                <button class="tab active" onclick="changeLogLevel('all')">All</button>
+                <button class="tab" onclick="changeLogLevel('info')">Info</button>
+                <button class="tab" onclick="changeLogLevel('warn')">Warn</button>
+                <button class="tab" onclick="changeLogLevel('error')">Error</button>
+            </div>
+            <div class="logs-container" id="logsContainer">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLogLevel = 'all';
+        let refreshInterval = null;
+
+        async function fetchDashboard() {
+            try {
+                const response = await fetch('/api/monitoring/dashboard');
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                // System stats
+                document.getElementById('uptime').textContent = formatUptime(data.system.uptime);
+                document.getElementById('memory').textContent = data.system.memory.heapUsed;
+                document.getElementById('nodeVersion').textContent = data.system.nodeVersion;
+                document.getElementById('environment').textContent = data.system.environment;
+
+                // API stats
+                document.getElementById('totalRequests').textContent = data.api.totalRequests.toLocaleString();
+                document.getElementById('requestsPerMin').textContent = data.api.requestsPerMinute.toFixed(2);
+
+                // Method stats
+                const methodStats = document.getElementById('methodStats');
+                methodStats.innerHTML = Object.entries(data.api.byMethod)
+                    .map(([method, count]) => `
+                        <span class="method-badge method-${method.toLowerCase()}">${method}: ${count}</span>
+                    `).join('');
+
+                // Status stats
+                const statusStats = document.getElementById('statusStats');
+                statusStats.innerHTML = Object.entries(data.api.byStatus)
+                    .map(([status, count]) => `
+                        <span class="status-badge status-${status}">${status}: ${count}</span>
+                    `).join('');
+
+                // Database stats
+                if (data.database) {
+                    const dbStats = document.getElementById('dbStats');
+                    dbStats.innerHTML = Object.entries(data.database)
+                        .filter(([key]) => !['databaseType', 'environment'].includes(key))
+                        .map(([key, value]) => `
+                            <div class="db-stat">
+                                <div class="db-stat-value">${value}</div>
+                                <div class="db-stat-label">${formatLabel(key)}</div>
+                            </div>
+                        `).join('');
+                }
+
+                // Background tasks
+                const taskList = document.getElementById('taskList');
+                taskList.innerHTML = data.backgroundTasks.map(task => `
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-name">${formatTaskName(task.name)}</div>
+                            <div class="task-time">
+                                ${task.lastRun ? `Last: ${formatTime(task.lastRun)}` : 'Never run'}
+                                ${task.nextRun ? ` | Next: ${formatTime(task.nextRun)}` : ''}
+                            </div>
+                        </div>
+                        <span class="task-status status-${task.status}">${task.status}</span>
+                    </div>
+                `).join('');
+
+                clearError();
+            } catch (error) {
+                showError('Failed to fetch dashboard: ' + error.message);
+            }
+        }
+
+        async function fetchApiUsage() {
+            try {
+                const response = await fetch('/api/monitoring/api-usage');
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                // Top endpoints
+                const topEndpoints = document.getElementById('topEndpoints');
+                if (data.stats.topEndpoints.length > 0) {
+                    topEndpoints.innerHTML = data.stats.topEndpoints.slice(0, 10).map(ep => `
+                        <div class="endpoint-item">
+                            <span class="endpoint-path">${ep.endpoint}</span>
+                            <span class="endpoint-count">${ep.count}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    topEndpoints.innerHTML = '<div class="loading">No requests yet</div>';
+                }
+
+                // Recent requests
+                const recentRequests = document.getElementById('recentRequests');
+                if (data.recentRequests.length > 0) {
+                    recentRequests.innerHTML = data.recentRequests.map(req => `
+                        <div class="request-item">
+                            <span class="request-method method-${req.method.toLowerCase()}">${req.method}</span>
+                            <span class="request-path" title="${req.path}">${req.path}</span>
+                            <span class="request-status status-${Math.floor(req.status/100)}xx">${req.status}</span>
+                            <span class="request-duration">${req.duration}ms</span>
+                        </div>
+                    `).join('');
+                } else {
+                    recentRequests.innerHTML = '<div class="loading">No requests yet</div>';
+                }
+            } catch (error) {
+                console.error('Failed to fetch API usage:', error);
+            }
+        }
+
+        async function fetchLogs(level = 'all') {
+            try {
+                const response = await fetch(`/api/monitoring/logs?level=${level}&limit=100`);
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                const logsContainer = document.getElementById('logsContainer');
+                if (data.logs.length > 0) {
+                    logsContainer.innerHTML = data.logs.map(log => `
+                        <div class="log-entry">
+                            <span class="log-time">${formatTime(log.timestamp)}</span>
+                            <span class="log-level log-level-${log.level.toLowerCase()}">${log.level}</span>
+                            <span class="log-message">${log.message || ''} ${log.method ? `${log.method} ${log.url}` : ''}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    logsContainer.innerHTML = '<div class="loading">No logs found</div>';
+                }
+            } catch (error) {
+                document.getElementById('logsContainer').innerHTML =
+                    `<div class="loading">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        function changeLogLevel(level) {
+            currentLogLevel = level;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            fetchLogs(level);
+        }
+
+        function formatUptime(seconds) {
+            if (seconds < 60) return `${seconds}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+            return `${Math.floor(seconds / 86400)}d`;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString();
+        }
+
+        function formatLabel(key) {
+            return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        }
+
+        function formatTaskName(name) {
+            const names = {
+                storageCleanup: 'Storage Cleanup',
+                tokenRefresh: 'Token Refresh',
+                streamUrlRefresh: 'Stream URL Refresh'
+            };
+            return names[name] || name;
+        }
+
+        function showError(message) {
+            document.getElementById('error-container').innerHTML =
+                `<div class="error-message">${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('error-container').innerHTML = '';
+        }
+
+        async function refreshAll() {
+            await Promise.all([
+                fetchDashboard(),
+                fetchApiUsage(),
+                fetchLogs(currentLogLevel)
+            ]);
+        }
+
+        // Auto-refresh setup
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+
+            if (checkbox.checked) {
+                refreshInterval = setInterval(refreshAll, 10000);
+            }
+
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    refreshInterval = setInterval(refreshAll, 10000);
+                } else {
+                    clearInterval(refreshInterval);
+                }
+            });
+        }
+
+        // Initial load
+        refreshAll();
+        setupAutoRefresh();
     </script>
-
 </body>
-
 </html>

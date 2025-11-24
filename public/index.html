@@ -548,7 +548,7 @@
                             <div class="task-name">${formatTaskName(task.name)}</div>
                             <div class="task-time">
                                 ${task.lastRun ? `Last: ${formatTime(task.lastRun)}` : 'Never run'}
-                                ${task.nextRun ? ` | Next: ${formatTime(task.nextRun)}` : ''}
+                                ${task.nextRun ? ` | Next: ${formatTimeUntil(task.nextRun)}` : ''}
                             </div>
                         </div>
                         <span class="task-status status-${task.status}">${task.status}</span>
@@ -642,6 +642,33 @@
         function formatTime(timestamp) {
             const date = new Date(timestamp);
             return date.toLocaleTimeString();
+        }
+
+        function formatTimeUntil(timestamp) {
+            const now = Date.now();
+            const target = new Date(timestamp).getTime();
+            const diff = target - now;
+
+            if (diff <= 0) return 'now';
+
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) {
+                const remainingHours = hours % 24;
+                return `in ${days}d ${remainingHours}h`;
+            }
+            if (hours > 0) {
+                const remainingMinutes = minutes % 60;
+                return `in ${hours}h ${remainingMinutes}m`;
+            }
+            if (minutes > 0) {
+                const remainingSeconds = seconds % 60;
+                return `in ${minutes}m ${remainingSeconds}s`;
+            }
+            return `in ${seconds}s`;
         }
 
         function formatLabel(key) {

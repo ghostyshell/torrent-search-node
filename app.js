@@ -712,7 +712,7 @@ const startPeriodicStreamUrlRefresh = () => {
   const refreshService = new StreamUrlRefreshService(storageProvider, authService);
 
   const refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
-  const initialDelay = 5 * 60 * 1000; // 5 minutes
+  const initialDelay = 70 * 1000; // 70 seconds
   logger.info('Starting periodic stream URL refresh for favorites', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
     note: 'Refreshes Real-Debrid stream URLs for all favorites with magnet links',
@@ -721,10 +721,14 @@ const startPeriodicStreamUrlRefresh = () => {
   // Initialize next run time (first run after 5 minutes)
   monitoringController.backgroundTaskStats.streamUrlRefresh.nextRun = new Date(Date.now() + initialDelay).toISOString();
 
-  // Run initial refresh after 5 minutes to let server fully initialize
+  // Run initial refresh after 70 seconds to let server fully initialize
   setTimeout(async () => {
     try {
       logger.info('Running initial stream URL refresh for favorites');
+      logger.info('Stream URL refresh service initialized', {
+        hasStorage: !!storageProvider,
+        hasFavorites: !!storageProvider?.favorites
+      });
       const result = await refreshService.refreshAllFavoriteStreamUrls();
       logger.info('Initial stream URL refresh completed', {
         totalFavorites: result.totalFavorites,

@@ -315,25 +315,25 @@ class FavoriteRepository extends BaseRepository {
    */
   async getAllFavoritesForStreamRefresh() {
     // Query both favorite_entries and old favorites table
-    // Extract magnet link from column or from torrent_data JSON
+    // Extract magnet link from column or from torrent_data JSON (stored as "Magnet")
     const sql = `
       SELECT
         id,
-        COALESCE(magnet_link, json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) as magnet_link,
-        COALESCE(torrent_name, json_extract(torrent_data, '$.Name'), json_extract(torrent_data, '$.name')) as torrent_name,
+        COALESCE(magnet_link, json_extract(torrent_data, '$.Magnet')) as magnet_link,
+        COALESCE(torrent_name, json_extract(torrent_data, '$.Name')) as torrent_name,
         user_id
       FROM favorite_entries
-      WHERE COALESCE(magnet_link, json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) IS NOT NULL
+      WHERE COALESCE(magnet_link, json_extract(torrent_data, '$.Magnet')) IS NOT NULL
 
       UNION ALL
 
       SELECT
         torrent_key as id,
-        COALESCE(json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) as magnet_link,
-        COALESCE(json_extract(torrent_data, '$.Name'), json_extract(torrent_data, '$.name')) as torrent_name,
+        json_extract(torrent_data, '$.Magnet') as magnet_link,
+        json_extract(torrent_data, '$.Name') as torrent_name,
         user_id
       FROM favorites
-      WHERE COALESCE(json_extract(torrent_data, '$.MagnetLink'), json_extract(torrent_data, '$.magnetLink')) IS NOT NULL
+      WHERE json_extract(torrent_data, '$.Magnet') IS NOT NULL
 
       ORDER BY user_id
     `;

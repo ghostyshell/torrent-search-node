@@ -382,6 +382,10 @@ async function startServer() {
 
     const server = app.listen(PORT, () => {});
 
+    // Start periodic tasks after successful initialization
+    startPeriodicStorageCleanup();
+    startPeriodicTokenRefresh();
+
     return server;
   } catch (error) {
     logger.error('Failed to initialize application:', error);
@@ -669,11 +673,5 @@ const startPeriodicTokenRefresh = () => {
     }
   }, refreshInterval);
 };
-
-// Initialize periodic cleanup
-startPeriodicStorageCleanup();
-
-// Initialize periodic token refresh
-startPeriodicTokenRefresh();
 
 module.exports = app;

@@ -309,6 +309,52 @@ class FavoriteRepository extends BaseRepository {
   }
 
   /**
+   * Get all favorite entries with magnet links for stream URL refresh
+   * Groups by user_id for batch processing
+   * @returns {Promise<Array>} Array of {userId, favorites: [{id, magnetLink, torrentName}]}
+   */
+  async getAllFavoritesForStreamRefresh() {
+    const sql = `
+      SELECT id, magnet_link, torrent_name, user_id
+      FROM favorite_entries
+      WHERE magnet_link IS NOT NULL AND magnet_link != ''
+      ORDER BY user_id, created_at DESC
+    `;
+
+    const rows = await this.all(sql);
+
+    // Group by user_id
+    const userFavorites = {};
+    for (const row of rows) {
+      const userId = row.user_id || 'anonymous';
+      if (!userFavorites[userId]) {
+        userFavorites[userId] = [];
+      }
+      userFavorites[userId].push({
+        id: row.id,
+        magnetLink: row.magnet_link,
+        torrentName: row.torrent_name,
+      });
+    }
+
+    return Object.entries(userFavorites).map(([userId, favorites]) => ({
+      userId: userId === 'anonymous' ? null : userId,
+      favorites,
+    }));
+  }
+
+  /**
+   * Get count of favorites with magnet links
+   * @returns {Promise<number>} Count
+   */
+  async getFavoritesWithMagnetLinksCount() {
+    const result = await this.get(
+      'SELECT COUNT(*) as count FROM favorite_entries WHERE magnet_link IS NOT NULL AND magnet_link != \'\''
+    );
+    return result?.count || 0;
+  }
+
+  /**
    * Map database row to favorite entry object
    * @private
    */

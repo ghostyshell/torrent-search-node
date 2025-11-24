@@ -393,6 +393,7 @@ async function startServer() {
     startPeriodicStorageCleanup();
     // TODO: Re-enable after fixing DB init issue
     // startPeriodicTokenRefresh();
+    startPeriodicStreamUrlRefresh();
 
     return server;
   } catch (error) {
@@ -678,6 +679,65 @@ const startPeriodicTokenRefresh = () => {
       }
     } catch (error) {
       logger.error('Error during scheduled token refresh', { error: error.message });
+    }
+  }, refreshInterval);
+};
+
+// Periodic stream URL refresh for favorites
+const startPeriodicStreamUrlRefresh = () => {
+  if (!storageProvider) {
+    logger.warn('Storage not available - skipping stream URL refresh');
+    return;
+  }
+
+  const StreamUrlRefreshService = require('./services/streamUrlRefreshService');
+  const AuthService = require('./config/passport');
+  const authService = new AuthService(storageProvider);
+  const refreshService = new StreamUrlRefreshService(storageProvider, authService);
+
+  const refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
+  logger.info('Starting periodic stream URL refresh for favorites', {
+    intervalHours: refreshInterval / (60 * 60 * 1000),
+    note: 'Refreshes Real-Debrid stream URLs for all favorites with magnet links',
+  });
+
+  // Run initial refresh after 5 minutes to let server fully initialize
+  setTimeout(async () => {
+    try {
+      logger.info('Running initial stream URL refresh for favorites');
+      const result = await refreshService.refreshAllFavoriteStreamUrls();
+      logger.info('Initial stream URL refresh completed', {
+        totalFavorites: result.totalFavorites,
+        usersProcessed: result.usersProcessed,
+        refreshed: result.refreshed,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
+      if (result.errors.length > 0) {
+        logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+      }
+    } catch (error) {
+      logger.error('Error during initial stream URL refresh', { error: error.message });
+    }
+  }, 5 * 60 * 1000);
+
+  // Then run every 24 hours
+  setInterval(async () => {
+    try {
+      logger.info('Running periodic stream URL refresh for favorites');
+      const result = await refreshService.refreshAllFavoriteStreamUrls();
+      logger.info('Periodic stream URL refresh completed', {
+        totalFavorites: result.totalFavorites,
+        usersProcessed: result.usersProcessed,
+        refreshed: result.refreshed,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
+      if (result.errors.length > 0) {
+        logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+      }
+    } catch (error) {
+      logger.error('Error during scheduled stream URL refresh', { error: error.message });
     }
   }, refreshInterval);
 };

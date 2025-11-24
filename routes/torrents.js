@@ -13,6 +13,7 @@ const setupTorrentRoutes = (storageProvider) => {
   // Get available torrent websites
   // Route: GET /api/torrents/websites or /api/torrents (backward compat)
   router.get('/websites', torrentController.getTorrentWebsites);
+  router.get('/', torrentController.getTorrentWebsites); // backward compat for /api/torrents
 
   // Advanced search endpoint
   // Route: POST /api/torrents/advanced-search

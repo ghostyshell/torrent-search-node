@@ -44,6 +44,8 @@ const torrentController = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
       maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
       includeCoverImages: req.query.includeCoverImages === 'true' || false,
+      sort: req.query.sort || null,
+      category: req.query.category || null,
     };
 
     try {
@@ -91,6 +93,8 @@ const torrentController = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
       maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
       includeCoverImages: req.query.includeCoverImages === 'true' || false,
+      sort: req.query.sort || null,
+      category: req.query.category || null,
     };
 
     try {

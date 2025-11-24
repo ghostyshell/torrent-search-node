@@ -4,8 +4,13 @@ const { extractImageLinks } = require('../imageExtractorService');
 
 async function pirateBay(query, page = '1', options = {}) {
   const allTorrents = [];
-  const url =
-    'https://thehiddenbay.com/search/' + query + '/' + page + '/7/507'; // seeder-sort/uhd //+ '/7/507'; // date-sort/uhd //+ '/3/507';
+
+  // Default sort: 7 = seeders desc, 3 = date desc, 99 = name, 8 = size
+  // Default category: 0 = all, 100 = audio, 200 = video, 300 = apps, 400 = games, 500 = porn, 507 = porn HD
+  const sort = options.sort || '7';
+  const category = options.category || '0';
+
+  const url = `https://thehiddenbay.com/search/${query}/${page}/${sort}/${category}`;
   let html;
   try {
     html = await axios.get(url);

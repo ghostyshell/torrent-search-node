@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const config = require('../config/environment');
+const { config } = require('../config/environment');
 
 // In-memory storage for background task stats
 const backgroundTaskStats = {

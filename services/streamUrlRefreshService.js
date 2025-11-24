@@ -34,8 +34,17 @@ class StreamUrlRefreshService {
     };
 
     try {
+      // Debug: Check what's in the favorites tables
+      const debugStats = await this.storage.favorites.getStats();
+      logger.info('Favorites table stats', debugStats);
+
       // Get all favorites grouped by user
       const userFavorites = await this.storage.favorites.getAllFavoritesForStreamRefresh();
+
+      logger.info('getAllFavoritesForStreamRefresh returned', {
+        userFavoritesCount: userFavorites?.length || 0,
+        userFavorites: userFavorites?.slice(0, 3) // Log first 3 for debugging
+      });
 
       if (!userFavorites || userFavorites.length === 0) {
         logger.info('No favorites with magnet links found for stream refresh');

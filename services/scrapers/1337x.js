@@ -19,8 +19,8 @@ const { extractImageLinks } = require('../imageExtractorService');
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'https://flaresolver.sliplane.app/v1';
 const FLARESOLVERR_MAX_TIMEOUT = 60000; // 60 seconds
 
-// 1337x base URL
-const BASE_URL = 'https://1337x.to';
+// 1337x base URL - using 1337xx.to mirror as main domain has aggressive Cloudflare protection
+const BASE_URL = 'https://www.1337xx.to';
 
 /**
  * Make a request through FlareSolverr to bypass Cloudflare

@@ -214,23 +214,11 @@ async function search1337x(query, page = '1', options = {}) {
   const allTorrents = [];
   const pageNum = parseInt(page) || 1;
 
-  // Build search URL based on options
-  let url;
+  // Build search URL - always use basic search
+  // NOTE: 1337x blocks /sort-search/ and /category-search/ URLs via Cloudflare
+  // So we use basic search, then filter by category and sort results locally
   const encodedQuery = encodeURIComponent(query);
-  const category = options.category ? options.category.toLowerCase() : null;
-  const sort = options.sort || 'time';
-  const order = options.order || 'desc';
-
-  if (category) {
-    // Category search with sorting
-    url = `${BASE_URL}/sort-category-search/${encodedQuery}/${category}/${sort}/${order}/${pageNum}/`;
-  } else if (options.sort) {
-    // Sorted search
-    url = `${BASE_URL}/sort-search/${encodedQuery}/${sort}/${order}/${pageNum}/`;
-  } else {
-    // Basic search
-    url = `${BASE_URL}/search/${encodedQuery}/${pageNum}/`;
-  }
+  const url = `${BASE_URL}/search/${encodedQuery}/${pageNum}/`;
 
   log.info(`Built search URL`, { url });
 
@@ -250,6 +238,36 @@ async function search1337x(query, page = '1', options = {}) {
     const rowCount = $('table.table-list tbody tr').length;
 
     log.info(`Page parsing info`, { pageTitle, tableExists, rowCount });
+
+    // Detect error pages from 1337x
+    if (
+      pageTitle.toLowerCase().includes('error') ||
+      pageTitle.toLowerCase().includes('something went wrong')
+    ) {
+      // Extract error message from the page
+      const errorMessage =
+        $('h1').text().trim() ||
+        $('p').first().text().trim() ||
+        'Unknown error';
+      const bodyText = $('body').text().substring(0, 500).trim();
+      log.error(`1337x returned an error page`, {
+        pageTitle,
+        errorMessage,
+        bodyPreview: bodyText,
+        htmlLength: html?.length || 0,
+      });
+      // Return empty results but don't throw - the site might be temporarily down
+      return [];
+    }
+
+    // Check for "No results" page
+    if (
+      $('.box-info-detail').text().includes('No results') ||
+      $('body').text().includes('No results were returned')
+    ) {
+      log.info(`No results found for query`, { query });
+      return [];
+    }
 
     // Parse search results from the table
     $('table.table-list tbody tr').each((_, element) => {
@@ -293,6 +311,19 @@ async function search1337x(query, page = '1', options = {}) {
         return; // Skip this torrent
       }
 
+      // Apply category filter locally (since category-search URLs are blocked)
+      if (options.category) {
+        const targetCategory = options.category.toLowerCase();
+        const torrentCategory = category.toLowerCase();
+        // Check if the torrent's category matches the requested category
+        if (
+          !torrentCategory.includes(targetCategory) &&
+          targetCategory !== 'all'
+        ) {
+          return; // Skip this torrent
+        }
+      }
+
       const torrent = {
         Name: name,
         Size: parseSize(sizeText),
@@ -325,12 +356,76 @@ async function search1337x(query, page = '1', options = {}) {
     }
   }
 
+  // Apply local sorting if sort option is specified
+  if (options.sort && allTorrents.length > 0) {
+    const sortField = options.sort.toLowerCase();
+    const sortOrder = (options.order || 'desc').toLowerCase();
+
+    allTorrents.sort((a, b) => {
+      let aVal, bVal;
+
+      switch (sortField) {
+        case 'seeders':
+          aVal = parseInt(a.Seeders) || 0;
+          bVal = parseInt(b.Seeders) || 0;
+          break;
+        case 'leechers':
+          aVal = parseInt(a.Leechers) || 0;
+          bVal = parseInt(b.Leechers) || 0;
+          break;
+        case 'size':
+          // Parse size strings like "1.5 GB", "500 MB"
+          aVal = parseSizeToBytes(a.Size);
+          bVal = parseSizeToBytes(b.Size);
+          break;
+        case 'time':
+        case 'date':
+        default:
+          // Keep original order for time/date (already sorted by 1337x)
+          return 0;
+      }
+
+      return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+
+    log.info(`Applied local sorting`, {
+      sortField,
+      sortOrder,
+      count: allTorrents.length,
+    });
+  }
+
   // Apply maxResults filter if specified
   if (options.maxResults && allTorrents.length > options.maxResults) {
     return allTorrents.slice(0, options.maxResults);
   }
 
   return allTorrents;
+}
+
+/**
+ * Parse size string to bytes for sorting
+ * @param {string} sizeStr - Size string like "1.5 GB", "500 MB"
+ * @returns {number} Size in bytes
+ */
+function parseSizeToBytes(sizeStr) {
+  if (!sizeStr) return 0;
+
+  const match = sizeStr.match(/^([\d.]+)\s*(KB|MB|GB|TB|B)?/i);
+  if (!match) return 0;
+
+  const value = parseFloat(match[1]);
+  const unit = (match[2] || 'B').toUpperCase();
+
+  const multipliers = {
+    B: 1,
+    KB: 1024,
+    MB: 1024 * 1024,
+    GB: 1024 * 1024 * 1024,
+    TB: 1024 * 1024 * 1024 * 1024,
+  };
+
+  return value * (multipliers[unit] || 1);
 }
 
 /**

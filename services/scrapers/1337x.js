@@ -16,11 +16,12 @@ const { extractImageLinks } = require('../imageExtractorService');
 
 // FlareSolverr configuration
 // Hosted FlareSolverr instance: https://flaresolver.sliplane.app/
-const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || 'https://flaresolver.sliplane.app/v1';
-const FLARESOLVERR_MAX_TIMEOUT = 60000; // 60 seconds
+const FLARESOLVERR_URL =
+  process.env.FLARESOLVERR_URL || 'https://flaresolver.sliplane.app/v1';
+const FLARESOLVERR_MAX_TIMEOUT = 80000; // 80 seconds - 1337x.to needs longer timeout for Cloudflare
 
-// 1337x base URL - using 1337xx.to mirror as main domain has aggressive Cloudflare protection
-const BASE_URL = 'https://www.1337xx.to';
+// 1337x base URL - using original domain as mirrors have incomplete search results
+const BASE_URL = 'https://1337x.to';
 
 /**
  * Make a request through FlareSolverr to bypass Cloudflare
@@ -59,7 +60,11 @@ async function flareSolverrRequest(url, sessionId = null) {
     }
   } catch (error) {
     if (error.response) {
-      throw new Error(`FlareSolverr request failed: ${error.response.data?.message || error.message}`);
+      throw new Error(
+        `FlareSolverr request failed: ${
+          error.response.data?.message || error.message
+        }`
+      );
     }
     throw error;
   }
@@ -71,13 +76,17 @@ async function flareSolverrRequest(url, sessionId = null) {
  */
 async function createSession() {
   try {
-    const response = await axios.post(FLARESOLVERR_URL, {
-      cmd: 'sessions.create',
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await axios.post(
+      FLARESOLVERR_URL,
+      {
+        cmd: 'sessions.create',
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
     if (response.data.status === 'ok') {
       return response.data.session;
@@ -97,14 +106,18 @@ async function destroySession(sessionId) {
   if (!sessionId) return;
 
   try {
-    await axios.post(FLARESOLVERR_URL, {
-      cmd: 'sessions.destroy',
-      session: sessionId,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
+    await axios.post(
+      FLARESOLVERR_URL,
+      {
+        cmd: 'sessions.destroy',
+        session: sessionId,
       },
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error destroying FlareSolverr session:', error.message);
   }
@@ -186,7 +199,13 @@ async function search1337x(query, page = '1', options = {}) {
       // Extract size (sixth column - has both size and uploader info)
       const $sizeCell = $row.find('td.coll-4.size');
       // The size text is the direct text content, excluding the nested span
-      const sizeText = $sizeCell.clone().children().remove().end().text().trim();
+      const sizeText = $sizeCell
+        .clone()
+        .children()
+        .remove()
+        .end()
+        .text()
+        .trim();
 
       // Extract category from the first column icon/link
       const category = $row.find('td.coll-1.name a').first().text().trim();
@@ -209,7 +228,6 @@ async function search1337x(query, page = '1', options = {}) {
 
       allTorrents.push(torrent);
     });
-
   } catch (error) {
     console.error('Error scraping 1337x:', error.message);
     return null;
@@ -257,7 +275,8 @@ async function get1337xDetails(torrentUrl) {
     }
 
     // Extract description from the description box
-    const description = $('#description').text().trim() ||
+    const description =
+      $('#description').text().trim() ||
       $('.torrent-detail-info .box-info-detail').text().trim() ||
       'No description available';
 
@@ -266,7 +285,10 @@ async function get1337xDetails(torrentUrl) {
 
     // Also look for images in the description HTML
     const descriptionHtml = $('#description').html() || '';
-    const imgMatches = descriptionHtml.match(/https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)/gi) || [];
+    const imgMatches =
+      descriptionHtml.match(
+        /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)/gi
+      ) || [];
 
     // Combine and deduplicate images
     const allImages = [...new Set([...imageLinks, ...imgMatches])];
@@ -327,7 +349,8 @@ async function get1337xDetails(torrentUrl) {
     // Alternative file list structure
     if (details.files.length === 0) {
       $('#files .file-list li, .filelist li').each((_, element) => {
-        const fileName = $(element).find('.filename, .file-name').text().trim() ||
+        const fileName =
+          $(element).find('.filename, .file-name').text().trim() ||
           $(element).clone().children().remove().end().text().trim();
         const fileSize = $(element).find('.size, .file-size').text().trim();
 
@@ -368,4 +391,3 @@ search1337x.destroySession = destroySession;
 search1337x.flareSolverrRequest = flareSolverrRequest;
 
 module.exports = search1337x;
-

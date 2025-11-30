@@ -149,6 +149,37 @@ router.get('/health/live', (req, res) => {
 });
 
 /**
+ * 1337x Scraper diagnostic endpoint
+ * Tests FlareSolverr connectivity and 1337x access
+ */
+router.get(
+  '/health/1337x',
+  asyncHandler(async (req, res) => {
+    const search1337x = require('../services/scrapers/1337x');
+    
+    logger.info('Running 1337x diagnostic');
+    
+    try {
+      const diagnosticResults = await search1337x.diagnose();
+      
+      const allTestsPassed = Object.values(diagnosticResults.tests).every(t => t.success);
+      
+      res.status(allTestsPassed ? 200 : 503).json({
+        status: allTestsPassed ? 'healthy' : 'unhealthy',
+        ...diagnosticResults
+      });
+    } catch (error) {
+      logger.error('1337x diagnostic failed', { error: error.message });
+      res.status(503).json({
+        status: 'error',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  })
+);
+
+/**
  * Database health check
  */
 async function checkDatabaseHealth(req) {

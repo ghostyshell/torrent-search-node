@@ -23,6 +23,45 @@ const FLARESOLVERR_MAX_TIMEOUT = 80000; // 80 seconds - 1337x.to needs longer ti
 // 1337x base URL - using original domain as mirrors have incomplete search results
 const BASE_URL = 'https://1337x.to';
 
+// Logging helper
+const log = {
+  info: (msg, data = null) => {
+    const timestamp = new Date().toISOString();
+    console.log(
+      `[1337x][${timestamp}] INFO: ${msg}`,
+      data ? JSON.stringify(data, null, 2) : ''
+    );
+  },
+  warn: (msg, data = null) => {
+    const timestamp = new Date().toISOString();
+    console.warn(
+      `[1337x][${timestamp}] WARN: ${msg}`,
+      data ? JSON.stringify(data, null, 2) : ''
+    );
+  },
+  error: (msg, error = null) => {
+    const timestamp = new Date().toISOString();
+    console.error(
+      `[1337x][${timestamp}] ERROR: ${msg}`,
+      error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            response: error.response?.data,
+            status: error.response?.status,
+          }
+        : ''
+    );
+  },
+  debug: (msg, data = null) => {
+    const timestamp = new Date().toISOString();
+    console.log(
+      `[1337x][${timestamp}] DEBUG: ${msg}`,
+      data ? JSON.stringify(data, null, 2) : ''
+    );
+  },
+};
+
 /**
  * Make a request through FlareSolverr to bypass Cloudflare
  * @param {string} url - The URL to request
@@ -30,6 +69,13 @@ const BASE_URL = 'https://1337x.to';
  * @returns {Promise<{html: string, cookies: Array}>} The HTML content and cookies
  */
 async function flareSolverrRequest(url, sessionId = null) {
+  const startTime = Date.now();
+  log.info(`FlareSolverr request starting`, {
+    url,
+    flaresolverr: FLARESOLVERR_URL,
+    timeout: FLARESOLVERR_MAX_TIMEOUT,
+  });
+
   const payload = {
     cmd: 'request.get',
     url: url,
@@ -49,16 +95,33 @@ async function flareSolverrRequest(url, sessionId = null) {
       timeout: FLARESOLVERR_MAX_TIMEOUT + 10000, // Add buffer for FlareSolverr processing
     });
 
+    const duration = Date.now() - startTime;
+
     if (response.data.status === 'ok') {
+      const htmlLength = response.data.solution?.response?.length || 0;
+      log.info(`FlareSolverr request successful`, {
+        duration: `${duration}ms`,
+        htmlLength,
+        challengeDetected:
+          response.data.message?.includes('Challenge') || false,
+      });
       return {
         html: response.data.solution.response,
         cookies: response.data.solution.cookies,
         userAgent: response.data.solution.userAgent,
       };
     } else {
+      log.error(`FlareSolverr returned error status`, {
+        status: response.data.status,
+        message: response.data.message,
+        duration: `${duration}ms`,
+      });
       throw new Error(`FlareSolverr error: ${response.data.message}`);
     }
   } catch (error) {
+    const duration = Date.now() - startTime;
+    log.error(`FlareSolverr request failed after ${duration}ms`, error);
+
     if (error.response) {
       throw new Error(
         `FlareSolverr request failed: ${
@@ -145,6 +208,9 @@ function parseSize(sizeStr) {
  * @returns {Promise<Array>} Array of torrent results
  */
 async function search1337x(query, page = '1', options = {}) {
+  const searchStartTime = Date.now();
+  log.info(`Starting 1337x search`, { query, page, options });
+
   const allTorrents = [];
   const pageNum = parseInt(page) || 1;
 
@@ -166,12 +232,24 @@ async function search1337x(query, page = '1', options = {}) {
     url = `${BASE_URL}/search/${encodedQuery}/${pageNum}/`;
   }
 
+  log.info(`Built search URL`, { url });
+
   let sessionId = null;
 
   try {
     // Use FlareSolverr to get the page content
     const { html } = await flareSolverrRequest(url, sessionId);
+
+    log.debug(`Received HTML response`, { htmlLength: html?.length || 0 });
+
     const $ = cheerio.load(html);
+
+    // Check if we got a valid page
+    const pageTitle = $('title').text();
+    const tableExists = $('table.table-list').length > 0;
+    const rowCount = $('table.table-list tbody tr').length;
+
+    log.info(`Page parsing info`, { pageTitle, tableExists, rowCount });
 
     // Parse search results from the table
     $('table.table-list tbody tr').each((_, element) => {
@@ -228,8 +306,17 @@ async function search1337x(query, page = '1', options = {}) {
 
       allTorrents.push(torrent);
     });
+
+    const searchDuration = Date.now() - searchStartTime;
+    log.info(`Search completed successfully`, {
+      resultsCount: allTorrents.length,
+      duration: `${searchDuration}ms`,
+      query,
+      page,
+    });
   } catch (error) {
-    console.error('Error scraping 1337x:', error.message);
+    const searchDuration = Date.now() - searchStartTime;
+    log.error(`Error scraping 1337x after ${searchDuration}ms`, error);
     return null;
   } finally {
     // Clean up session if we created one
@@ -252,6 +339,9 @@ async function search1337x(query, page = '1', options = {}) {
  * @returns {Promise<Object>} Torrent details including description, files, magnet, etc.
  */
 async function get1337xDetails(torrentUrl) {
+  const startTime = Date.now();
+  log.info(`Getting torrent details`, { torrentUrl });
+
   let sessionId = null;
 
   try {
@@ -259,6 +349,8 @@ async function get1337xDetails(torrentUrl) {
     const fullUrl = torrentUrl.startsWith('http')
       ? torrentUrl
       : `${BASE_URL}${torrentUrl}`;
+
+    log.debug(`Fetching details from`, { fullUrl });
 
     // Use FlareSolverr to get the page content
     const { html } = await flareSolverrRequest(fullUrl, sessionId);
@@ -273,6 +365,8 @@ async function get1337xDetails(torrentUrl) {
     if (hashMatch) {
       hash = hashMatch[1].toUpperCase();
     }
+
+    log.debug(`Extracted magnet info`, { hasMagnet: !!magnetLink, hash });
 
     // Extract description from the description box
     const description =
@@ -363,9 +457,18 @@ async function get1337xDetails(torrentUrl) {
       });
     }
 
+    const duration = Date.now() - startTime;
+    log.info(`Details fetched successfully`, {
+      duration: `${duration}ms`,
+      hasMagnet: !!magnetLink,
+      filesCount: details.files.length,
+      imagesCount: allImages.length,
+    });
+
     return details;
   } catch (error) {
-    console.error('Error getting 1337x torrent details:', error.message);
+    const duration = Date.now() - startTime;
+    log.error(`Error getting 1337x torrent details after ${duration}ms`, error);
     return {
       description: 'Failed to load description',
       magnet: '',
@@ -382,6 +485,118 @@ async function get1337xDetails(torrentUrl) {
   }
 }
 
+/**
+ * Diagnostic function to test FlareSolverr connectivity and 1337x access
+ * @returns {Promise<Object>} Diagnostic results
+ */
+async function diagnose1337x() {
+  const results = {
+    timestamp: new Date().toISOString(),
+    flaresolverrUrl: FLARESOLVERR_URL,
+    baseUrl: BASE_URL,
+    timeout: FLARESOLVERR_MAX_TIMEOUT,
+    tests: {},
+  };
+
+  // Test 1: Check FlareSolverr is reachable
+  try {
+    log.info('Running diagnostic: FlareSolverr connectivity test');
+    const startTime = Date.now();
+    const response = await axios.post(
+      FLARESOLVERR_URL,
+      {
+        cmd: 'request.get',
+        url: 'https://www.google.com',
+        maxTimeout: 30000,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 35000,
+      }
+    );
+
+    results.tests.flaresolverrConnectivity = {
+      success: response.data.status === 'ok',
+      duration: Date.now() - startTime,
+      status: response.data.status,
+      message: response.data.message,
+    };
+  } catch (error) {
+    results.tests.flaresolverrConnectivity = {
+      success: false,
+      error: error.message,
+      code: error.code,
+      responseStatus: error.response?.status,
+    };
+  }
+
+  // Test 2: Check 1337x access via FlareSolverr
+  try {
+    log.info('Running diagnostic: 1337x access test');
+    const startTime = Date.now();
+    const response = await axios.post(
+      FLARESOLVERR_URL,
+      {
+        cmd: 'request.get',
+        url: `${BASE_URL}/home/`,
+        maxTimeout: FLARESOLVERR_MAX_TIMEOUT,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: FLARESOLVERR_MAX_TIMEOUT + 10000,
+      }
+    );
+
+    const hasValidContent =
+      response.data.solution?.response?.includes('1337x') ||
+      response.data.solution?.response?.includes('torrent');
+
+    results.tests.x1337Access = {
+      success: response.data.status === 'ok' && hasValidContent,
+      duration: Date.now() - startTime,
+      status: response.data.status,
+      message: response.data.message,
+      htmlLength: response.data.solution?.response?.length || 0,
+      hasValidContent,
+    };
+  } catch (error) {
+    results.tests.x1337Access = {
+      success: false,
+      error: error.message,
+      code: error.code,
+      responseStatus: error.response?.status,
+      responseData: error.response?.data,
+    };
+  }
+
+  // Test 3: Test a simple search
+  try {
+    log.info('Running diagnostic: Simple search test');
+    const startTime = Date.now();
+    const searchResults = await search1337x('test', '1', { maxResults: 5 });
+
+    results.tests.simpleSearch = {
+      success: Array.isArray(searchResults) && searchResults.length > 0,
+      duration: Date.now() - startTime,
+      resultsCount: searchResults?.length || 0,
+      sampleResult: searchResults?.[0]
+        ? {
+            name: searchResults[0].Name?.substring(0, 50),
+            hasUrl: !!searchResults[0].Url,
+          }
+        : null,
+    };
+  } catch (error) {
+    results.tests.simpleSearch = {
+      success: false,
+      error: error.message,
+    };
+  }
+
+  log.info('Diagnostic complete', results);
+  return results;
+}
+
 // Attach the getDetails function to the main function
 search1337x.getDetails = get1337xDetails;
 
@@ -389,5 +604,7 @@ search1337x.getDetails = get1337xDetails;
 search1337x.createSession = createSession;
 search1337x.destroySession = destroySession;
 search1337x.flareSolverrRequest = flareSolverrRequest;
+search1337x.diagnose = diagnose1337x;
+search1337x.log = log;
 
 module.exports = search1337x;

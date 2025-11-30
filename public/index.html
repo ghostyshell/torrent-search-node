@@ -704,7 +704,7 @@
 
         async function fetchStreamRefreshLogs() {
             try {
-                const response = await fetch('/api/monitoring/stream-url-refresh-logs?limit=20');
+                const response = await fetch('/api/monitoring/stream-url-refresh-logs?limit=20&includeAppLogs=true');
                 const data = await response.json();
 
                 if (!data.success) throw new Error(data.error);
@@ -720,38 +720,83 @@
                 const status = statusMap[data.status] || statusMap['idle'];
                 statusEl.style.backgroundColor = status.bg;
                 statusEl.style.color = status.color;
+
+                // Format next run time
+                let nextRunText = '';
+                if (data.nextRun) {
+                    const nextRunDate = new Date(data.nextRun);
+                    const now = new Date();
+                    const diffMs = nextRunDate - now;
+
+                    if (diffMs > 0) {
+                        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        nextRunText = hours > 0 ? `in ${hours}h ${minutes}m` : `in ${minutes}m`;
+                    } else {
+                        nextRunText = 'soon';
+                    }
+                }
+
                 statusEl.innerHTML = `
                     <strong>Status:</strong> ${status.text}
                     ${data.lastRun ? ` | <strong>Last Run:</strong> ${formatTime(data.lastRun)}` : ''}
-                    ${data.nextRun ? ` | <strong>Next Run:</strong> ${formatTimeUntil(data.nextRun)}` : ''}
+                    ${data.nextRun ? ` | <strong>Next Run:</strong> ${nextRunText}` : ''}
                 `;
 
-                // Update logs
+                // Update logs container
                 const logsContainer = document.getElementById('streamRefreshLogs');
-                if (data.logs.length > 0) {
-                    logsContainer.innerHTML = data.logs.map(log => {
-                        const isSuccess = log.success;
-                        const isManual = log.manual;
-                        return `
-                            <div class="log-entry">
-                                <span class="log-time">${formatTime(log.timestamp)}</span>
-                                <span class="log-level ${isSuccess ? 'log-level-info' : 'log-level-error'}">
-                                    ${isSuccess ? 'SUCCESS' : 'FAILED'}
-                                </span>
-                                <span class="log-message">
-                                    ${isManual ? '[MANUAL] ' : ''}
-                                    ${log.totalFavorites || 0} favorites |
-                                    ${log.usersProcessed || 0} users |
-                                    ${log.refreshed || 0} refreshed |
-                                    ${log.skipped || 0} skipped |
-                                    ${log.failed || 0} failed
-                                    ${log.error ? `| Error: ${log.error}` : ''}
-                                </span>
-                            </div>
-                        `;
-                    }).join('');
+
+                // Show detailed app logs if job is running
+                if (data.status === 'running' && data.recentAppLogs && data.recentAppLogs.length > 0) {
+                    logsContainer.innerHTML = '<div style="margin-bottom: 12px; font-weight: bold; color: #fbbf24;">📋 Live Progress:</div>' +
+                        data.recentAppLogs.slice(0, 30).map(log => {
+                            const msg = log.message || '';
+                            const level = log.level || 'info';
+                            const levelClass = level === 'error' ? 'log-level-error' : level === 'warn' ? 'log-level-warn' : 'log-level-info';
+
+                            return `
+                                <div class="log-entry" style="font-size: 12px; padding: 4px 8px;">
+                                    <span class="log-time" style="font-size: 11px;">${log.timestamp ? formatTime(log.timestamp) : ''}</span>
+                                    <span class="log-level ${levelClass}" style="font-size: 11px; padding: 2px 6px;">
+                                        ${level.toUpperCase()}
+                                    </span>
+                                    <span class="log-message" style="font-size: 11px;">
+                                        ${msg.replace('[Stream Refresh]', '').trim()}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('');
+                } else if (data.logs.length > 0) {
+                    // Show historical job results
+                    logsContainer.innerHTML = '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
+                        data.logs.map(log => {
+                            const isSuccess = log.success;
+                            const isManual = log.manual;
+                            return `
+                                <div class="log-entry">
+                                    <span class="log-time">${formatTime(log.timestamp)}</span>
+                                    <span class="log-level ${isSuccess ? 'log-level-info' : 'log-level-error'}">
+                                        ${isSuccess ? 'SUCCESS' : 'FAILED'}
+                                    </span>
+                                    <span class="log-message">
+                                        ${isManual ? '[MANUAL] ' : '[SCHEDULED] '}
+                                        ${log.totalFavorites || 0} favorites |
+                                        ${log.usersProcessed || 0} users |
+                                        ${log.refreshed || 0} refreshed |
+                                        ${log.skipped || 0} skipped |
+                                        ${log.failed || 0} failed
+                                        ${log.error ? `| Error: ${log.error}` : ''}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('');
                 } else {
                     logsContainer.innerHTML = '<div class="loading">No logs available yet</div>';
+                }
+
+                // If job is running, refresh more frequently
+                if (data.status === 'running') {
+                    setTimeout(fetchStreamRefreshLogs, 2000); // Refresh every 2 seconds while running
                 }
             } catch (error) {
                 console.error('Failed to fetch stream refresh logs:', error);

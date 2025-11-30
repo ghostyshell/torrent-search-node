@@ -45,7 +45,12 @@ const updateTaskStats = (taskName, result) => {
   if (backgroundTaskStats[taskName]) {
     const task = backgroundTaskStats[taskName];
     task.lastRun = new Date().toISOString();
-    task.nextRun = new Date(Date.now() + task.intervalMs).toISOString();
+
+    // Only update nextRun for scheduled runs, not manual triggers
+    if (!result.manual) {
+      task.nextRun = new Date(Date.now() + task.intervalMs).toISOString();
+    }
+
     task.status = result.success ? 'completed' : 'error';
     task.results.unshift({
       timestamp: task.lastRun,
@@ -287,12 +292,40 @@ const getDashboardData = async (req, res) => {
 const getStreamUrlRefreshLogs = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const includeAppLogs = req.query.includeAppLogs === 'true';
 
     const logs = backgroundTaskStats.streamUrlRefresh.results.slice(0, limit);
+
+    // Optionally include recent application logs related to stream refresh
+    let recentAppLogs = [];
+    if (includeAppLogs) {
+      try {
+        const logDir = path.join(__dirname, '..', 'logs');
+        const logFilePath = path.join(logDir, 'combined.log');
+
+        if (fs.existsSync(logFilePath)) {
+          const fileContent = fs.readFileSync(logFilePath, 'utf-8');
+          const lines = fileContent.split('\n').filter(line =>
+            line.includes('[Stream Refresh]')
+          ).slice(-50); // Last 50 stream refresh logs
+
+          recentAppLogs = lines.reverse().map(line => {
+            try {
+              return JSON.parse(line);
+            } catch {
+              return { message: line };
+            }
+          });
+        }
+      } catch (logError) {
+        console.error('Failed to read app logs:', logError);
+      }
+    }
 
     res.json({
       success: true,
       logs,
+      recentAppLogs,
       count: logs.length,
       status: backgroundTaskStats.streamUrlRefresh.status,
       lastRun: backgroundTaskStats.streamUrlRefresh.lastRun,

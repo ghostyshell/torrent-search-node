@@ -57,6 +57,7 @@ class StreamUrlRefreshService {
    * @returns {Promise<object>} Results summary
    */
   async refreshAllFavoriteStreamUrls() {
+    const startTime = Date.now();
     const results = {
       totalFavorites: 0,
       usersProcessed: 0,
@@ -67,28 +68,37 @@ class StreamUrlRefreshService {
     };
 
     try {
+      logger.info('🔄 [Stream Refresh] Starting stream URL refresh job');
+
       // Debug: Check what's in the favorites tables
       const debugStats = await this.storage.favorites.getStats();
-      logger.info('Favorites table stats', debugStats);
+      logger.info('📊 [Stream Refresh] Favorites table stats', debugStats);
 
       // Get all favorites grouped by user
       const userFavorites = await this.storage.favorites.getAllFavoritesForStreamRefresh();
 
-      logger.info('getAllFavoritesForStreamRefresh returned', {
-        userFavoritesCount: userFavorites?.length || 0,
-        userFavorites: userFavorites?.slice(0, 3) // Log first 3 for debugging
+      logger.info('👥 [Stream Refresh] Loaded user favorites', {
+        totalUsers: userFavorites?.length || 0,
+        totalFavoritesAcrossUsers: userFavorites?.reduce((sum, uf) => sum + uf.favorites.length, 0) || 0
       });
 
       if (!userFavorites || userFavorites.length === 0) {
-        logger.info('No favorites with magnet links found for stream refresh');
+        logger.info('⚠️ [Stream Refresh] No favorites with magnet links found for stream refresh');
         return results;
       }
 
-      for (const { userId, favorites } of userFavorites) {
+      for (let userIndex = 0; userIndex < userFavorites.length; userIndex++) {
+        const { userId, favorites } = userFavorites[userIndex];
         results.totalFavorites += favorites.length;
+
+        logger.info(`👤 [Stream Refresh] Processing user ${userIndex + 1}/${userFavorites.length}`, {
+          userId: userId ? userId.substring(0, 8) + '...' : 'anonymous',
+          favoritesCount: favorites.length
+        });
 
         // Skip anonymous users (no API key)
         if (!userId) {
+          logger.info(`⏭️ [Stream Refresh] Skipping anonymous user (${favorites.length} favorites)`);
           results.skipped += favorites.length;
           continue;
         }
@@ -96,7 +106,7 @@ class StreamUrlRefreshService {
         // Get user's Real-Debrid API key
         const apiKey = await this.authService.getRealDebridApiKey(userId);
         if (!apiKey) {
-          logger.debug('User has no Real-Debrid API key', { userId });
+          logger.info(`⏭️ [Stream Refresh] User has no Real-Debrid API key, skipping ${favorites.length} favorites`);
           results.skipped += favorites.length;
           continue;
         }
@@ -107,7 +117,7 @@ class StreamUrlRefreshService {
           try {
             decryptedKey = this.authService.decryptApiKey(apiKey);
           } catch (decryptErr) {
-            logger.warn('Failed to decrypt API key', { userId, error: decryptErr.message });
+            logger.warn('❌ [Stream Refresh] Failed to decrypt API key, skipping user', { error: decryptErr.message });
             results.skipped += favorites.length;
             continue;
           }
@@ -116,15 +126,24 @@ class StreamUrlRefreshService {
         results.usersProcessed++;
 
         // Process each favorite for this user
-        for (const favorite of favorites) {
+        for (let favIndex = 0; favIndex < favorites.length; favIndex++) {
+          const favorite = favorites[favIndex];
+          const torrentName = favorite.torrentName || 'Unknown';
+          const shortName = torrentName.length > 50 ? torrentName.substring(0, 50) + '...' : torrentName;
+
+          logger.info(`🎬 [Stream Refresh] Processing favorite ${favIndex + 1}/${favorites.length}: ${shortName}`);
+
           try {
             const result = await this.refreshStreamUrl(favorite.magnetLink, decryptedKey, favorite.torrentName);
             if (result.success) {
               results.refreshed++;
+              logger.info(`✅ [Stream Refresh] Successfully refreshed: ${shortName}`);
             } else if (result.skipped) {
               results.skipped++;
+              logger.info(`⏭️ [Stream Refresh] Skipped: ${shortName} - ${result.reason || 'Unknown reason'}`);
             } else {
               results.failed++;
+              logger.warn(`❌ [Stream Refresh] Failed: ${shortName} - ${result.error || 'Unknown error'}`);
               if (result.error) {
                 results.errors.push({
                   torrentName: favorite.torrentName,
@@ -137,17 +156,33 @@ class StreamUrlRefreshService {
             await this.sleep(1000);
           } catch (err) {
             results.failed++;
+            logger.error(`❌ [Stream Refresh] Exception: ${shortName}`, { error: err.message });
             results.errors.push({
               torrentName: favorite.torrentName,
               error: err.message,
             });
           }
         }
+
+        logger.info(`✅ [Stream Refresh] Completed user ${userIndex + 1}/${userFavorites.length}`, {
+          userRefreshed: favorites.length
+        });
       }
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      logger.info('🎉 [Stream Refresh] Job completed', {
+        duration: `${duration}s`,
+        totalFavorites: results.totalFavorites,
+        usersProcessed: results.usersProcessed,
+        refreshed: results.refreshed,
+        skipped: results.skipped,
+        failed: results.failed
+      });
 
       return results;
     } catch (error) {
-      logger.error('Error refreshing favorite stream URLs', { error: error.message });
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      logger.error(`❌ [Stream Refresh] Job failed after ${duration}s`, { error: error.message });
       results.errors.push({ error: error.message });
       return results;
     }
@@ -164,6 +199,7 @@ class StreamUrlRefreshService {
 
     try {
       // Step 1: Add magnet to Real-Debrid
+      logger.debug(`  ↳ Adding magnet to Real-Debrid...`);
       const addResponse = await this.realDebridRequest('POST', '/torrents/addMagnet', apiKey, {
         magnet: magnetLink,
       });
@@ -173,11 +209,13 @@ class StreamUrlRefreshService {
       }
 
       const torrentId = addResponse.id;
+      logger.debug(`  ↳ Magnet added, torrent ID: ${torrentId}`);
 
       // Wait for torrent to be processed (like frontend)
       await this.sleep(2000);
 
       // Step 2: Get torrent info
+      logger.debug(`  ↳ Fetching torrent info...`);
       const infoResponse = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
       if (!infoResponse || infoResponse.status === 'magnet_error') {
@@ -189,13 +227,17 @@ class StreamUrlRefreshService {
       }
 
       // Step 3: Find and select the largest video file (like frontend)
+      logger.debug(`  ↳ Finding largest video file from ${infoResponse.files.length} files...`);
       const videoFile = this.getLargestVideoFile(infoResponse.files);
       if (!videoFile) {
         return { success: false, error: 'No video files found in torrent' };
       }
 
+      logger.debug(`  ↳ Selected video file: ${videoFile.path}`);
+
       // Select the video file if needed
       if (infoResponse.status === 'waiting_files_selection' || videoFile.selected === 0) {
+        logger.debug(`  ↳ Selecting video file...`);
         await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
           files: videoFile.id.toString(),
         });
@@ -205,13 +247,17 @@ class StreamUrlRefreshService {
       }
 
       // Step 4: Get updated torrent info with links
+      logger.debug(`  ↳ Fetching updated torrent info with links...`);
       const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
       if (!updatedInfo.links || updatedInfo.links.length === 0) {
         return { success: false, error: 'No download links available. Torrent may not be cached on Real-Debrid.' };
       }
 
+      logger.debug(`  ↳ Got ${updatedInfo.links.length} download link(s)`);
+
       // Step 5: Unrestrict the first available link
+      logger.debug(`  ↳ Unrestricting link and caching...`);
       return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
     } catch (error) {
       return { success: false, error: error.message };

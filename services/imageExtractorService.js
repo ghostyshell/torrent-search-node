@@ -6,6 +6,7 @@
  */
 
 const trafficImageExtractor = require('./imageExtractors/trafficImageExtractor');
+const imgtrafficExtractor = require('./imageExtractors/imgtrafficExtractor');
 const imgbbExtractor = require('./imageExtractors/imgbbExtractor');
 const postimgExtractor = require('./imageExtractors/postimgExtractor');
 const imgurExtractor = require('./imageExtractors/imgurExtractor');
@@ -18,6 +19,10 @@ const xxxwebdlxxxExtractor = require('./imageExtractors/xxxwebdlxxxExtractor');
  */
 const IMAGE_HOST_PATTERNS = [
   /https?:\/\/trafficimage\.club\/image\/[a-zA-Z0-9]+/g,
+  // imgtraffic.com - pages ending in .jpeg.html, .jpg.html, etc.
+  /https?:\/\/imgtraffic\.com\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)\.html/g,
+  // imgtraffic.com - direct image URLs
+  /https?:\/\/imgtraffic\.com\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)/g,
   /https?:\/\/imgbb\.com\/[a-zA-Z0-9]+/g,
   /https?:\/\/postimg\.cc\/[a-zA-Z0-9]+/g,
   /https?:\/\/imgur\.com\/[a-zA-Z0-9]+/g,
@@ -40,6 +45,7 @@ async function extractImageLinks(description) {
   }
 
   const imageLinks = [];
+  const seenDirectUrls = new Set(); // Track unique direct URLs to avoid duplicates
 
   // Extract all potential image URLs from description using patterns
   const foundUrls = new Set();
@@ -54,7 +60,8 @@ async function extractImageLinks(description) {
   for (const url of foundUrls) {
     try {
       const directImageUrl = await getDirectImageUrl(url);
-      if (directImageUrl) {
+      if (directImageUrl && !seenDirectUrls.has(directImageUrl)) {
+        seenDirectUrls.add(directImageUrl);
         imageLinks.push({
           originalUrl: url,
           directUrl: directImageUrl,
@@ -64,7 +71,8 @@ async function extractImageLinks(description) {
       console.warn(`Failed to extract direct image URL from: ${url}`, error.message);
 
       // Still add the original URL in case it's already a direct link
-      if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i) && !seenDirectUrls.has(url)) {
+        seenDirectUrls.add(url);
         imageLinks.push({
           originalUrl: url,
           directUrl: url,
@@ -96,6 +104,8 @@ async function getDirectImageUrl(url) {
     // Route to appropriate extractor based on URL pattern
     if (url.includes('trafficimage.club')) {
       return await trafficImageExtractor(url);
+    } else if (url.includes('imgtraffic.com')) {
+      return await imgtrafficExtractor(url);
     } else if (url.includes('imgbb.com')) {
       return await imgbbExtractor(url);
     } else if (url.includes('postimg.cc')) {

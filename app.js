@@ -759,6 +759,9 @@ const startPeriodicStreamUrlRefresh = () => {
   // Run initial refresh after 70 seconds to let server fully initialize
   setTimeout(async () => {
     try {
+      // Set status to running so dashboard shows live progress
+      monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
+
       logger.info('Running initial stream URL refresh for favorites');
       logger.info('Stream URL refresh service initialized', {
         hasStorage: !!storageProvider,
@@ -792,6 +795,9 @@ const startPeriodicStreamUrlRefresh = () => {
   // Then run every 24 hours
   setInterval(async () => {
     try {
+      // Set status to running so dashboard shows live progress
+      monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
+
       logger.info('Running periodic stream URL refresh for favorites');
       const result = await refreshService.refreshAllFavoriteStreamUrls();
       logger.info('Periodic stream URL refresh completed', {

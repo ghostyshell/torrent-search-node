@@ -11,6 +11,7 @@ const nyaaSI = require('./scrapers/nyaaSI');
 const pirateBay = require('./scrapers/pirateBay');
 const torrentProject = require('./scrapers/torrentProject');
 const yts = require('./scrapers/yts');
+const x1337 = require('./scrapers/1337x');
 
 /**
  * Available torrent scrapers mapped by website identifier
@@ -21,6 +22,7 @@ const scrapers = {
   piratebay: pirateBay,
   torrentproject: torrentProject,
   yts: yts,
+  '1337x': x1337,
 };
 
 /**

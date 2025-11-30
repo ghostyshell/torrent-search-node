@@ -18,7 +18,7 @@ const { extractImageLinks } = require('../imageExtractorService');
 // Hosted FlareSolverr instance: https://flaresolver.sliplane.app/
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || 'https://flaresolver.sliplane.app/v1';
-const FLARESOLVERR_MAX_TIMEOUT = 80000; // 80 seconds - 1337x.to needs longer timeout for Cloudflare
+const FLARESOLVERR_MAX_TIMEOUT = 55000; // 55 seconds - keep under platform timeouts (usually 60s)
 
 // 1337x base URL - using original domain as mirrors have incomplete search results
 const BASE_URL = 'https://1337x.to';

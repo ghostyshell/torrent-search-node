@@ -113,6 +113,8 @@ app.get('/api/monitoring/dashboard', monitoringController.getDashboardData);
 app.get('/api/monitoring/logs', monitoringController.getLogs);
 app.get('/api/monitoring/tasks', monitoringController.getBackgroundTaskStats);
 app.get('/api/monitoring/api-usage', monitoringController.getApiUsageStats);
+app.get('/api/monitoring/stream-url-refresh-logs', monitoringController.getStreamUrlRefreshLogs);
+app.post('/api/monitoring/stream-url-refresh-trigger', monitoringController.triggerStreamUrlRefresh);
 
 // Debug endpoint to check favorites data
 app.get('/api/monitoring/debug-favorites', async (req, res) => {

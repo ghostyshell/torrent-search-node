@@ -46,7 +46,7 @@ const updateTaskStats = (taskName, result) => {
     const task = backgroundTaskStats[taskName];
     task.lastRun = new Date().toISOString();
     task.nextRun = new Date(Date.now() + task.intervalMs).toISOString();
-    task.status = 'completed';
+    task.status = result.success ? 'completed' : 'error';
     task.results.unshift({
       timestamp: task.lastRun,
       ...result,
@@ -55,6 +55,13 @@ const updateTaskStats = (taskName, result) => {
     if (task.results.length > 10) {
       task.results = task.results.slice(0, 10);
     }
+
+    // Reset status to idle after a few seconds (unless it's still running)
+    setTimeout(() => {
+      if (task.status !== 'running') {
+        task.status = 'idle';
+      }
+    }, 5000);
   }
 };
 
@@ -274,11 +281,113 @@ const getDashboardData = async (req, res) => {
   }
 };
 
+/**
+ * Get stream URL refresh job logs
+ */
+const getStreamUrlRefreshLogs = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    const logs = backgroundTaskStats.streamUrlRefresh.results.slice(0, limit);
+
+    res.json({
+      success: true,
+      logs,
+      count: logs.length,
+      status: backgroundTaskStats.streamUrlRefresh.status,
+      lastRun: backgroundTaskStats.streamUrlRefresh.lastRun,
+      nextRun: backgroundTaskStats.streamUrlRefresh.nextRun,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Manually trigger stream URL refresh job
+ */
+const triggerStreamUrlRefresh = async (req, res) => {
+  try {
+    const storageProvider = req.app.locals.storageProvider;
+
+    if (!storageProvider) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage provider not available',
+      });
+    }
+
+    // Set status to running
+    backgroundTaskStats.streamUrlRefresh.status = 'running';
+
+    res.json({
+      success: true,
+      message: 'Stream URL refresh job started',
+      status: 'running',
+    });
+
+    // Run the refresh in the background
+    const StreamUrlRefreshService = require('../services/streamUrlRefreshService');
+    const AuthService = require('../config/passport');
+    const logger = require('../middleware/logger');
+
+    const authService = new AuthService(storageProvider);
+    const refreshService = new StreamUrlRefreshService(storageProvider, authService);
+
+    // Execute asynchronously
+    (async () => {
+      try {
+        logger.info('Manual stream URL refresh triggered');
+        const result = await refreshService.refreshAllFavoriteStreamUrls();
+        logger.info('Manual stream URL refresh completed', {
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+
+        if (result.errors.length > 0) {
+          logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+        }
+
+        updateTaskStats('streamUrlRefresh', {
+          success: true,
+          manual: true,
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during manual stream URL refresh', { error: error.message });
+        updateTaskStats('streamUrlRefresh', {
+          success: false,
+          manual: true,
+          error: error.message
+        });
+      }
+    })();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
   getApiUsageStats,
   getDashboardData,
+  getStreamUrlRefreshLogs,
+  triggerStreamUrlRefresh,
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,

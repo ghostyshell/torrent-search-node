@@ -300,8 +300,7 @@ const getStreamUrlRefreshLogs = async (req, res) => {
     let recentAppLogs = [];
     if (includeAppLogs) {
       try {
-        const logDir = path.join(__dirname, '..', 'logs');
-        const logFilePath = path.join(logDir, 'combined.log');
+        const logFilePath = path.join(config.logging.logDir, 'all.log');
 
         if (fs.existsSync(logFilePath)) {
           // Read the last 1000 lines of the file for performance

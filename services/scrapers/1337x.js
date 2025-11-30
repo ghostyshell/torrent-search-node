@@ -216,8 +216,18 @@ async function search1337x(query, page = '1', options = {}) {
 
   // Build search URL - always use basic search
   // NOTE: 1337x blocks /sort-search/ and /category-search/ URLs via Cloudflare
-  // So we use basic search, then filter by category and sort results locally
-  const encodedQuery = encodeURIComponent(query);
+  // So we incorporate the category into the search query and sort results locally
+  // e.g., "2160p" with category "XXX" becomes "2160p XXX"
+  let searchQuery = query;
+  if (options.category && options.category.toLowerCase() !== 'all') {
+    searchQuery = `${query} ${options.category}`;
+    log.info(`Category added to search query`, {
+      originalQuery: query,
+      category: options.category,
+      newQuery: searchQuery,
+    });
+  }
+  const encodedQuery = encodeURIComponent(searchQuery);
   const url = `${BASE_URL}/search/${encodedQuery}/${pageNum}/`;
 
   log.info(`Built search URL`, { url });
@@ -311,18 +321,9 @@ async function search1337x(query, page = '1', options = {}) {
         return; // Skip this torrent
       }
 
-      // Apply category filter locally (since category-search URLs are blocked)
-      if (options.category) {
-        const targetCategory = options.category.toLowerCase();
-        const torrentCategory = category.toLowerCase();
-        // Check if the torrent's category matches the requested category
-        if (
-          !torrentCategory.includes(targetCategory) &&
-          targetCategory !== 'all'
-        ) {
-          return; // Skip this torrent
-        }
-      }
+      // NOTE: Category filtering is done by including category in search query
+      // (e.g., "2160p XXX" instead of "2160p" with category filter)
+      // This is because 1337x uses icons for categories, not extractable text
 
       const torrent = {
         Name: name,

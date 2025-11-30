@@ -304,21 +304,56 @@ const getStreamUrlRefreshLogs = async (req, res) => {
         const logFilePath = path.join(logDir, 'combined.log');
 
         if (fs.existsSync(logFilePath)) {
-          const fileContent = fs.readFileSync(logFilePath, 'utf-8');
-          const lines = fileContent.split('\n').filter(line =>
-            line.includes('[Stream Refresh]')
-          ).slice(-50); // Last 50 stream refresh logs
+          // Read the last 1000 lines of the file for performance
+          const fileStream = fs.createReadStream(logFilePath);
+          const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
+          });
 
-          recentAppLogs = lines.reverse().map(line => {
+          const allLines = [];
+          for await (const line of rl) {
+            if (line.trim()) {
+              allLines.push(line);
+            }
+          }
+
+          // Get last 200 lines and filter for stream refresh logs
+          const streamRefreshLines = allLines
+            .slice(-200)
+            .filter(line => line.includes('[Stream Refresh]'));
+
+          // Parse logs and extract relevant information
+          recentAppLogs = streamRefreshLines.slice(-50).reverse().map(line => {
             try {
-              return JSON.parse(line);
+              const parsed = JSON.parse(line);
+              return {
+                timestamp: parsed.timestamp,
+                level: parsed.level,
+                message: parsed.message,
+                ...parsed
+              };
             } catch {
-              return { message: line };
+              // Try to extract info from plain text log
+              const timestampMatch = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/);
+              const levelMatch = line.match(/\b(info|warn|error|debug)\b/i);
+              const messageMatch = line.match(/\[Stream Refresh\](.*)/);
+
+              return {
+                timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
+                level: levelMatch ? levelMatch[1].toLowerCase() : 'info',
+                message: messageMatch ? '[Stream Refresh]' + messageMatch[1] : line,
+                raw: line
+              };
             }
           });
+
+          console.log(`📋 Found ${recentAppLogs.length} stream refresh log entries`);
+        } else {
+          console.warn('⚠️ Log file not found:', logFilePath);
         }
       } catch (logError) {
-        console.error('Failed to read app logs:', logError);
+        console.error('❌ Failed to read app logs:', logError.message);
       }
     }
 
@@ -327,6 +362,7 @@ const getStreamUrlRefreshLogs = async (req, res) => {
       logs,
       recentAppLogs,
       count: logs.length,
+      appLogsCount: recentAppLogs.length,
       status: backgroundTaskStats.streamUrlRefresh.status,
       lastRun: backgroundTaskStats.streamUrlRefresh.lastRun,
       nextRun: backgroundTaskStats.streamUrlRefresh.nextRun,

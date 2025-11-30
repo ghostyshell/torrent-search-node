@@ -745,30 +745,41 @@
 
                 // Update logs container
                 const logsContainer = document.getElementById('streamRefreshLogs');
+                let logsHtml = '';
 
-                // Show detailed app logs if job is running
-                if (data.status === 'running' && data.recentAppLogs && data.recentAppLogs.length > 0) {
-                    logsContainer.innerHTML = '<div style="margin-bottom: 12px; font-weight: bold; color: #fbbf24;">📋 Live Progress:</div>' +
-                        data.recentAppLogs.slice(0, 30).map(log => {
-                            const msg = log.message || '';
-                            const level = log.level || 'info';
-                            const levelClass = level === 'error' ? 'log-level-error' : level === 'warn' ? 'log-level-warn' : 'log-level-info';
+                // Always show detailed stream refresh logs if available
+                if (data.recentAppLogs && data.recentAppLogs.length > 0) {
+                    const header = data.status === 'running' ?
+                        '<div style="margin-bottom: 12px; font-weight: bold; color: #fbbf24;">📋 Live Progress:</div>' :
+                        '<div style="margin-bottom: 12px; font-weight: bold; color: #60a5fa;">📋 Recent Activity:</div>';
 
-                            return `
-                                <div class="log-entry" style="font-size: 12px; padding: 4px 8px;">
-                                    <span class="log-time" style="font-size: 11px;">${log.timestamp ? formatTime(log.timestamp) : ''}</span>
-                                    <span class="log-level ${levelClass}" style="font-size: 11px; padding: 2px 6px;">
-                                        ${level.toUpperCase()}
-                                    </span>
-                                    <span class="log-message" style="font-size: 11px;">
-                                        ${msg.replace('[Stream Refresh]', '').trim()}
-                                    </span>
-                                </div>
-                            `;
-                        }).join('');
-                } else if (data.logs.length > 0) {
-                    // Show historical job results
-                    logsContainer.innerHTML = '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
+                    logsHtml += header + data.recentAppLogs.slice(0, 30).map(log => {
+                        const msg = log.message || log.raw || '';
+                        const level = log.level || 'info';
+                        const levelClass = level === 'error' ? 'log-level-error' : level === 'warn' ? 'log-level-warn' : 'log-level-info';
+
+                        return `
+                            <div class="log-entry" style="font-size: 12px; padding: 4px 8px;">
+                                <span class="log-time" style="font-size: 11px;">${log.timestamp ? formatTime(log.timestamp) : ''}</span>
+                                <span class="log-level ${levelClass}" style="font-size: 11px; padding: 2px 6px;">
+                                    ${level.toUpperCase()}
+                                </span>
+                                <span class="log-message" style="font-size: 11px;">
+                                    ${msg.replace('[Stream Refresh]', '').trim()}
+                                </span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Add separator before job history
+                    if (data.logs.length > 0) {
+                        logsHtml += '<div style="margin: 16px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>';
+                    }
+                }
+
+                // Add job history summary
+                if (data.logs.length > 0) {
+                    logsHtml += '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
                         data.logs.map(log => {
                             const isSuccess = log.success;
                             const isManual = log.manual;
@@ -790,9 +801,14 @@
                                 </div>
                             `;
                         }).join('');
-                } else {
-                    logsContainer.innerHTML = '<div class="loading">No logs available yet</div>';
                 }
+
+                // If no logs at all
+                if (!logsHtml) {
+                    logsHtml = '<div class="loading">No logs available yet. Trigger a refresh to see logs.</div>';
+                }
+
+                logsContainer.innerHTML = logsHtml;
 
                 // If job is running, refresh more frequently
                 if (data.status === 'running') {

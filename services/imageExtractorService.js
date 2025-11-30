@@ -20,9 +20,10 @@ const xxxwebdlxxxExtractor = require('./imageExtractors/xxxwebdlxxxExtractor');
 const IMAGE_HOST_PATTERNS = [
   /https?:\/\/trafficimage\.club\/image\/[a-zA-Z0-9]+/g,
   // imgtraffic.com - pages ending in .jpeg.html, .jpg.html, etc.
-  /https?:\/\/imgtraffic\.com\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)\.html/g,
-  // imgtraffic.com - direct image URLs
-  /https?:\/\/imgtraffic\.com\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)/g,
+  // Use [^h] or non-http pattern to avoid matching into next concatenated URL
+  /https?:\/\/imgtraffic\.com\/[a-zA-Z0-9\-\/]+\.(jpg|jpeg|png|gif|webp)\.html/g,
+  // imgtraffic.com - direct image URLs (stop before next http)
+  /https?:\/\/imgtraffic\.com\/[a-zA-Z0-9\-\/]+\.(jpg|jpeg|png|gif|webp)(?![a-zA-Z])/g,
   /https?:\/\/imgbb\.com\/[a-zA-Z0-9]+/g,
   /https?:\/\/postimg\.cc\/[a-zA-Z0-9]+/g,
   /https?:\/\/imgur\.com\/[a-zA-Z0-9]+/g,

@@ -502,7 +502,15 @@ async function get1337xDetails(torrentUrl) {
     }
 
     // Add direct image URLs from HTML
-    for (const url of imgMatches) {
+    // Convert thumbnails to full-size for imgtraffic.com
+    for (let url of imgMatches) {
+      // Convert imgtraffic.com thumbnails to full-size
+      if (url.includes('imgtraffic.com')) {
+        if (url.includes('/1s/') || url.includes('/small/')) {
+          url = url.replace(/\/1s\//, '/i-1/').replace(/\/small\//, '/i-1/');
+        }
+      }
+
       if (!allImageUrls.has(url)) {
         allImageUrls.add(url);
         allImages.push({

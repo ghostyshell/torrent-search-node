@@ -16,16 +16,27 @@ const axios = require('axios');
  */
 async function getImgtrafficDirectUrl(url) {
   try {
-    // If it's already a direct image URL (no .html), return as-is
-    if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i) && !url.endsWith('.html')) {
-      return url;
+    // Convert thumbnail URLs to full-size URLs
+    // Thumbnail: https://imgtraffic.com/1s/2025/08/22/filename.jpeg
+    // Full size: https://imgtraffic.com/i-1/2025/08/22/filename.jpeg
+    // Also: /z-1/ appears to be another full-size variant
+    let processedUrl = url;
+    
+    // Convert thumbnail paths to full-size paths
+    if (url.includes('/1s/') || url.includes('/small/')) {
+      processedUrl = url.replace(/\/1s\//, '/i-1/').replace(/\/small\//, '/i-1/');
+    }
+    
+    // If it's already a direct image URL (no .html), return the processed URL
+    if (processedUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) && !processedUrl.endsWith('.html')) {
+      return processedUrl;
     }
 
     // Convert .html URL to direct image URL
     // https://imgtraffic.com/i-1/2025/07/24/688278ecbe629.jpeg.html
     // -> https://imgtraffic.com/i-1/2025/07/24/688278ecbe629.jpeg
-    if (url.endsWith('.html')) {
-      const directUrl = url.replace(/\.html$/, '');
+    if (processedUrl.endsWith('.html')) {
+      const directUrl = processedUrl.replace(/\.html$/, '');
       // Verify this is a valid image extension
       if (directUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
         return directUrl;
@@ -33,7 +44,7 @@ async function getImgtrafficDirectUrl(url) {
     }
 
     // If simple conversion doesn't work, fetch the page and extract
-    const response = await axios.get(url, {
+    const response = await axios.get(processedUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -84,20 +95,24 @@ async function getImgtrafficDirectUrl(url) {
     }
 
     // Fallback: try removing .html extension
-    if (url.endsWith('.html')) {
-      return url.replace(/\.html$/, '');
+    if (processedUrl.endsWith('.html')) {
+      return processedUrl.replace(/\.html$/, '');
     }
 
-    return null;
+    return processedUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? processedUrl : null;
   } catch (error) {
     console.warn(`Failed to extract image from imgtraffic.com: ${url}`, error.message);
     
-    // Fallback: try removing .html extension even on error
-    if (url.endsWith('.html')) {
-      return url.replace(/\.html$/, '');
+    // Fallback: convert thumbnail to full-size and remove .html
+    let fallbackUrl = url;
+    if (url.includes('/1s/') || url.includes('/small/')) {
+      fallbackUrl = url.replace(/\/1s\//, '/i-1/').replace(/\/small\//, '/i-1/');
+    }
+    if (fallbackUrl.endsWith('.html')) {
+      return fallbackUrl.replace(/\.html$/, '');
     }
     
-    return null;
+    return fallbackUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? fallbackUrl : null;
   }
 }
 

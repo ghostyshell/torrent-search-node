@@ -470,18 +470,49 @@ async function get1337xDetails(torrentUrl) {
       $('.torrent-detail-info .box-info-detail').text().trim() ||
       'No description available';
 
-    // Extract image links from description
+    // Extract image links from description using the image extractor service
     const imageLinks = await extractImageLinks(description);
+    log.debug(`Extracted image links from description`, {
+      count: imageLinks.length,
+    });
 
-    // Also look for images in the description HTML
+    // Also look for images in the description HTML (direct image URLs)
     const descriptionHtml = $('#description').html() || '';
     const imgMatches =
       descriptionHtml.match(
-        /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)/gi
+        /https?:\/\/[^\s"'<>]+\.(jpg|jpeg|png|gif|webp)(\?[^\s"'<>]*)?/gi
       ) || [];
+    log.debug(`Found direct image URLs in HTML`, { count: imgMatches.length });
 
-    // Combine and deduplicate images
-    const allImages = [...new Set([...imageLinks, ...imgMatches])];
+    // Combine images - imageLinks are objects {originalUrl, directUrl}, imgMatches are strings
+    // Convert everything to consistent format: {originalUrl, directUrl}
+    const allImageUrls = new Set();
+    const allImages = [];
+
+    // Add images from the extractor service
+    for (const img of imageLinks) {
+      const url = img.directUrl || img.originalUrl;
+      if (url && !allImageUrls.has(url)) {
+        allImageUrls.add(url);
+        allImages.push({
+          originalUrl: img.originalUrl,
+          directUrl: img.directUrl || img.originalUrl,
+        });
+      }
+    }
+
+    // Add direct image URLs from HTML
+    for (const url of imgMatches) {
+      if (!allImageUrls.has(url)) {
+        allImageUrls.add(url);
+        allImages.push({
+          originalUrl: url,
+          directUrl: url,
+        });
+      }
+    }
+
+    log.debug(`Total unique images`, { count: allImages.length });
 
     // Extract detailed info from the info box
     const details = {

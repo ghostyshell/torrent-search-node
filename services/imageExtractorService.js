@@ -96,6 +96,12 @@ async function getDirectImageUrl(url) {
   }
 
   try {
+    // Route imgtraffic.com URLs through extractor FIRST
+    // This is important because /i-1/, /z-1/, /1s/ paths are NOT direct image URLs
+    if (url.includes('imgtraffic.com')) {
+      return await imgtrafficExtractor(url);
+    }
+
     // If it's already a direct image URL, return it
     // Handle URLs with query parameters like ?md5=...&expires=...
     if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
@@ -105,8 +111,6 @@ async function getDirectImageUrl(url) {
     // Route to appropriate extractor based on URL pattern
     if (url.includes('trafficimage.club')) {
       return await trafficImageExtractor(url);
-    } else if (url.includes('imgtraffic.com')) {
-      return await imgtrafficExtractor(url);
     } else if (url.includes('imgbb.com')) {
       return await imgbbExtractor(url);
     } else if (url.includes('postimg.cc')) {

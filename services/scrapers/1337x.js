@@ -502,13 +502,12 @@ async function get1337xDetails(torrentUrl) {
     }
 
     // Add direct image URLs from HTML
-    // Convert thumbnails to full-size for imgtraffic.com
-    for (let url of imgMatches) {
-      // Convert imgtraffic.com thumbnails to full-size
+    // Skip imgtraffic.com URLs as they're already handled by the extractor service
+    // (The extractor fetches the HTML page to get the real /1/ path URL)
+    for (const url of imgMatches) {
+      // Skip imgtraffic.com - these need special handling via the extractor
       if (url.includes('imgtraffic.com')) {
-        if (url.includes('/1s/') || url.includes('/small/')) {
-          url = url.replace(/\/1s\//, '/i-1/').replace(/\/small\//, '/i-1/');
-        }
+        continue;
       }
 
       if (!allImageUrls.has(url)) {

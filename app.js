@@ -370,6 +370,13 @@ async function startServer() {
       cacheController.getCoverImageForTorrent
     );
 
+    // Update favorite entry magnet link
+    app.put(
+      '/api/storage/favorites/:favoriteId/magnet',
+      authMiddleware.optionalAuth(),
+      cacheController.updateFavoriteEntryMagnetLink
+    );
+
     // Debug endpoint for troubleshooting favorite entries
     app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
       try {
@@ -574,6 +581,14 @@ async function startServer() {
       '/api/storage/cover-image/torrent',
       cacheController.getCoverImageForTorrent
     );
+
+    // Update favorite entry magnet link (fallback)
+    app.put(
+      '/api/storage/favorites/:favoriteId/magnet',
+      authMiddleware.optionalAuth(),
+      cacheController.updateFavoriteEntryMagnetLink
+    );
+
     app.post('/api/storage/set', cacheController.setCacheValue);
     app.get('/api/storage/get/:key', cacheController.getCacheValue);
     app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);

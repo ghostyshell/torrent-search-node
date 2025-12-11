@@ -632,6 +632,58 @@ const storageController = {
     }
   },
 
+  // Update magnet link for favorite entry
+  updateFavoriteEntryMagnetLink: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const storage = req.app.locals.cache;
+    if (!storage) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage not available',
+      });
+    }
+
+    try {
+      const { favoriteId } = req.params;
+      const { magnetLink } = req.body;
+
+      if (!favoriteId || !magnetLink) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: favoriteId and magnetLink',
+        });
+      }
+
+      const success = await storage.updateFavoriteEntryMagnetLink(
+        favoriteId,
+        magnetLink
+      );
+
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Favorite entry magnet link updated successfully',
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Favorite entry not found',
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update favorite entry magnet link',
+        message: error.message,
+      });
+    }
+  },
+
   // Update cover image for torrent details
   updateTorrentDetailsCoverImage: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -821,6 +873,8 @@ module.exports = {
   deleteCacheValue: storageController.deleteCacheValue,
   updateFavoriteEntryCoverImage:
     storageController.updateFavoriteEntryCoverImage,
+  updateFavoriteEntryMagnetLink:
+    storageController.updateFavoriteEntryMagnetLink,
   updateTorrentDetailsCoverImage:
     storageController.updateTorrentDetailsCoverImage,
   updateCachedLinkCoverImage: storageController.updateStoredLinkCoverImage,

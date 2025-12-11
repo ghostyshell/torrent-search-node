@@ -480,6 +480,13 @@ class StorageProvider {
   }
 
   /**
+   * Update magnet link for favorite entry
+   */
+  async updateFavoriteEntryMagnetLink(favoriteId, magnetLink) {
+    return this.favorites.updateMagnetLinkAndData(favoriteId, magnetLink);
+  }
+
+  /**
    * @deprecated Use torrentDetails.updateCoverImage() instead
    */
   async updateTorrentDetailsCoverImage(favoriteId, source, coverImageUrl) {

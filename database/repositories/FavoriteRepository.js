@@ -26,7 +26,7 @@ class FavoriteRepository extends BaseRepository {
       favoriteId,
       torrentKey,
       JSON.stringify(torrent),
-      torrent.MagnetLink || null,
+      torrent.Magnet || torrent.MagnetLink || null,
       torrent.Name || 'Unknown',
       coverImageUrl,
       userId,
@@ -269,6 +269,49 @@ class FavoriteRepository extends BaseRepository {
   async updateCoverImage(favoriteId, coverImageUrl) {
     const sql = 'UPDATE favorite_entries SET cover_image_url = ? WHERE id = ?';
     const result = await this.run(sql, [coverImageUrl, favoriteId]);
+    return result.changes > 0;
+  }
+
+  /**
+   * Update favorite entry magnet link
+   * @param {string} favoriteId - Favorite ID
+   * @param {string} magnetLink - Magnet link
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateMagnetLink(favoriteId, magnetLink) {
+    const sql = 'UPDATE favorite_entries SET magnet_link = ?, updated_at = strftime(\'%s\', \'now\') WHERE id = ?';
+    const result = await this.run(sql, [magnetLink, favoriteId]);
+    return result.changes > 0;
+  }
+
+  /**
+   * Update favorite entry magnet link and torrent data
+   * This updates both the magnet_link column and the Magnet field in torrent_data JSON
+   * @param {string} favoriteId - Favorite ID
+   * @param {string} magnetLink - Magnet link
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateMagnetLinkAndData(favoriteId, magnetLink) {
+    // First get the current favorite entry
+    const entry = await this.getFavoriteEntryById(favoriteId);
+    if (!entry) {
+      return false;
+    }
+
+    // Update the torrent data to include the magnet link
+    const updatedTorrentData = {
+      ...entry.torrentData,
+      Magnet: magnetLink,
+    };
+
+    const sql = `
+      UPDATE favorite_entries
+      SET magnet_link = ?,
+          torrent_data = ?,
+          updated_at = strftime('%s', 'now')
+      WHERE id = ?
+    `;
+    const result = await this.run(sql, [magnetLink, JSON.stringify(updatedTorrentData), favoriteId]);
     return result.changes > 0;
   }
 

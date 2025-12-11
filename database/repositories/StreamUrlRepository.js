@@ -63,8 +63,8 @@ class StreamUrlRepository extends BaseRepository {
         filename: row.filename,
         filesize: row.filesize,
         supportsRangeRequests: !!row.supports_range_requests,
-        cachedAt: row.created_at,
-        lastAccessed: row.last_accessed_at,
+        cachedAt: row.created_at * 1000, // Convert SQLite seconds to JavaScript milliseconds
+        lastAccessed: row.last_accessed_at * 1000, // Convert SQLite seconds to JavaScript milliseconds
       };
     }
 

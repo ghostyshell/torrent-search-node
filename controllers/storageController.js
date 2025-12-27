@@ -838,24 +838,6 @@ const storageController = {
       });
     }
   },
-};
-
-// Helper function to extract title from URL
-function extractTitleFromUrl(url) {
-  try {
-    const parsedUrl = new URL(url);
-    const pathname = parsedUrl.pathname;
-
-    // Extract filename without extension
-    const filename = pathname.split('/').pop();
-    const title = filename.split('.').slice(0, -1).join('.');
-
-    // If no meaningful title, use hostname
-    return title || parsedUrl.hostname;
-  } catch {
-    return url;
-  }
-}
 
   // Store magnet link
   storeMagnetLink: async (req, res) => {
@@ -965,6 +947,23 @@ function extractTitleFromUrl(url) {
     }
   },
 };
+
+// Helper function to extract title from URL
+function extractTitleFromUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    const pathname = parsedUrl.pathname;
+
+    // Extract filename without extension
+    const filename = pathname.split('/').pop();
+    const title = filename.split('.').slice(0, -1).join('.');
+
+    // If no meaningful title, use hostname
+    return title || parsedUrl.hostname;
+  } catch {
+    return url;
+  }
+}
 
 // Export individual controller functions for direct route binding
 module.exports = {

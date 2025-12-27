@@ -157,6 +157,8 @@ app.post(
 );
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
 app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
+app.post('/api/cache/magnet', cacheController.storeMagnetLink);
+app.get('/api/cache/magnet', cacheController.getMagnetLink);
 // Note: Cached links routes moved to startServer() for proper auth middleware
 app.post('/api/cache/set', cacheController.setCacheValue);
 app.get('/api/cache/get/:key', cacheController.getCacheValue);

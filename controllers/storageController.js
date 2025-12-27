@@ -857,6 +857,115 @@ function extractTitleFromUrl(url) {
   }
 }
 
+  // Store magnet link
+  storeMagnetLink: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const storage = req.app.locals.cache;
+    if (!storage) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage not available',
+      });
+    }
+
+    try {
+      const { source, url, magnet, torrentName } = req.body;
+
+      if (!source || !url || !magnet) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: source, url, magnet',
+        });
+      }
+
+      // Create a unique key for this magnet link
+      const magnetKey = `magnet:${source.toLowerCase()}:${Buffer.from(url).toString('base64').substring(0, 100)}`;
+
+      // Store magnet link with metadata
+      const magnetData = {
+        source,
+        url,
+        magnet,
+        torrentName: torrentName || 'Unknown',
+        cachedAt: new Date().toISOString(),
+      };
+
+      await storage.set(magnetKey, JSON.stringify(magnetData));
+
+      res.json({
+        success: true,
+        message: 'Magnet link stored successfully',
+      });
+    } catch (error) {
+      console.error('Error storing magnet link:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to store magnet link',
+        message: error.message,
+      });
+    }
+  },
+
+  // Get magnet link
+  getMagnetLink: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const storage = req.app.locals.cache;
+    if (!storage) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage not available',
+      });
+    }
+
+    try {
+      const { source, url } = req.query;
+
+      if (!source || !url) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: source, url',
+        });
+      }
+
+      // Create the same key format
+      const magnetKey = `magnet:${source.toLowerCase()}:${Buffer.from(url).toString('base64').substring(0, 100)}`;
+
+      const cachedData = await storage.get(magnetKey);
+
+      if (!cachedData) {
+        return res.status(404).json({
+          success: false,
+          error: 'Magnet link not found in cache',
+        });
+      }
+
+      const magnetData = JSON.parse(cachedData);
+
+      res.json({
+        success: true,
+        data: magnetData,
+      });
+    } catch (error) {
+      console.error('Error retrieving magnet link:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve magnet link',
+        message: error.message,
+      });
+    }
+  },
+};
+
 // Export individual controller functions for direct route binding
 module.exports = {
   getStats: storageController.getStats,
@@ -879,4 +988,6 @@ module.exports = {
     storageController.updateTorrentDetailsCoverImage,
   updateCachedLinkCoverImage: storageController.updateStoredLinkCoverImage,
   getCoverImageForTorrent: storageController.getCoverImageForTorrent,
+  storeMagnetLink: storageController.storeMagnetLink,
+  getMagnetLink: storageController.getMagnetLink,
 };

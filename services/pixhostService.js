@@ -59,7 +59,13 @@ class PixhostService {
       return result;
 
     } catch (error) {
-      console.error(`❌ [PixhostService] Upload failed for ${imageUrl}:`, error.message);
+      // Only log non-network errors to avoid spam from DNS/connectivity issues
+      if (!error.message.includes('ENOTFOUND') &&
+          !error.message.includes('EAI_AGAIN') &&
+          !error.message.includes('ECONNREFUSED') &&
+          !error.message.includes('ETIMEDOUT')) {
+        console.error(`❌ [PixhostService] Upload failed for ${imageUrl}:`, error.message);
+      }
       throw error;
     }
   }

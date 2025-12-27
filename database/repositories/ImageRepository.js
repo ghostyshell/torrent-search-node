@@ -33,10 +33,17 @@ class ImageRepository extends BaseRepository {
           const uploadResult = await this.pixhostService.uploadFromUrl(imageUrl);
           pixhostUrl = uploadResult.directImageUrl;
         } catch (uploadError) {
-          console.warn(
-            `⚠️ [ImageRepository] Pixhost upload failed, using original URL:`,
-            uploadError.message
-          );
+          // Only log non-network errors to avoid spam from DNS/connectivity issues
+          if (!uploadError.message.includes('ENOTFOUND') &&
+              !uploadError.message.includes('EAI_AGAIN') &&
+              !uploadError.message.includes('ECONNREFUSED') &&
+              !uploadError.message.includes('ETIMEDOUT')) {
+            console.warn(
+              `⚠️ [ImageRepository] Pixhost upload failed, using original URL:`,
+              uploadError.message
+            );
+          }
+          // Silently fall back to original URL for network errors
         }
       }
 

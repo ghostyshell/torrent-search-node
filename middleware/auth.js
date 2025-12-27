@@ -41,9 +41,19 @@ class AuthMiddleware {
 
         // Fallback: Try to validate as base64 temporary token
         try {
-          const tokenData = JSON.parse(
-            Buffer.from(sessionToken, 'base64').toString()
-          );
+          // Validate that the token looks like valid base64 before attempting to decode
+          if (!sessionToken.match(/^[A-Za-z0-9+/]+=*$/)) {
+            throw new Error('Invalid base64 format');
+          }
+
+          const decodedString = Buffer.from(sessionToken, 'base64').toString('utf8');
+
+          // Check if decoded string looks like JSON before parsing
+          if (!decodedString.startsWith('{') || !decodedString.endsWith('}')) {
+            throw new Error('Decoded token is not JSON');
+          }
+
+          const tokenData = JSON.parse(decodedString);
 
           // Basic validation - check if token has required fields and isn't too old
           if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
@@ -98,10 +108,15 @@ class AuthMiddleware {
           next();
           return;
         } catch (tokenError) {
-          console.warn(
-            'Both session and token validation failed:',
-            tokenError.message
-          );
+          // Only log meaningful errors, not validation failures from corrupted tokens
+          if (!tokenError.message.includes('Invalid base64') &&
+              !tokenError.message.includes('Decoded token is not JSON') &&
+              !tokenError.message.includes('Unexpected token')) {
+            console.warn(
+              'Session and token validation failed:',
+              tokenError.message
+            );
+          }
         }
 
         return res.status(401).json({
@@ -153,9 +168,19 @@ class AuthMiddleware {
           // Fallback: Try to validate as base64 temporary token
 
           try {
-            const tokenData = JSON.parse(
-              Buffer.from(sessionToken, 'base64').toString()
-            );
+            // Validate that the token looks like valid base64 before attempting to decode
+            if (!sessionToken.match(/^[A-Za-z0-9+/]+=*$/)) {
+              throw new Error('Invalid base64 format');
+            }
+
+            const decodedString = Buffer.from(sessionToken, 'base64').toString('utf8');
+
+            // Check if decoded string looks like JSON before parsing
+            if (!decodedString.startsWith('{') || !decodedString.endsWith('}')) {
+              throw new Error('Decoded token is not JSON');
+            }
+
+            const tokenData = JSON.parse(decodedString);
 
             // Basic validation - check if token has required fields and isn't too old
             if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
@@ -202,8 +227,8 @@ class AuthMiddleware {
             }
 
           } catch (tempTokenError) {
-
-            // For optional auth, we continue without setting user
+            // For optional auth, we silently continue without setting user
+            // Don't log validation failures from corrupted tokens
           }
         }
 

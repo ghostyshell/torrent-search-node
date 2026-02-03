@@ -96,7 +96,7 @@ const imageController = {
         filename: 'image.jpg',
         contentType: 'image/jpeg',
       });
-      form.append('content_type', '0'); // 0 for SFW
+      form.append('content_type', '1'); // 1 for adult content (prevents removal)
       form.append('max_th_size', '420');
 
       // Upload to pixhost
@@ -308,7 +308,7 @@ const imageController = {
       filename: 'image.jpg',
       contentType: 'image/jpeg',
     });
-    form.append('content_type', '0');
+    form.append('content_type', '1'); // 1 for adult content (prevents removal)
     form.append('max_th_size', '420');
 
     const pixhostResponse = await fetch('https://api.pixhost.to/images', {

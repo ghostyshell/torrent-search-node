@@ -648,7 +648,7 @@ const videoController = {
       filename: filename,
       contentType: 'image/jpeg',
     });
-    form.append('content_type', '0'); // 0 for SFW
+    form.append('content_type', '1'); // 1 for adult content (prevents removal)
     form.append('max_th_size', '420');
 
     const pixhostResponse = await fetch('https://api.pixhost.to/images', {

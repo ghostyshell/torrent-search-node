@@ -84,7 +84,7 @@ class PixhostService {
       contentType: options.contentType || 'image/jpeg',
     });
 
-    form.append('content_type', options.contentType === 'adult' ? '1' : '0'); // 0 for SFW, 1 for adult
+    form.append('content_type', options.isAdult === false ? '0' : '1'); // Default to adult (1) to prevent removal
     form.append('max_th_size', options.thumbnailSize || '420');
 
     const pixhostResponse = await fetch(this.apiUrl, {

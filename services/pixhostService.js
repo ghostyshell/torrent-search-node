@@ -109,10 +109,28 @@ class PixhostService {
     }
 
     // Convert show URL to direct image URL
-    const directImageUrl = result.show_url.replace(
-      'https://pixhost.to/show/',
-      'https://img1.pixhost.to/images/'
-    );
+    // Extract subdomain number from thumbnail URL (e.g., t80.pixhost.to -> 80)
+    let directImageUrl;
+    if (result.th_url) {
+      const thMatch = result.th_url.match(/t(\d+)\.pixhost\.to/);
+      if (thMatch) {
+        const subdomainNum = thMatch[1];
+        directImageUrl = result.show_url.replace(
+          'https://pixhost.to/show/',
+          `https://img${subdomainNum}.pixhost.to/images/`
+        );
+      } else {
+        directImageUrl = result.show_url.replace(
+          'https://pixhost.to/show/',
+          'https://img1.pixhost.to/images/'
+        );
+      }
+    } else {
+      directImageUrl = result.show_url.replace(
+        'https://pixhost.to/show/',
+        'https://img1.pixhost.to/images/'
+      );
+    }
 
     return {
       originalUrl: null, // Will be set by caller if needed

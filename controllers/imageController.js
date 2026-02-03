@@ -82,8 +82,15 @@ const imageController = {
         const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
         imageBuffer = Buffer.from(base64Data, 'base64');
       } else {
-        // Fetch image from URL
-        const response = await fetch(imageUrl);
+        // Fetch image from URL with proper headers to avoid blocks
+        const response = await fetch(imageUrl, {
+          timeout: 30000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/*,*/*;q=0.8',
+            'Referer': new URL(imageUrl).origin + '/',
+          },
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.statusText}`);
         }
@@ -123,11 +130,31 @@ const imageController = {
       }
 
       // Convert show URL to direct image URL
-      // https://pixhost.to/show/8325/636090636_image.jpg -> https://img1.pixhost.to/images/8325/636090636_image.jpg
-      const directImageUrl = result.show_url.replace(
-        'https://pixhost.to/show/',
-        'https://img1.pixhost.to/images/'
-      );
+      // Extract subdomain number from thumbnail URL (e.g., t80.pixhost.to -> 80)
+      // Then use img{N}.pixhost.to for the direct URL
+      let directImageUrl;
+      if (result.th_url) {
+        const thMatch = result.th_url.match(/t(\d+)\.pixhost\.to/);
+        if (thMatch) {
+          const subdomainNum = thMatch[1];
+          directImageUrl = result.show_url.replace(
+            'https://pixhost.to/show/',
+            `https://img${subdomainNum}.pixhost.to/images/`
+          );
+        } else {
+          // Fallback to img1 if we can't extract subdomain
+          directImageUrl = result.show_url.replace(
+            'https://pixhost.to/show/',
+            'https://img1.pixhost.to/images/'
+          );
+        }
+      } else {
+        // Fallback if no thumbnail URL
+        directImageUrl = result.show_url.replace(
+          'https://pixhost.to/show/',
+          'https://img1.pixhost.to/images/'
+        );
+      }
 
       res.json({
         success: true,
@@ -296,7 +323,15 @@ const imageController = {
     const fetch = require('node-fetch');
     const FormData = require('form-data');
 
-    const response = await fetch(imageUrl);
+    // Fetch with proper headers to avoid blocks from image hosts
+    const response = await fetch(imageUrl, {
+      timeout: 30000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/*,*/*;q=0.8',
+        'Referer': new URL(imageUrl).origin + '/',
+      },
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
@@ -333,11 +368,31 @@ const imageController = {
       throw new Error('Invalid response from pixhost API');
     }
 
-    return {
-      pixhostUrl: result.show_url.replace(
+    // Extract subdomain number from thumbnail URL for correct direct URL
+    let directImageUrl;
+    if (result.th_url) {
+      const thMatch = result.th_url.match(/t(\d+)\.pixhost\.to/);
+      if (thMatch) {
+        const subdomainNum = thMatch[1];
+        directImageUrl = result.show_url.replace(
+          'https://pixhost.to/show/',
+          `https://img${subdomainNum}.pixhost.to/images/`
+        );
+      } else {
+        directImageUrl = result.show_url.replace(
+          'https://pixhost.to/show/',
+          'https://img1.pixhost.to/images/'
+        );
+      }
+    } else {
+      directImageUrl = result.show_url.replace(
         'https://pixhost.to/show/',
         'https://img1.pixhost.to/images/'
-      ),
+      );
+    }
+
+    return {
+      pixhostUrl: directImageUrl,
       pixhostShowUrl: result.show_url,
       thumbnailUrl: result.th_url,
     };

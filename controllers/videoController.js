@@ -663,10 +663,28 @@ const videoController = {
     if (pixhostResponse.ok) {
       const result = await pixhostResponse.json();
       if (result.show_url) {
-        const pixhostUrl = result.show_url.replace(
-          'https://pixhost.to/show/',
-          'https://img1.pixhost.to/images/'
-        );
+        // Extract subdomain number from thumbnail URL for correct direct URL
+        let pixhostUrl;
+        if (result.th_url) {
+          const thMatch = result.th_url.match(/t(\d+)\.pixhost\.to/);
+          if (thMatch) {
+            const subdomainNum = thMatch[1];
+            pixhostUrl = result.show_url.replace(
+              'https://pixhost.to/show/',
+              `https://img${subdomainNum}.pixhost.to/images/`
+            );
+          } else {
+            pixhostUrl = result.show_url.replace(
+              'https://pixhost.to/show/',
+              'https://img1.pixhost.to/images/'
+            );
+          }
+        } else {
+          pixhostUrl = result.show_url.replace(
+            'https://pixhost.to/show/',
+            'https://img1.pixhost.to/images/'
+          );
+        }
         logger.info('Screenshot uploaded to pixhost', { pixhostUrl });
         return pixhostUrl;
       }

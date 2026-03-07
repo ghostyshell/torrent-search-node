@@ -179,21 +179,12 @@ class DescriptionImageCacheService {
 
       const urlToStore = pixhostUrl || finalImageUrl;
 
-      // Generate and log the torrent key for debugging
-      const torrentKey = this.storage.images.generateTorrentKey(torrent);
-      logger.info(`🔑 [DescImageCache] Torrent key for "${torrent.Name}": ${torrentKey.substring(0, 100)}`);
-
-      // Check if existing cover is already correct
+      // Skip if torrent already has a cover image
       const existing = await this.storage.images.getCoverImage(torrent);
       if (existing) {
-        const existingUrl = existing.pixhostUrl || existing.imageUrl || existing.originalUrl;
-        if (existingUrl === urlToStore) {
-          results.skipped++;
-          logger.info(`⏭️ [DescImageCache] Skipped (already cached): ${torrent.Name}`);
-          return;
-        }
-        results.replaced++;
-        logger.info(`🔄 [DescImageCache] Replacing cover for: ${torrent.Name} | old: ${existingUrl?.substring(0, 60)} | new: ${urlToStore.substring(0, 60)}`);
+        results.skipped++;
+        logger.info(`⏭️ [DescImageCache] Skipped (already has cover): ${torrent.Name}`);
+        return;
       }
 
       // Store via setCoverImage (INSERT OR REPLACE)

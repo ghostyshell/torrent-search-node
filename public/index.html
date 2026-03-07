@@ -487,6 +487,20 @@
             </div>
         </div>
 
+        <!-- Description & Image Cache Logs -->
+        <div class="card full-width">
+            <div class="card-title">
+                Description & Image Cache Job
+                <button class="refresh-btn" onclick="triggerDescriptionImageCache()" id="triggerDescCacheBtn" style="margin-left: 16px;">
+                    Trigger Cache Now
+                </button>
+            </div>
+            <div id="descCacheStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px;"></div>
+            <div class="logs-container" id="descCacheLogs" style="max-height: 300px;">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
         <!-- Logs -->
         <div class="card full-width">
             <div class="card-title">Application Logs</div>
@@ -688,7 +702,8 @@
             const names = {
                 storageCleanup: 'Storage Cleanup',
                 tokenRefresh: 'Token Refresh',
-                streamUrlRefresh: 'Stream URL Refresh'
+                streamUrlRefresh: 'Stream URL Refresh',
+                descriptionImageCache: 'Description & Image Cache'
             };
             return names[name] || name;
         }
@@ -874,12 +889,155 @@
             }, 5000);
         }
 
+        async function fetchDescCacheLogs() {
+            try {
+                const response = await fetch('/api/monitoring/description-image-cache-logs?limit=20&includeAppLogs=true');
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                // Update status
+                const statusEl = document.getElementById('descCacheStatus');
+                const statusMap = {
+                    'idle': { bg: '#1e3a5f', color: '#60a5fa', text: 'Idle' },
+                    'running': { bg: '#78350f', color: '#fbbf24', text: 'Running...' },
+                    'completed': { bg: '#14532d', color: '#4ade80', text: 'Completed' },
+                    'error': { bg: '#7f1d1d', color: '#fca5a5', text: 'Error' }
+                };
+                const status = statusMap[data.status] || statusMap['idle'];
+                statusEl.style.backgroundColor = status.bg;
+                statusEl.style.color = status.color;
+
+                let nextRunText = '';
+                if (data.nextRun) {
+                    const diffMs = new Date(data.nextRun) - new Date();
+                    if (diffMs > 0) {
+                        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        nextRunText = hours > 0 ? `in ${hours}h ${minutes}m` : `in ${minutes}m`;
+                    } else {
+                        nextRunText = 'soon';
+                    }
+                }
+
+                statusEl.innerHTML = `
+                    <strong>Status:</strong> ${status.text}
+                    ${data.lastRun ? ` | <strong>Last Run:</strong> ${formatTime(data.lastRun)}` : ''}
+                    ${data.nextRun ? ` | <strong>Next Run:</strong> ${nextRunText}` : ''}
+                `;
+
+                // Build logs HTML
+                const logsContainer = document.getElementById('descCacheLogs');
+                let logsHtml = '';
+
+                // Recent app logs
+                if (data.recentAppLogs && data.recentAppLogs.length > 0) {
+                    const header = data.status === 'running' ?
+                        '<div style="margin-bottom: 12px; font-weight: bold; color: #fbbf24;">📋 Live Progress:</div>' :
+                        '<div style="margin-bottom: 12px; font-weight: bold; color: #60a5fa;">📋 Recent Activity:</div>';
+
+                    logsHtml += header + data.recentAppLogs.slice(0, 30).map(log => {
+                        const msg = log.message || log.raw || '';
+                        const level = log.level || 'info';
+                        const levelClass = level === 'error' ? 'log-level-error' : level === 'warn' ? 'log-level-warn' : 'log-level-info';
+                        return `
+                            <div class="log-entry" style="font-size: 12px; padding: 4px 8px;">
+                                <span class="log-time" style="font-size: 11px;">${log.timestamp ? formatTime(log.timestamp) : ''}</span>
+                                <span class="log-level ${levelClass}" style="font-size: 11px; padding: 2px 6px;">${level.toUpperCase()}</span>
+                                <span class="log-message" style="font-size: 11px;">${msg.replace('[DescImageCache]', '').trim()}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    if (data.logs.length > 0) {
+                        logsHtml += '<div style="margin: 16px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>';
+                    }
+                }
+
+                // Job history
+                if (data.logs.length > 0) {
+                    logsHtml += '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
+                        data.logs.map(log => {
+                            const isSuccess = log.success;
+                            const isManual = log.manual;
+                            return `
+                                <div class="log-entry">
+                                    <span class="log-time">${formatTime(log.timestamp)}</span>
+                                    <span class="log-level ${isSuccess ? 'log-level-info' : 'log-level-error'}">
+                                        ${isSuccess ? 'SUCCESS' : 'FAILED'}
+                                    </span>
+                                    <span class="log-message">
+                                        ${isManual ? '[MANUAL] ' : '[SCHEDULED] '}
+                                        ${log.totalSearches || 0} searches |
+                                        ${log.totalTorrents || 0} torrents |
+                                        ${log.imagesFound || 0} images found |
+                                        ${log.cached || 0} cached |
+                                        ${log.replaced || 0} replaced |
+                                        ${log.skipped || 0} skipped |
+                                        ${log.failed || 0} failed
+                                        ${log.error ? `| Error: ${log.error}` : ''}
+                                    </span>
+                                </div>
+                            `;
+                        }).join('');
+                }
+
+                if (!logsHtml) {
+                    logsHtml = '<div class="loading">No logs available yet. Trigger a cache run to see logs.</div>';
+                }
+
+                logsContainer.innerHTML = logsHtml;
+
+                if (data.status === 'running') {
+                    setTimeout(fetchDescCacheLogs, 2000);
+                }
+            } catch (error) {
+                console.error('Failed to fetch desc cache logs:', error);
+                document.getElementById('descCacheLogs').innerHTML =
+                    `<div class="loading">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        async function triggerDescriptionImageCache() {
+            const btn = document.getElementById('triggerDescCacheBtn');
+            const originalText = btn.textContent;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting...';
+
+                const response = await fetch('/api/monitoring/description-image-cache-trigger', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                btn.textContent = 'Job Started!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
+
+                await fetchDescCacheLogs();
+                showTemporaryMessage('Description & Image cache job has been triggered. Check logs below for progress.', 'success');
+            } catch (error) {
+                btn.textContent = 'Failed';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
+                showError('Failed to trigger description/image cache: ' + error.message);
+            }
+        }
+
         async function refreshAll() {
             await Promise.all([
                 fetchDashboard(),
                 fetchApiUsage(),
                 fetchLogs(currentLogLevel),
-                fetchStreamRefreshLogs()
+                fetchStreamRefreshLogs(),
+                fetchDescCacheLogs()
             ]);
         }
 

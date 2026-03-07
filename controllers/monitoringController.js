@@ -456,6 +456,161 @@ const triggerStreamUrlRefresh = async (req, res) => {
   }
 };
 
+/**
+ * Get description/image cache job logs
+ */
+const getDescriptionImageCacheLogs = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const includeAppLogs = req.query.includeAppLogs === 'true';
+
+    const logs = backgroundTaskStats.descriptionImageCache.results.slice(0, limit);
+
+    let recentAppLogs = [];
+    if (includeAppLogs) {
+      try {
+        const logFilePath = path.join(config.logging.logDir, 'all.log');
+
+        if (fs.existsSync(logFilePath)) {
+          const fileStream = fs.createReadStream(logFilePath);
+          const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
+          });
+
+          const allLines = [];
+          for await (const line of rl) {
+            if (line.trim()) {
+              allLines.push(line);
+            }
+          }
+
+          const filteredLines = allLines
+            .slice(-200)
+            .filter(line => line.includes('[DescImageCache]'));
+
+          recentAppLogs = filteredLines.slice(-50).reverse().map(line => {
+            try {
+              const parsed = JSON.parse(line);
+              return {
+                timestamp: parsed.timestamp,
+                level: parsed.level,
+                message: parsed.message,
+                ...parsed
+              };
+            } catch {
+              const timestampMatch = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/);
+              const levelMatch = line.match(/\b(info|warn|error|debug)\b/i);
+              const messageMatch = line.match(/\[DescImageCache\](.*)/);
+
+              return {
+                timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
+                level: levelMatch ? levelMatch[1].toLowerCase() : 'info',
+                message: messageMatch ? '[DescImageCache]' + messageMatch[1] : line,
+                raw: line
+              };
+            }
+          });
+        }
+      } catch (logError) {
+        console.error('❌ Failed to read app logs:', logError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      logs,
+      recentAppLogs,
+      count: logs.length,
+      appLogsCount: recentAppLogs.length,
+      status: backgroundTaskStats.descriptionImageCache.status,
+      lastRun: backgroundTaskStats.descriptionImageCache.lastRun,
+      nextRun: backgroundTaskStats.descriptionImageCache.nextRun,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Manually trigger description/image cache job
+ */
+const triggerDescriptionImageCache = async (req, res) => {
+  try {
+    const storageProvider = req.app.locals.storageProvider;
+
+    if (!storageProvider) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage provider not available',
+      });
+    }
+
+    // Set status to running
+    backgroundTaskStats.descriptionImageCache.status = 'running';
+
+    res.json({
+      success: true,
+      message: 'Description/image cache job started',
+      status: 'running',
+    });
+
+    // Run the job in the background
+    const DescriptionImageCacheService = require('../services/descriptionImageCacheService');
+    const logger = require('../middleware/logger');
+
+    const cacheService = new DescriptionImageCacheService(storageProvider);
+
+    (async () => {
+      try {
+        logger.info('Manual description/image cache job triggered');
+        const result = await cacheService.runCacheJob();
+        logger.info('Manual description/image cache job completed', {
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          replaced: result.replaced,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+
+        if (result.errors.length > 0) {
+          logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+        }
+
+        updateTaskStats('descriptionImageCache', {
+          success: true,
+          manual: true,
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          replaced: result.replaced,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during manual description/image cache job', { error: error.message });
+        updateTaskStats('descriptionImageCache', {
+          success: false,
+          manual: true,
+          error: error.message
+        });
+      }
+    })();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
@@ -463,6 +618,8 @@ module.exports = {
   getDashboardData,
   getStreamUrlRefreshLogs,
   triggerStreamUrlRefresh,
+  getDescriptionImageCacheLogs,
+  triggerDescriptionImageCache,
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,

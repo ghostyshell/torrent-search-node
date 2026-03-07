@@ -81,11 +81,11 @@ class DescriptionImageCacheService {
       });
 
       if (!torrents || torrents.length === 0) {
-        logger.debug(`[DescImageCache] No results for "${query}" page ${page}`);
+        logger.info(`[DescImageCache] No results for "${query}" page ${page}`);
         return;
       }
 
-      logger.debug(`[DescImageCache] "${query}" page ${page}: ${torrents.length} torrents`);
+      logger.info(`[DescImageCache] "${query}" page ${page}: ${torrents.length} torrents`);
       results.totalTorrents += torrents.length;
 
       for (const torrent of torrents) {
@@ -118,6 +118,7 @@ class DescriptionImageCacheService {
     try {
       if (!torrent.Url) {
         results.skipped++;
+        logger.info(`⏭️ [DescImageCache] Skipped (no URL): ${torrent.Name || 'unknown'}`);
         return;
       }
 
@@ -126,12 +127,12 @@ class DescriptionImageCacheService {
 
       if (!details.images || details.images.length === 0) {
         results.skipped++;
+        logger.info(`⏭️ [DescImageCache] Skipped (no images in description): ${torrent.Name}`);
         return;
       }
 
       results.imagesFound++;
 
-      // --- Image selection: mirrors frontend autoSetCoverImage() ---
       // Take first 3 images, randomly pick one
       const firstThree = details.images.slice(0, 3);
       const randomIndex = Math.floor(Math.random() * firstThree.length);
@@ -140,60 +141,61 @@ class DescriptionImageCacheService {
       const rawUrl = selectedImage.directUrl || selectedImage.originalUrl;
       if (!rawUrl) {
         results.skipped++;
+        logger.info(`⏭️ [DescImageCache] Skipped (no usable image URL): ${torrent.Name}`);
         return;
       }
 
-      // --- Enhance resolution: mirrors frontend getHigherResolutionUrl() ---
+      // Enhance resolution
       let finalImageUrl = this.getHigherResolutionUrl(rawUrl);
 
-      // --- Validate enhanced URL with HEAD request (5s timeout) ---
+      // Validate enhanced URL with HEAD request (5s timeout)
       if (finalImageUrl !== rawUrl) {
         const valid = await this.validateUrl(finalImageUrl);
         if (!valid) {
-          // Fallback: remove .md suffix but keep original host
           finalImageUrl = rawUrl.replace(/\.md(\.[^.]+)$/, '$1');
         }
       } else {
-        // Not enhanced, still strip .md suffix
         finalImageUrl = rawUrl.replace(/\.md(\.[^.]+)$/, '$1');
       }
 
-      // --- Upload to Pixhost: mirrors frontend's Pixhost upload step ---
+      // Upload to Pixhost
       let pixhostUrl = null;
       try {
         const uploadResult = await pixhostService.uploadFromUrl(finalImageUrl);
         pixhostUrl = uploadResult.directImageUrl;
       } catch (uploadErr) {
-        // Pixhost failed — fall back to the direct URL (same as frontend)
-        logger.debug(`[DescImageCache] Pixhost upload failed for "${torrent.Name}", using direct URL: ${uploadErr.message}`);
+        logger.info(`[DescImageCache] Pixhost upload failed for "${torrent.Name}", using direct URL: ${uploadErr.message}`);
       }
 
       const urlToStore = pixhostUrl || finalImageUrl;
 
-      // --- Check if existing cover is already correct ---
+      // Check if existing cover is already correct
       const existing = await this.storage.images.getCoverImage(torrent);
       if (existing) {
         const existingUrl = existing.pixhostUrl || existing.imageUrl || existing.originalUrl;
         if (existingUrl === urlToStore) {
           results.skipped++;
+          logger.info(`⏭️ [DescImageCache] Skipped (already cached): ${torrent.Name}`);
           return;
         }
-        // Existing cover is different (possibly broken/default) — replace it
         results.replaced++;
+        logger.info(`🔄 [DescImageCache] Replacing cover for: ${torrent.Name}`);
       }
 
-      // --- Store via setCoverImage (INSERT OR REPLACE) ---
+      // Store via setCoverImage (INSERT OR REPLACE)
       const success = await this.storage.images.setCoverImage(torrent, urlToStore);
       if (success) {
         results.cached++;
-        logger.debug(`✅ [DescImageCache] Cached image for: ${torrent.Name}`);
+        logger.info(`✅ [DescImageCache] Cached image for: ${torrent.Name}`);
       } else {
         results.failed++;
         this.pushError(results, { torrent: torrent.Name, error: 'setCoverImage returned false' });
+        logger.warn(`❌ [DescImageCache] Failed to store image for: ${torrent.Name}`);
       }
     } catch (err) {
       results.failed++;
       this.pushError(results, { torrent: torrent.Name, error: err.message });
+      logger.warn(`❌ [DescImageCache] Error processing "${torrent.Name}": ${err.message}`);
     }
   }
 

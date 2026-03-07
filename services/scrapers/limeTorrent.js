@@ -36,6 +36,7 @@ async function limeTorrent(query, page = '1', options = {}) {
         Url:
           'https://www.limetorrents.pro' +
           $(element).find('div.tt-name a').next().attr('href'),
+        Source: 'limetorrent',
       };
       ALLTORRENT.push(torrent);
     }

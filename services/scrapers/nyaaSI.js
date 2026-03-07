@@ -42,6 +42,7 @@ async function nyaaSI(query, page = '1', options = {}) {
         data.Magnet = $(element).find('.text-center a').next().attr('href');
       });
     });
+    data.Source = 'nyaasi';
     torrents.push(data);
   });
 

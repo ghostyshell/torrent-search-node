@@ -48,6 +48,7 @@ async function pirateBay(query, page = '1', options = {}) {
       UploadedBy: uploader,
       Url: $(element).find('a.detLink').attr('href'),
       Magnet: $(element).find('td div.detName').next().attr('href'),
+      Source: 'piratebay',
     };
 
     // Filter by minimum seeders if specified

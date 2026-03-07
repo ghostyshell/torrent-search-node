@@ -85,6 +85,7 @@ async function yts(query, page = '1', options = {}) {
         .trim();
       data['Url'] = url;
       data['Poster'] = $('div #movie-poster').eq(0).find('img').attr('src');
+      data['Source'] = 'yts';
 
       $('.modal-download > div:nth-child(1) div.modal-content').each(
         (i, el) => {

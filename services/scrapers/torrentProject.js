@@ -33,6 +33,7 @@ async function torrentProject(query, page = '0', options = {}) {
         Seeders: $(element).find('span:nth-child(2)').text().trim(),
         Leechers: $(element).find('span:nth-child(3)').text().trim(),
         Url: url,
+        Source: 'torrentproject',
       };
       if (torrent.Name !== '') {
         ALLTORRENT.push(torrent);

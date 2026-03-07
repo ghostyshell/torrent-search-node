@@ -7,6 +7,7 @@
 
 const FormData = require('form-data');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 class PixhostService {
   constructor() {
@@ -147,8 +148,8 @@ class PixhostService {
    * @returns {string} Cache key
    */
   getCacheKey(imageUrl) {
-    // Use a simple hash of the URL for caching
-    return Buffer.from(imageUrl).toString('base64').slice(0, 40);
+    // Use SHA-256 hash of the full URL to avoid collisions from truncation
+    return crypto.createHash('sha256').update(imageUrl).digest('hex');
   }
 
   /**

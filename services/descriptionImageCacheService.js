@@ -1,5 +1,7 @@
 const pirateBay = require('./scrapers/pirateBay');
+const pixhostService = require('./pixhostService');
 const logger = require('../middleware/logger');
+const fetch = require('node-fetch');
 
 const STUDIOS = [
   'OnlyFans', 'Vixen', 'PureMature', 'Evil Angel', 'Bang Rammed',
@@ -30,12 +32,10 @@ class DescriptionImageCacheService {
       totalTorrents: 0,
       imagesFound: 0,
       cached: 0,
+      replaced: 0,
       skipped: 0,
       failed: 0,
       errors: [],
-      // Tracks image URLs already stored this run so shared uploader banners/logos
-      // don't get written to every result — each torrent gets its own unique image.
-      usedImageUrls: new Set(),
     };
 
     logger.info('🖼️ [DescImageCache] Starting description/image cache job');
@@ -61,13 +61,12 @@ class DescriptionImageCacheService {
       totalTorrents: results.totalTorrents,
       imagesFound: results.imagesFound,
       cached: results.cached,
+      replaced: results.replaced,
       skipped: results.skipped,
       failed: results.failed,
     });
 
-    // Don't expose the internal Set to callers
-    const { usedImageUrls, ...publicResults } = results;
-    return publicResults;
+    return results;
   }
 
   /**
@@ -91,7 +90,7 @@ class DescriptionImageCacheService {
 
       for (const torrent of torrents) {
         await this.processTorrent(torrent, results);
-        await this.sleep(300); // gentle rate limit between detail fetches
+        await this.sleep(1000); // match frontend's 1000ms delay between torrents
       }
 
       await this.sleep(500); // extra pause between pages
@@ -103,17 +102,20 @@ class DescriptionImageCacheService {
   }
 
   /**
-   * Fetch details for a single torrent and cache its cover image
+   * Process a single torrent — mirrors the frontend's
+   * descriptionImageService.processTorrentDescriptionAndImages() flow:
+   *   1. Fetch details via pirateBay.getDetails(url)
+   *   2. From the returned images, randomly pick one of the first 3
+   *   3. Enhance the URL (remove .md thumbnails, etc.) — same logic as frontend
+   *   4. Validate the enhanced URL with a HEAD request (5s timeout)
+   *   5. Upload to Pixhost
+   *   6. Store via storage.images.setCoverImage()
+   *
+   * Always force-refreshes: overwrites existing cover images so broken/default
+   * images get replaced.
    */
   async processTorrent(torrent, results) {
     try {
-      // Skip if image already cached
-      const existing = await this.storage.images.getCoverImage(torrent);
-      if (existing) {
-        results.skipped++;
-        return;
-      }
-
       if (!torrent.Url) {
         results.skipped++;
         return;
@@ -129,26 +131,59 @@ class DescriptionImageCacheService {
 
       results.imagesFound++;
 
-      // Walk the images array and pick the first URL not already used by another
-      // torrent this run. Shared uploader banners/logos appear as images[0] across
-      // many results, so we skip any URL we've seen before to give each torrent a
-      // unique cover image.
-      let imageUrl = null;
-      for (const img of details.images) {
-        const url = img.directUrl || img.originalUrl;
-        if (url && !results.usedImageUrls.has(url)) {
-          imageUrl = url;
-          break;
-        }
-      }
+      // --- Image selection: mirrors frontend autoSetCoverImage() ---
+      // Take first 3 images, randomly pick one
+      const firstThree = details.images.slice(0, 3);
+      const randomIndex = Math.floor(Math.random() * firstThree.length);
+      const selectedImage = firstThree[randomIndex];
 
-      if (!imageUrl) {
+      const rawUrl = selectedImage.directUrl || selectedImage.originalUrl;
+      if (!rawUrl) {
         results.skipped++;
         return;
       }
 
-      results.usedImageUrls.add(imageUrl);
-      const success = await this.storage.images.setCoverImage(torrent, imageUrl);
+      // --- Enhance resolution: mirrors frontend getHigherResolutionUrl() ---
+      let finalImageUrl = this.getHigherResolutionUrl(rawUrl);
+
+      // --- Validate enhanced URL with HEAD request (5s timeout) ---
+      if (finalImageUrl !== rawUrl) {
+        const valid = await this.validateUrl(finalImageUrl);
+        if (!valid) {
+          // Fallback: remove .md suffix but keep original host
+          finalImageUrl = rawUrl.replace(/\.md(\.[^.]+)$/, '$1');
+        }
+      } else {
+        // Not enhanced, still strip .md suffix
+        finalImageUrl = rawUrl.replace(/\.md(\.[^.]+)$/, '$1');
+      }
+
+      // --- Upload to Pixhost: mirrors frontend's Pixhost upload step ---
+      let pixhostUrl = null;
+      try {
+        const uploadResult = await pixhostService.uploadFromUrl(finalImageUrl);
+        pixhostUrl = uploadResult.directImageUrl;
+      } catch (uploadErr) {
+        // Pixhost failed — fall back to the direct URL (same as frontend)
+        logger.debug(`[DescImageCache] Pixhost upload failed for "${torrent.Name}", using direct URL: ${uploadErr.message}`);
+      }
+
+      const urlToStore = pixhostUrl || finalImageUrl;
+
+      // --- Check if existing cover is already correct ---
+      const existing = await this.storage.images.getCoverImage(torrent);
+      if (existing) {
+        const existingUrl = existing.pixhostUrl || existing.imageUrl || existing.originalUrl;
+        if (existingUrl === urlToStore) {
+          results.skipped++;
+          return;
+        }
+        // Existing cover is different (possibly broken/default) — replace it
+        results.replaced++;
+      }
+
+      // --- Store via setCoverImage (INSERT OR REPLACE) ---
+      const success = await this.storage.images.setCoverImage(torrent, urlToStore);
       if (success) {
         results.cached++;
         logger.debug(`✅ [DescImageCache] Cached image for: ${torrent.Name}`);
@@ -159,6 +194,66 @@ class DescriptionImageCacheService {
     } catch (err) {
       results.failed++;
       this.pushError(results, { torrent: torrent.Name, error: err.message });
+    }
+  }
+
+  /**
+   * Try to get higher resolution version of an image URL.
+   * Mirrors frontend descriptionImageService.getHigherResolutionUrl()
+   */
+  getHigherResolutionUrl(directUrl) {
+    try {
+      if (directUrl.includes('trafficimage.club')) {
+        return directUrl.replace(/\.md(\.[^.]+)$/, '$1');
+      }
+      if (directUrl.includes('postimg.cc')) {
+        return directUrl
+          .replace(/\/[st]\d+x\d+\//, '/')
+          .replace(/_thumb\./, '.')
+          .replace(/\?[^=]*thumb[^=]*=[^&]*(&|$)/, '');
+      }
+      if (directUrl.includes('ibb.co')) {
+        return directUrl.replace(/\/[st]\d+x\d+\//, '/');
+      }
+      if (directUrl.includes('imgur.com')) {
+        return directUrl
+          .replace(/[sbtlmh]\.jpg$/, '.jpg')
+          .replace(/\.jpg$/, 'h.jpg');
+      }
+      if (directUrl.includes('fastpic.org')) {
+        return directUrl.replace(/\/thumbs\//, '/big/');
+      }
+      // Generic: remove common thumbnail suffixes
+      return directUrl
+        .replace(/\.md(\.[^.]+)$/, '$1')
+        .replace(/_thumb(\.[^.]+)$/, '$1')
+        .replace(/_small(\.[^.]+)$/, '$1')
+        .replace(/_medium(\.[^.]+)$/, '$1')
+        .replace(/\.thumb(\.[^.]+)$/, '$1');
+    } catch {
+      return directUrl;
+    }
+  }
+
+  /**
+   * Validate a URL with a HEAD request (5s timeout).
+   * Mirrors frontend's enhanced URL validation.
+   */
+  async validateUrl(url) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch {
+      return false;
     }
   }
 

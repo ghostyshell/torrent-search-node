@@ -33,6 +33,9 @@ class DescriptionImageCacheService {
       skipped: 0,
       failed: 0,
       errors: [],
+      // Tracks image URLs already stored this run so shared uploader banners/logos
+      // don't get written to every result — each torrent gets its own unique image.
+      usedImageUrls: new Set(),
     };
 
     logger.info('🖼️ [DescImageCache] Starting description/image cache job');
@@ -62,7 +65,9 @@ class DescriptionImageCacheService {
       failed: results.failed,
     });
 
-    return results;
+    // Don't expose the internal Set to callers
+    const { usedImageUrls, ...publicResults } = results;
+    return publicResults;
   }
 
   /**
@@ -124,14 +129,25 @@ class DescriptionImageCacheService {
 
       results.imagesFound++;
 
-      // Use the first extracted image
-      const firstImage = details.images[0];
-      const imageUrl = firstImage.directUrl || firstImage.originalUrl;
+      // Walk the images array and pick the first URL not already used by another
+      // torrent this run. Shared uploader banners/logos appear as images[0] across
+      // many results, so we skip any URL we've seen before to give each torrent a
+      // unique cover image.
+      let imageUrl = null;
+      for (const img of details.images) {
+        const url = img.directUrl || img.originalUrl;
+        if (url && !results.usedImageUrls.has(url)) {
+          imageUrl = url;
+          break;
+        }
+      }
+
       if (!imageUrl) {
         results.skipped++;
         return;
       }
 
+      results.usedImageUrls.add(imageUrl);
       const success = await this.storage.images.setCoverImage(torrent, imageUrl);
       if (success) {
         results.cached++;

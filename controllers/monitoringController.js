@@ -26,6 +26,13 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
+  descriptionImageCache: {
+    lastRun: null,
+    nextRun: null,
+    intervalMs: 6 * 60 * 60 * 1000, // 6 hours
+    results: [],
+    status: 'idle',
+  },
 };
 
 // In-memory API usage tracking

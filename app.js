@@ -449,6 +449,7 @@ async function startServer() {
     // TODO: Re-enable after fixing DB init issue
     // startPeriodicTokenRefresh();
     startPeriodicStreamUrlRefresh();
+    startPeriodicDescriptionImageCache();
 
     return server;
   } catch (error) {
@@ -840,6 +841,69 @@ const startPeriodicStreamUrlRefresh = () => {
       monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
     }
   }, refreshInterval);
+};
+
+// Periodic description & image pre-cache job (piratebay Porn HD)
+const startPeriodicDescriptionImageCache = () => {
+  if (!storageProvider) {
+    logger.warn('Storage not available - skipping description/image cache job');
+    return;
+  }
+
+  const DescriptionImageCacheService = require('./services/descriptionImageCacheService');
+  const cacheService = new DescriptionImageCacheService(storageProvider);
+
+  const intervalMs = 6 * 60 * 60 * 1000; // 6 hours
+  const initialDelay = 2 * 60 * 1000;     // 2 minutes after startup
+
+  logger.info('Starting periodic description/image cache job', {
+    intervalHours: intervalMs / (60 * 60 * 1000),
+    note: 'Caches cover images for piratebay Porn HD: home page + all studios',
+  });
+
+  monitoringController.backgroundTaskStats.descriptionImageCache.nextRun =
+    new Date(Date.now() + initialDelay).toISOString();
+
+  const runJob = async (isInitial) => {
+    try {
+      monitoringController.backgroundTaskStats.descriptionImageCache.status = 'running';
+      logger.info(`Running ${isInitial ? 'initial' : 'periodic'} description/image cache job`);
+
+      const result = await cacheService.runCacheJob();
+
+      logger.info('Description/image cache job completed', {
+        totalSearches: result.totalSearches,
+        totalTorrents: result.totalTorrents,
+        imagesFound: result.imagesFound,
+        cached: result.cached,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
+
+      if (result.errors.length > 0) {
+        logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+      }
+
+      monitoringController.updateTaskStats('descriptionImageCache', {
+        success: true,
+        totalSearches: result.totalSearches,
+        totalTorrents: result.totalTorrents,
+        imagesFound: result.imagesFound,
+        cached: result.cached,
+        skipped: result.skipped,
+        failed: result.failed,
+      });
+    } catch (error) {
+      logger.error('Error during description/image cache job', { error: error.message });
+      monitoringController.updateTaskStats('descriptionImageCache', {
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
+  setTimeout(() => runJob(true), initialDelay);
+  setInterval(() => runJob(false), intervalMs);
 };
 
 module.exports = app;

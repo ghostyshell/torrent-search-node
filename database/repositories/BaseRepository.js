@@ -77,8 +77,8 @@ class BaseRepository {
       return `cached_link_${torrent.cachedLinkId}`;
     }
 
-    // Use name, source, and size to create a unique identifier
-    const identifier = `${torrent.Name}_${torrent.Source}_${torrent.Size}`;
+    // Use name, source, size, and URL to create a unique identifier
+    const identifier = `${torrent.Name}_${torrent.Source}_${torrent.Size}_${torrent.Url || ''}`;
     let key = identifier.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
 
     // Limit key length to prevent URL issues (max 200 chars)

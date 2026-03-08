@@ -237,7 +237,7 @@ class StreamUrlRefreshService {
       if (lastResult.success || lastResult.skipped) {
         if (attempt > 1) {
           lastResult.retriedSuccess = true;
-          logger.warn(`  ↳ Succeeded on retry attempt ${attempt}/${maxRetries}`);
+          logger.error(`  ↳ Succeeded on retry attempt ${attempt}/${maxRetries}`);
         }
         return lastResult;
       }
@@ -249,16 +249,16 @@ class StreamUrlRefreshService {
 
       const errorMsg = lastResult.error || '';
       if (!this.isTransientError(errorMsg)) {
-        logger.warn(`  ↳ Non-retryable error, giving up: ${errorMsg}`);
+        logger.error(`  ↳ Non-retryable error, giving up: ${errorMsg}`);
         return lastResult;
       }
 
       if (attempt < maxRetries) {
         const backoffMs = attempt * 5000;
-        logger.warn(`  ↳ Transient failure (attempt ${attempt}/${maxRetries}), retrying in ${backoffMs / 1000}s: ${errorMsg}`);
+        logger.error(`  ↳ Transient failure (attempt ${attempt}/${maxRetries}), retrying in ${backoffMs / 1000}s: ${errorMsg}`);
         await this.sleep(backoffMs);
       } else {
-        logger.warn(`  ↳ All ${maxRetries} attempts failed: ${errorMsg}`);
+        logger.error(`  ↳ All ${maxRetries} attempts failed: ${errorMsg}`);
       }
     }
 
@@ -271,10 +271,10 @@ class StreamUrlRefreshService {
   async deleteTorrent(torrentId, apiKey) {
     try {
       await this.realDebridRequest('DELETE', `/torrents/delete/${torrentId}`, apiKey);
-      logger.warn(`  ↳ Deleted torrent ${torrentId} from Real-Debrid`);
+      logger.error(`  ↳ Deleted torrent ${torrentId} from Real-Debrid`);
       return true;
     } catch (err) {
-      logger.warn(`  ↳ Failed to delete torrent ${torrentId}: ${err.message}`);
+      logger.error(`  ↳ Failed to delete torrent ${torrentId}: ${err.message}`);
       return false;
     }
   }
@@ -290,14 +290,16 @@ class StreamUrlRefreshService {
       return { success: false, error: 'Invalid magnet link' };
     }
 
+    const log = attempt > 1 ? logger.error.bind(logger) : logger.warn.bind(logger);
+
     try {
       // On retries, aggressively clean up the stale torrent before re-adding
       if (attempt > 1) {
-        logger.warn(`  ↳ [Attempt ${attempt}] Cleaning up stale torrent before retry...`);
+        log(`  ↳ [Attempt ${attempt}] Cleaning up stale torrent before retry...`);
 
         // 1) Delete by the exact ID from the previous failed attempt (most reliable)
         if (previousTorrentId) {
-          logger.warn(`  ↳ [Attempt ${attempt}] Deleting previous torrent by ID: ${previousTorrentId}`);
+          log(`  ↳ [Attempt ${attempt}] Deleting previous torrent by ID: ${previousTorrentId}`);
           await this.deleteTorrent(previousTorrentId, apiKey);
         }
 
@@ -309,7 +311,7 @@ class StreamUrlRefreshService {
       }
 
       // Step 1: Add magnet to Real-Debrid
-      logger.warn(`  ↳ [Attempt ${attempt}] Adding magnet to Real-Debrid...`);
+      log(`  ↳ [Attempt ${attempt}] Adding magnet to Real-Debrid...`);
       const addResponse = await this.realDebridRequest('POST', '/torrents/addMagnet', apiKey, {
         magnet: magnetLink,
       });
@@ -319,7 +321,7 @@ class StreamUrlRefreshService {
       }
 
       const torrentId = addResponse.id;
-      logger.warn(`  ↳ [Attempt ${attempt}] Magnet added, torrent ID: ${torrentId}`);
+      log(`  ↳ [Attempt ${attempt}] Magnet added, torrent ID: ${torrentId}`);
 
       // Wait for torrent to be processed, longer on retries
       const processWait = 2000 + (attempt - 1) * 2000;
@@ -327,7 +329,7 @@ class StreamUrlRefreshService {
 
       // Step 2: Get torrent info
       const infoResponse = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
-      logger.warn(`  ↳ [Attempt ${attempt}] Torrent status: ${infoResponse?.status}, files: ${infoResponse?.files?.length || 0}`);
+      log(`  ↳ [Attempt ${attempt}] Torrent status: ${infoResponse?.status}, files: ${infoResponse?.files?.length || 0}`);
 
       if (!infoResponse || infoResponse.status === 'magnet_error') {
         return { success: false, error: 'Magnet error', _torrentId: torrentId };
@@ -343,10 +345,10 @@ class StreamUrlRefreshService {
         return { success: false, error: 'No video files found in torrent' };
       }
 
-      logger.warn(`  ↳ [Attempt ${attempt}] Selected video: ${videoFile.path} (${(videoFile.bytes / 1024 / 1024).toFixed(0)}MB)`);
+      log(`  ↳ [Attempt ${attempt}] Selected video: ${videoFile.path} (${(videoFile.bytes / 1024 / 1024).toFixed(0)}MB)`);
 
       // Always call selectFiles unconditionally (matching frontend regenerate behavior)
-      logger.warn(`  ↳ [Attempt ${attempt}] Selecting file (torrent status: ${infoResponse.status})...`);
+      log(`  ↳ [Attempt ${attempt}] Selecting file (torrent status: ${infoResponse.status})...`);
       await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
         files: videoFile.id.toString(),
       });
@@ -356,7 +358,7 @@ class StreamUrlRefreshService {
 
       // Step 4: Get updated torrent info with links
       const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
-      logger.warn(`  ↳ [Attempt ${attempt}] After select - status: ${updatedInfo?.status}, links: ${updatedInfo?.links?.length || 0}`);
+      log(`  ↳ [Attempt ${attempt}] After select - status: ${updatedInfo?.status}, links: ${updatedInfo?.links?.length || 0}`);
 
       if (!updatedInfo.links || updatedInfo.links.length === 0) {
         return {
@@ -367,7 +369,7 @@ class StreamUrlRefreshService {
       }
 
       // Step 5: Unrestrict the first available link
-      logger.warn(`  ↳ [Attempt ${attempt}] Unrestricting link...`);
+      log(`  ↳ [Attempt ${attempt}] Unrestricting link...`);
       return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
     } catch (error) {
       return { success: false, error: error.message };
@@ -389,16 +391,16 @@ class StreamUrlRefreshService {
       );
 
       if (matches.length === 0) {
-        logger.warn(`  ↳ No existing torrent found for hash ${magnetHash.substring(0, 12)}...`);
+        logger.error(`  ↳ No existing torrent found for hash ${magnetHash.substring(0, 12)}...`);
         return;
       }
 
       for (const match of matches) {
-        logger.warn(`  ↳ Found stale torrent ${match.id} (status: ${match.status}), deleting...`);
+        logger.error(`  ↳ Found stale torrent ${match.id} (status: ${match.status}), deleting...`);
         await this.deleteTorrent(match.id, apiKey);
       }
     } catch (err) {
-      logger.warn(`  ↳ Could not look up existing torrents: ${err.message}`);
+      logger.error(`  ↳ Could not look up existing torrents: ${err.message}`);
     }
   }
 

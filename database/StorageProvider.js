@@ -268,13 +268,6 @@ class StorageProvider {
   }
 
   /**
-   * @deprecated Use favorites.getFavorites() instead
-   */
-  async getFavorites(userId = null) {
-    return this.favorites.getFavorites(userId);
-  }
-
-  /**
    * @deprecated Use favorites.isFavorite() instead
    */
   async isFavorite(torrent, userId = null) {
@@ -336,13 +329,6 @@ class StorageProvider {
   async getAllFavoriteEntries() {
     const entries = await this.favorites.getFavoriteEntries(1000, 0);
     return entries;
-  }
-
-  /**
-   * @deprecated Use favorites.getFavoriteEntries() instead
-   */
-  async getFavoritesPaginated(limit, offset) {
-    return this.favorites.getFavorites();
   }
 
   /**

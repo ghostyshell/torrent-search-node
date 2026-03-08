@@ -123,15 +123,6 @@ class TursoClient {
         last_accessed_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       )`,
 
-      // Favorites table
-      `CREATE TABLE IF NOT EXISTS favorites (
-        torrent_key TEXT PRIMARY KEY,
-        torrent_data TEXT NOT NULL,
-        user_id TEXT,
-        added_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`,
-
       // Cached links table
       `CREATE TABLE IF NOT EXISTS cached_links (
         id TEXT PRIMARY KEY,
@@ -286,8 +277,6 @@ class TursoClient {
       // Continue without migrations - tables and indexes are created
     }
 
-    // Run migration to handle existing favorites without user_id
-    await this.migrateFavoritesToUserSpecific();
   }
 
   /**
@@ -407,7 +396,7 @@ class TursoClient {
    * Migration method to add user_id columns to existing tables
    */
   async migrateUserColumns() {
-    const tables = ['favorites', 'cached_links', 'favorite_entries'];
+    const tables = ['cached_links', 'favorite_entries'];
 
     for (const tableName of tables) {
       try {
@@ -427,9 +416,7 @@ class TursoClient {
       }
     }
 
-    // Add foreign key indexes for the new user_id columns
     const indexes = [
-      'CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_cached_links_user_id ON cached_links(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_favorite_entries_user_id ON favorite_entries(user_id)',
     ];
@@ -612,7 +599,6 @@ class TursoClient {
       { key: 'cache', sql: 'SELECT COUNT(*) as count FROM cache' },
       { key: 'images', sql: 'SELECT COUNT(*) as count FROM images' },
       { key: 'streamUrls', sql: 'SELECT COUNT(*) as count FROM stream_urls' },
-      { key: 'favorites', sql: 'SELECT COUNT(*) as count FROM favorites' },
       { key: 'cachedLinks', sql: 'SELECT COUNT(*) as count FROM cached_links' },
       {
         key: 'favoriteEntries',
@@ -682,38 +668,6 @@ class TursoClient {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Migration to handle existing favorites without user_id
-   * This cleans up orphaned favorites that can't be associated with any user
-   */
-  async migrateFavoritesToUserSpecific() {
-    try {
-
-      // Delete favorites and favorite_entries that don't have a user_id
-      // These are likely from before user authentication was implemented
-      const deleteFavorites = await this.run(
-        'DELETE FROM favorites WHERE user_id IS NULL'
-      );
-      const deleteFavoriteEntries = await this.run(
-        'DELETE FROM favorite_entries WHERE user_id IS NULL'
-      );
-
-      const deletedFavorites = deleteFavorites.changes || 0;
-      const deletedEntries = deleteFavoriteEntries.changes || 0;
-
-      if (deletedFavorites > 0 || deletedEntries > 0) {
-
-      } else {
-
-      }
-
-      return true;
-    } catch (error) {
-      console.error('TursoClient: Migration error:', error);
-      // Don't fail startup, just log the error
-      return false;
-    }
-  }
 }
 
 module.exports = TursoClient;

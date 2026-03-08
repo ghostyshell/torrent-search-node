@@ -120,7 +120,7 @@ class FavoriteRepository extends BaseRepository {
   }
 
   /**
-   * Get merged favorites from both old and new systems
+   * Get favorites from favorite_entries table
    * @param {number} limit - Number of results
    * @param {number} offset - Offset for pagination
    * @param {string|null} userId - User ID
@@ -128,46 +128,20 @@ class FavoriteRepository extends BaseRepository {
    */
   async getMergedFavorites(limit, offset, userId = null) {
     const userFilter = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
-    const userFilterF = userId ? 'AND f.user_id = ?' : 'AND f.user_id IS NULL';
 
     const sql = `
-      WITH merged_favorites AS (
-        -- New favorite entries (these take precedence)
-        SELECT
-          torrent_key,
-          torrent_data,
-          created_at as sort_date,
-          id as favorite_entry_id,
-          NULL as old_added_at
-        FROM favorite_entries
-        ${userFilter}
-
-        UNION
-
-        -- Old favorites (only include if torrent_key doesn't exist in favorite_entries)
-        SELECT
-          torrent_key,
-          torrent_data,
-          added_at as sort_date,
-          NULL as favorite_entry_id,
-          added_at as old_added_at
-        FROM favorites f
-        WHERE NOT EXISTS (
-          SELECT 1 FROM favorite_entries fe
-          WHERE fe.torrent_key = f.torrent_key ${
-            userId
-              ? 'AND fe.user_id = f.user_id'
-              : 'AND fe.user_id IS NULL AND f.user_id IS NULL'
-          }
-        )
-        ${userFilterF}
-      )
-      SELECT * FROM merged_favorites
-      ORDER BY sort_date DESC
+      SELECT
+        torrent_key,
+        torrent_data,
+        created_at as sort_date,
+        id as favorite_entry_id
+      FROM favorite_entries
+      ${userFilter}
+      ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `;
 
-    const params = userId ? [userId, userId, limit, offset] : [limit, offset];
+    const params = userId ? [userId, limit, offset] : [limit, offset];
     const rows = await this.all(sql, params);
 
     return rows
@@ -187,38 +161,15 @@ class FavoriteRepository extends BaseRepository {
   }
 
   /**
-   * Get merged favorites count
+   * Get favorites count
    * @param {string|null} userId - User ID
    * @returns {Promise<number>} Total count
    */
   async getMergedFavoritesCount(userId = null) {
-    const userFilterFe = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
-    const userFilterF = userId ? 'AND f.user_id = ?' : 'AND f.user_id IS NULL';
+    const userFilter = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
 
-    const sql = `
-      WITH merged_favorites AS (
-        -- New favorite entries
-        SELECT torrent_key FROM favorite_entries
-        ${userFilterFe}
-
-        UNION
-
-        -- Old favorites
-        SELECT torrent_key FROM favorites f
-        WHERE NOT EXISTS (
-          SELECT 1 FROM favorite_entries fe
-          WHERE fe.torrent_key = f.torrent_key ${
-            userId
-              ? 'AND fe.user_id = f.user_id'
-              : 'AND fe.user_id IS NULL AND f.user_id IS NULL'
-          }
-        )
-        ${userFilterF}
-      )
-      SELECT COUNT(*) as count FROM merged_favorites
-    `;
-
-    const params = userId ? [userId, userId] : [];
+    const sql = `SELECT COUNT(*) as count FROM favorite_entries ${userFilter}`;
+    const params = userId ? [userId] : [];
     const result = await this.get(sql, params);
     return result?.count || 0;
   }
@@ -232,21 +183,13 @@ class FavoriteRepository extends BaseRepository {
   async isFavorite(torrent, userId = null) {
     const torrentKey = this.generateTorrentKey(torrent);
 
-    const feQuery = userId
+    const sql = userId
       ? 'SELECT 1 FROM favorite_entries WHERE torrent_key = ? AND user_id = ?'
       : 'SELECT 1 FROM favorite_entries WHERE torrent_key = ? AND user_id IS NULL';
-    const fQuery = userId
-      ? 'SELECT 1 FROM favorites WHERE torrent_key = ? AND user_id = ?'
-      : 'SELECT 1 FROM favorites WHERE torrent_key = ? AND user_id IS NULL';
-
     const params = userId ? [torrentKey, userId] : [torrentKey];
 
-    const [feRow, fRow] = await Promise.all([
-      this.get(feQuery, params),
-      this.get(fQuery, params),
-    ]);
-
-    return !!(feRow || fRow);
+    const row = await this.get(sql, params);
+    return !!row;
   }
 
   /**
@@ -418,6 +361,61 @@ class FavoriteRepository extends BaseRepository {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  /**
+   * Migrate missing entries from old `favorites` table into `favorite_entries`.
+   * Only copies rows whose torrent_key + user_id don't already exist in
+   * favorite_entries. Returns a summary of what was migrated.
+   */
+  async migrateOldFavorites() {
+    const sql = `
+      SELECT torrent_key, torrent_data, user_id, added_at
+      FROM favorites f
+      WHERE NOT EXISTS (
+        SELECT 1 FROM favorite_entries fe
+        WHERE fe.torrent_key = f.torrent_key
+          AND COALESCE(fe.user_id, '') = COALESCE(f.user_id, '')
+      )
+    `;
+
+    const rows = await this.all(sql);
+    let migrated = 0;
+    let failed = 0;
+    const errors = [];
+
+    for (const row of rows) {
+      try {
+        const torrentData = JSON.parse(row.torrent_data);
+        const favoriteId = uuidv4();
+
+        const insertSql = `
+          INSERT OR IGNORE INTO favorite_entries
+            (id, torrent_key, torrent_data, magnet_link, torrent_name, user_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const result = await this.run(insertSql, [
+          favoriteId,
+          row.torrent_key,
+          row.torrent_data,
+          torrentData.Magnet || torrentData.MagnetLink || null,
+          torrentData.Name || 'Unknown',
+          row.user_id || null,
+          row.added_at || Math.floor(Date.now() / 1000),
+          Math.floor(Date.now() / 1000),
+        ]);
+
+        if (result.changes > 0) {
+          migrated++;
+        }
+      } catch (err) {
+        failed++;
+        errors.push({ torrentKey: row.torrent_key, error: err.message });
+      }
+    }
+
+    return { totalOldOnly: rows.length, migrated, failed, errors };
   }
 
   // Legacy favorites methods for backward compatibility

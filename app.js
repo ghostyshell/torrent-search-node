@@ -152,6 +152,21 @@ app.get('/api/monitoring/debug-favorites', async (req, res) => {
   }
 });
 
+// One-time migration: copy missing old favorites into favorite_entries
+app.post('/api/monitoring/migrate-old-favorites', async (req, res) => {
+  try {
+    const storage = req.app.locals.storageProvider;
+    if (!storage) {
+      return res.status(503).json({ error: 'No storage provider' });
+    }
+
+    const result = await storage.favorites.migrateOldFavorites();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
 app.post(

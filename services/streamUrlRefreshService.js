@@ -257,7 +257,22 @@ class StreamUrlRefreshService {
   }
 
   /**
-   * Single attempt to refresh stream URL for a magnet link
+   * Delete a torrent from Real-Debrid to allow a clean re-add
+   */
+  async deleteTorrent(torrentId, apiKey) {
+    try {
+      await this.realDebridRequest('DELETE', `/torrents/delete/${torrentId}`, apiKey);
+      return true;
+    } catch (err) {
+      logger.debug(`  ↳ Failed to delete torrent ${torrentId}: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Single attempt to refresh stream URL for a magnet link.
+   * On retry attempts (attempt > 1), deletes the stale torrent first so
+   * Real-Debrid processes it from scratch.
    */
   async _attemptRefreshStreamUrl(magnetLink, apiKey, torrentName, attempt) {
     const magnetHash = this.extractMagnetHash(magnetLink);
@@ -266,6 +281,13 @@ class StreamUrlRefreshService {
     }
 
     try {
+      // On retries, delete any existing torrent for this magnet so we get a clean slate
+      if (attempt > 1) {
+        logger.debug(`  ↳ [Attempt ${attempt}] Cleaning up stale torrent before retry...`);
+        await this._deleteExistingTorrentByHash(magnetHash, apiKey);
+        await this.sleep(1000);
+      }
+
       // Step 1: Add magnet to Real-Debrid
       logger.debug(`  ↳ [Attempt ${attempt}] Adding magnet to Real-Debrid...`);
       const addResponse = await this.realDebridRequest('POST', '/torrents/addMagnet', apiKey, {
@@ -295,7 +317,7 @@ class StreamUrlRefreshService {
         return { success: false, error: 'No files found in torrent' };
       }
 
-      // Step 3: Find and select the largest video file (like frontend)
+      // Step 3: Find and select the largest video file
       logger.debug(`  ↳ [Attempt ${attempt}] Finding largest video file from ${infoResponse.files.length} files...`);
       const videoFile = this.getLargestVideoFile(infoResponse.files);
       if (!videoFile) {
@@ -304,24 +326,28 @@ class StreamUrlRefreshService {
 
       logger.debug(`  ↳ [Attempt ${attempt}] Selected video file: ${videoFile.path}`);
 
-      // Select the video file if needed
-      if (infoResponse.status === 'waiting_files_selection' || videoFile.selected === 0) {
-        logger.debug(`  ↳ [Attempt ${attempt}] Selecting video file...`);
-        await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
-          files: videoFile.id.toString(),
-        });
+      // Always call selectFiles (matching frontend behavior).
+      // Even if status isn't 'waiting_files_selection', re-selecting
+      // can cause RD to regenerate download links for expired torrents.
+      logger.debug(`  ↳ [Attempt ${attempt}] Selecting video file (status: ${infoResponse.status})...`);
+      await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
+        files: videoFile.id.toString(),
+      });
 
-        // Wait for file selection to process, longer on retries
-        const selectWait = 3000 + (attempt - 1) * 2000;
-        await this.sleep(selectWait);
-      }
+      const selectWait = 3000 + (attempt - 1) * 2000;
+      await this.sleep(selectWait);
 
       // Step 4: Get updated torrent info with links
       logger.debug(`  ↳ [Attempt ${attempt}] Fetching updated torrent info with links...`);
       const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
       if (!updatedInfo.links || updatedInfo.links.length === 0) {
-        return { success: false, error: 'No download links available. Torrent may not be cached on Real-Debrid.' };
+        // Stash the torrentId so the retry can delete it
+        return {
+          success: false,
+          error: 'No download links available. Torrent may not be cached on Real-Debrid.',
+          _torrentId: torrentId,
+        };
       }
 
       logger.debug(`  ↳ [Attempt ${attempt}] Got ${updatedInfo.links.length} download link(s)`);
@@ -331,6 +357,27 @@ class StreamUrlRefreshService {
       return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
     } catch (error) {
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Find and delete an existing torrent by its info-hash so the next addMagnet
+   * creates a fresh entry instead of returning the stale one.
+   */
+  async _deleteExistingTorrentByHash(magnetHash, apiKey) {
+    try {
+      const torrents = await this.realDebridRequest('GET', '/torrents', apiKey);
+      if (!Array.isArray(torrents)) return;
+
+      const match = torrents.find(t =>
+        t.hash && t.hash.toLowerCase() === magnetHash.toLowerCase()
+      );
+      if (match) {
+        logger.debug(`  ↳ Found stale torrent ${match.id} (${match.status}), deleting...`);
+        await this.deleteTorrent(match.id, apiKey);
+      }
+    } catch (err) {
+      logger.debug(`  ↳ Could not look up existing torrents: ${err.message}`);
     }
   }
 

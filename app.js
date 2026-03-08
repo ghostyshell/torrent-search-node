@@ -793,6 +793,7 @@ const startPeriodicStreamUrlRefresh = () => {
         totalFavorites: result.totalFavorites,
         usersProcessed: result.usersProcessed,
         refreshed: result.refreshed,
+        retriedSuccesses: result.retriedSuccesses,
         skipped: result.skipped,
         failed: result.failed,
       });
@@ -804,6 +805,7 @@ const startPeriodicStreamUrlRefresh = () => {
         totalFavorites: result.totalFavorites,
         usersProcessed: result.usersProcessed,
         refreshed: result.refreshed,
+        retriedSuccesses: result.retriedSuccesses,
         skipped: result.skipped,
         failed: result.failed,
       });
@@ -825,6 +827,7 @@ const startPeriodicStreamUrlRefresh = () => {
         totalFavorites: result.totalFavorites,
         usersProcessed: result.usersProcessed,
         refreshed: result.refreshed,
+        retriedSuccesses: result.retriedSuccesses,
         skipped: result.skipped,
         failed: result.failed,
       });
@@ -836,6 +839,7 @@ const startPeriodicStreamUrlRefresh = () => {
         totalFavorites: result.totalFavorites,
         usersProcessed: result.usersProcessed,
         refreshed: result.refreshed,
+        retriedSuccesses: result.retriedSuccesses,
         skipped: result.skipped,
         failed: result.failed,
       });

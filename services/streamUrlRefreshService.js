@@ -62,6 +62,7 @@ class StreamUrlRefreshService {
       totalFavorites: 0,
       usersProcessed: 0,
       refreshed: 0,
+      retriedSuccesses: 0,
       skipped: 0,
       failed: 0,
       errors: [],
@@ -137,7 +138,12 @@ class StreamUrlRefreshService {
             const result = await this.refreshStreamUrl(favorite.magnetLink, decryptedKey, favorite.torrentName);
             if (result.success) {
               results.refreshed++;
-              logger.info(`✅ [Stream Refresh] Successfully refreshed: ${shortName}`);
+              if (result.retriedSuccess) {
+                results.retriedSuccesses++;
+                logger.info(`✅ [Stream Refresh] Successfully refreshed (after retry): ${shortName}`);
+              } else {
+                logger.info(`✅ [Stream Refresh] Successfully refreshed: ${shortName}`);
+              }
             } else if (result.skipped) {
               results.skipped++;
               logger.info(`⏭️ [Stream Refresh] Skipped: ${shortName} - ${result.reason || 'Unknown reason'}`);
@@ -175,6 +181,7 @@ class StreamUrlRefreshService {
         totalFavorites: results.totalFavorites,
         usersProcessed: results.usersProcessed,
         refreshed: results.refreshed,
+        retriedSuccesses: results.retriedSuccesses,
         skipped: results.skipped,
         failed: results.failed
       });
@@ -189,9 +196,70 @@ class StreamUrlRefreshService {
   }
 
   /**
-   * Refresh stream URL for a single magnet link
+   * Check if an error is transient and worth retrying
+   */
+  isTransientError(error) {
+    if (!error) return false;
+    const transientPatterns = [
+      'API error: 5', // 5xx server errors
+      'API error: 429', // rate limit
+      'timeout',
+      'ETIMEDOUT',
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'socket hang up',
+      'network',
+      'No download links available',
+      'Failed to unrestrict link',
+      'No files found in torrent',
+      'Magnet error',
+    ];
+    const lowerError = error.toLowerCase();
+    return transientPatterns.some(p => lowerError.includes(p.toLowerCase()));
+  }
+
+  /**
+   * Refresh stream URL for a single magnet link with automatic retry on transient failures
    */
   async refreshStreamUrl(magnetLink, apiKey, torrentName) {
+    const maxRetries = 3;
+    let lastResult = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      lastResult = await this._attemptRefreshStreamUrl(magnetLink, apiKey, torrentName, attempt);
+
+      if (lastResult.success || lastResult.skipped) {
+        if (attempt > 1) {
+          lastResult.retriedSuccess = true;
+          logger.info(`  ↳ Succeeded on retry attempt ${attempt}/${maxRetries}`);
+        }
+        return lastResult;
+      }
+
+      // Don't retry permanent errors
+      const errorMsg = lastResult.error || '';
+      if (!this.isTransientError(errorMsg)) {
+        logger.debug(`  ↳ Non-retryable error, giving up: ${errorMsg}`);
+        return lastResult;
+      }
+
+      if (attempt < maxRetries) {
+        const backoffMs = attempt * 5000;
+        logger.info(`  ↳ Transient failure (attempt ${attempt}/${maxRetries}), retrying in ${backoffMs / 1000}s: ${errorMsg}`);
+        await this.sleep(backoffMs);
+      } else {
+        logger.warn(`  ↳ All ${maxRetries} attempts failed: ${errorMsg}`);
+      }
+    }
+
+    return lastResult;
+  }
+
+  /**
+   * Single attempt to refresh stream URL for a magnet link
+   */
+  async _attemptRefreshStreamUrl(magnetLink, apiKey, torrentName, attempt) {
     const magnetHash = this.extractMagnetHash(magnetLink);
     if (!magnetHash) {
       return { success: false, error: 'Invalid magnet link' };
@@ -199,7 +267,7 @@ class StreamUrlRefreshService {
 
     try {
       // Step 1: Add magnet to Real-Debrid
-      logger.debug(`  ↳ Adding magnet to Real-Debrid...`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Adding magnet to Real-Debrid...`);
       const addResponse = await this.realDebridRequest('POST', '/torrents/addMagnet', apiKey, {
         magnet: magnetLink,
       });
@@ -209,13 +277,14 @@ class StreamUrlRefreshService {
       }
 
       const torrentId = addResponse.id;
-      logger.debug(`  ↳ Magnet added, torrent ID: ${torrentId}`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Magnet added, torrent ID: ${torrentId}`);
 
-      // Wait for torrent to be processed (like frontend)
-      await this.sleep(2000);
+      // Wait for torrent to be processed, longer on retries to give RD more time
+      const processWait = 2000 + (attempt - 1) * 2000;
+      await this.sleep(processWait);
 
       // Step 2: Get torrent info
-      logger.debug(`  ↳ Fetching torrent info...`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Fetching torrent info...`);
       const infoResponse = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
       if (!infoResponse || infoResponse.status === 'magnet_error') {
@@ -227,37 +296,38 @@ class StreamUrlRefreshService {
       }
 
       // Step 3: Find and select the largest video file (like frontend)
-      logger.debug(`  ↳ Finding largest video file from ${infoResponse.files.length} files...`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Finding largest video file from ${infoResponse.files.length} files...`);
       const videoFile = this.getLargestVideoFile(infoResponse.files);
       if (!videoFile) {
         return { success: false, error: 'No video files found in torrent' };
       }
 
-      logger.debug(`  ↳ Selected video file: ${videoFile.path}`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Selected video file: ${videoFile.path}`);
 
       // Select the video file if needed
       if (infoResponse.status === 'waiting_files_selection' || videoFile.selected === 0) {
-        logger.debug(`  ↳ Selecting video file...`);
+        logger.debug(`  ↳ [Attempt ${attempt}] Selecting video file...`);
         await this.realDebridRequest('POST', `/torrents/selectFiles/${torrentId}`, apiKey, {
           files: videoFile.id.toString(),
         });
 
-        // Wait for file selection to process (like frontend)
-        await this.sleep(3000);
+        // Wait for file selection to process, longer on retries
+        const selectWait = 3000 + (attempt - 1) * 2000;
+        await this.sleep(selectWait);
       }
 
       // Step 4: Get updated torrent info with links
-      logger.debug(`  ↳ Fetching updated torrent info with links...`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Fetching updated torrent info with links...`);
       const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
 
       if (!updatedInfo.links || updatedInfo.links.length === 0) {
         return { success: false, error: 'No download links available. Torrent may not be cached on Real-Debrid.' };
       }
 
-      logger.debug(`  ↳ Got ${updatedInfo.links.length} download link(s)`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Got ${updatedInfo.links.length} download link(s)`);
 
       // Step 5: Unrestrict the first available link
-      logger.debug(`  ↳ Unrestricting link and caching...`);
+      logger.debug(`  ↳ [Attempt ${attempt}] Unrestricting link and caching...`);
       return await this.unrestrictAndCache(updatedInfo.links[0], apiKey, magnetLink, torrentName);
     } catch (error) {
       return { success: false, error: error.message };

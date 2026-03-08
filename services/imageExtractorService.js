@@ -18,7 +18,7 @@ const xxxwebdlxxxExtractor = require('./imageExtractors/xxxwebdlxxxExtractor');
  * Each pattern is designed to match URLs from specific image hosting services
  */
 const IMAGE_HOST_PATTERNS = [
-  /https?:\/\/trafficimage\.club\/image\/[a-zA-Z0-9]+/g,
+  /https?:\/\/(img\.)?trafficimage\.club\/image\/[a-zA-Z0-9]+/g,
   // imgtraffic.com - pages ending in .jpeg.html, .jpg.html, etc.
   // Use [^h] or non-http pattern to avoid matching into next concatenated URL
   /https?:\/\/imgtraffic\.com\/[a-zA-Z0-9\-\/]+\.(jpg|jpeg|png|gif|webp)\.html/g,

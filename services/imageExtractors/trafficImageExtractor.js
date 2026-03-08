@@ -15,11 +15,14 @@ async function getTrafficImageDirectUrl(url) {
     const $ = cheerio.load(response.data);
 
     // Look for the actual image in various possible selectors
+    const parsedUrl = new URL(url);
+    const baseUrl = `${parsedUrl.protocol}//${parsedUrl.host}`;
+
     const imageSelectors = [
       'img#image',
       '.image-container img',
       '#image-viewer img',
-      'img[src*="trafficimage.club"]',
+      'img[src*="trafficimage"]',
       'img.img-fluid',
       'img.main-image',
     ];
@@ -29,7 +32,7 @@ async function getTrafficImageDirectUrl(url) {
       if (imgSrc && imgSrc.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
         return imgSrc.startsWith('http')
           ? imgSrc
-          : `https://trafficimage.club${imgSrc}`;
+          : `${baseUrl}${imgSrc}`;
       }
     }
 

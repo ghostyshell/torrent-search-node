@@ -494,6 +494,9 @@
                 <button class="refresh-btn" onclick="triggerDescriptionImageCache()" id="triggerDescCacheBtn" style="margin-left: 16px;">
                     Trigger Cache Now
                 </button>
+                <button class="refresh-btn" onclick="triggerDescriptionImageCacheForceRefresh()" id="triggerDescCacheForceBtn" style="margin-left: 8px; background: #ed6c02;">
+                    Force Refresh All
+                </button>
             </div>
             <div id="descCacheStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px;"></div>
             <div class="logs-container" id="descCacheLogs" style="max-height: 300px;">
@@ -1028,6 +1031,39 @@
                     btn.disabled = false;
                 }, 2000);
                 showError('Failed to trigger description/image cache: ' + error.message);
+            }
+        }
+
+        async function triggerDescriptionImageCacheForceRefresh() {
+            const btn = document.getElementById('triggerDescCacheForceBtn');
+            const originalText = btn.textContent;
+
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting...';
+
+                const response = await fetch('/api/monitoring/description-image-cache-force-refresh', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.error);
+
+                btn.textContent = 'Job Started!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
+
+                await fetchDescCacheLogs();
+                showTemporaryMessage('Description & Image cache FORCE REFRESH job has been triggered. All covers will be replaced.', 'success');
+            } catch (error) {
+                btn.textContent = 'Failed';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
+                showError('Failed to trigger force refresh: ' + error.message);
             }
         }
 

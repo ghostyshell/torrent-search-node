@@ -611,6 +611,81 @@ const triggerDescriptionImageCache = async (req, res) => {
   }
 };
 
+/**
+ * Manually trigger description/image cache job with force refresh (replaces existing covers)
+ */
+const triggerDescriptionImageCacheForceRefresh = async (req, res) => {
+  try {
+    const storageProvider = req.app.locals.storageProvider;
+
+    if (!storageProvider) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage provider not available',
+      });
+    }
+
+    backgroundTaskStats.descriptionImageCache.status = 'running';
+
+    res.json({
+      success: true,
+      message: 'Description/image cache job started (force refresh)',
+      status: 'running',
+    });
+
+    const DescriptionImageCacheService = require('../services/descriptionImageCacheService');
+    const logger = require('../middleware/logger');
+
+    const cacheService = new DescriptionImageCacheService(storageProvider);
+
+    (async () => {
+      try {
+        logger.info('Manual description/image cache job triggered (FORCE REFRESH)');
+        const result = await cacheService.runCacheJob({ forceRefresh: true });
+        logger.info('Manual description/image cache job completed (force refresh)', {
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          replaced: result.replaced,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+
+        if (result.errors.length > 0) {
+          logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+        }
+
+        updateTaskStats('descriptionImageCache', {
+          success: true,
+          manual: true,
+          forceRefresh: true,
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          replaced: result.replaced,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during manual description/image cache job (force refresh)', { error: error.message });
+        updateTaskStats('descriptionImageCache', {
+          success: false,
+          manual: true,
+          forceRefresh: true,
+          error: error.message,
+        });
+      }
+    })();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
@@ -620,6 +695,7 @@ module.exports = {
   triggerStreamUrlRefresh,
   getDescriptionImageCacheLogs,
   triggerDescriptionImageCache,
+  triggerDescriptionImageCacheForceRefresh,
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,

@@ -117,6 +117,7 @@ app.get('/api/monitoring/stream-url-refresh-logs', monitoringController.getStrea
 app.post('/api/monitoring/stream-url-refresh-trigger', monitoringController.triggerStreamUrlRefresh);
 app.get('/api/monitoring/description-image-cache-logs', monitoringController.getDescriptionImageCacheLogs);
 app.post('/api/monitoring/description-image-cache-trigger', monitoringController.triggerDescriptionImageCache);
+app.post('/api/monitoring/description-image-cache-force-refresh', monitoringController.triggerDescriptionImageCacheForceRefresh);
 
 // Debug endpoint to check favorites data
 app.get('/api/monitoring/debug-favorites', async (req, res) => {

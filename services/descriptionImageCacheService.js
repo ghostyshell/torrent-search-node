@@ -24,8 +24,11 @@ class DescriptionImageCacheService {
 
   /**
    * Main cache job: home page + all studio pages
+   * @param {Object} options
+   * @param {boolean} options.forceRefresh - If true, replace existing covers
    */
-  async runCacheJob() {
+  async runCacheJob(options = {}) {
+    this.forceRefresh = options.forceRefresh || false;
     const startTime = Date.now();
     const results = {
       totalSearches: 0,
@@ -38,7 +41,7 @@ class DescriptionImageCacheService {
       errors: [],
     };
 
-    logger.info('🖼️ [DescImageCache] Starting description/image cache job');
+    logger.info(`🖼️ [DescImageCache] Starting description/image cache job${this.forceRefresh ? ' (FORCE REFRESH)' : ''}`);
 
     // 1. Home page "xxx" query — pages 1-5
     logger.info(`🔍 [DescImageCache] Processing home query "${HOME_QUERY}" (${PAGES_TO_CACHE} pages)`);
@@ -123,11 +126,13 @@ class DescriptionImageCacheService {
         return;
       }
 
-      // Skip if torrent already has a cover image (check BEFORE fetching anything)
-      const existing = await this.storage.images.getCoverImage(torrent);
-      if (existing) {
-        results.skipped++;
-        return;
+      // Skip if torrent already has a cover image (unless force refreshing)
+      if (!this.forceRefresh) {
+        const existing = await this.storage.images.getCoverImage(torrent);
+        if (existing) {
+          results.skipped++;
+          return;
+        }
       }
 
       // Fetch description + images from piratebay detail page

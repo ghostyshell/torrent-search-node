@@ -357,8 +357,6 @@ class FavoriteRepository extends BaseRepository {
    * @returns {Promise<Array>} Array of {userId, favorites: [{id, magnetLink, torrentName}]}
    */
   async getAllFavoritesForStreamRefresh() {
-    // Query both favorite_entries and old favorites table
-    // Extract magnet link from column or from torrent_data JSON (stored as "Magnet")
     const sql = `
       SELECT
         id,
@@ -367,17 +365,6 @@ class FavoriteRepository extends BaseRepository {
         user_id
       FROM favorite_entries
       WHERE COALESCE(magnet_link, json_extract(torrent_data, '$.Magnet')) IS NOT NULL
-
-      UNION ALL
-
-      SELECT
-        torrent_key as id,
-        json_extract(torrent_data, '$.Magnet') as magnet_link,
-        json_extract(torrent_data, '$.Name') as torrent_name,
-        user_id
-      FROM favorites
-      WHERE json_extract(torrent_data, '$.Magnet') IS NOT NULL
-
       ORDER BY user_id
     `;
 

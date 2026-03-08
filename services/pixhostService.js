@@ -51,9 +51,9 @@ class PixhostService {
       // Cache the result
       this.uploadCache.set(cacheKey, result);
 
-      // Clean cache if it gets too large
-      if (this.uploadCache.size > 1000) {
-        const keysToDelete = Array.from(this.uploadCache.keys()).slice(0, 100);
+      // Clean cache if it gets too large to prevent OOM
+      if (this.uploadCache.size > 100) {
+        const keysToDelete = Array.from(this.uploadCache.keys()).slice(0, 50);
         keysToDelete.forEach(key => this.uploadCache.delete(key));
       }
 

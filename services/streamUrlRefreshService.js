@@ -353,17 +353,41 @@ class StreamUrlRefreshService {
         files: videoFile.id.toString(),
       });
 
-      const selectWait = 3000 + (attempt - 1) * 2000;
-      await this.sleep(selectWait);
+      // Step 4: Poll torrent info until links appear or timeout
+      // RD torrents go through: waiting_files_selection → queued → downloading → downloaded
+      // A single check often catches a transient state; polling is more reliable
+      const pollInterval = 3000;
+      const maxPollTime = 30000;
+      const pollStart = Date.now();
+      let updatedInfo = null;
 
-      // Step 4: Get updated torrent info with links
-      const updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
-      log(`  ↳ [Attempt ${attempt}] After select - status: ${updatedInfo?.status}, links: ${updatedInfo?.links?.length || 0}`);
+      while (Date.now() - pollStart < maxPollTime) {
+        await this.sleep(pollInterval);
+        updatedInfo = await this.realDebridRequest('GET', `/torrents/info/${torrentId}`, apiKey);
+        const elapsed = ((Date.now() - pollStart) / 1000).toFixed(0);
+        log(`  ↳ [Attempt ${attempt}] Poll ${elapsed}s - status: ${updatedInfo?.status}, links: ${updatedInfo?.links?.length || 0}`);
 
-      if (!updatedInfo.links || updatedInfo.links.length === 0) {
+        if (updatedInfo.links && updatedInfo.links.length > 0) {
+          break;
+        }
+
+        // If status is 'downloaded' but no links, something is wrong -- stop polling
+        if (updatedInfo.status === 'downloaded' && (!updatedInfo.links || updatedInfo.links.length === 0)) {
+          break;
+        }
+
+        // 'magnet_error' is permanent
+        if (updatedInfo.status === 'magnet_error') {
+          break;
+        }
+      }
+
+      if (!updatedInfo || !updatedInfo.links || updatedInfo.links.length === 0) {
+        const elapsed = ((Date.now() - pollStart) / 1000).toFixed(0);
+        log(`  ↳ [Attempt ${attempt}] No links after ${elapsed}s polling (final status: ${updatedInfo?.status})`);
         return {
           success: false,
-          error: 'No download links available. Torrent may not be cached on Real-Debrid.',
+          error: `No download links available after ${elapsed}s. Torrent status: ${updatedInfo?.status || 'unknown'}.`,
           _torrentId: torrentId,
         };
       }

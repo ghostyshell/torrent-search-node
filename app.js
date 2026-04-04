@@ -118,6 +118,8 @@ app.post('/api/monitoring/stream-url-refresh-trigger', monitoringController.trig
 app.get('/api/monitoring/description-image-cache-logs', monitoringController.getDescriptionImageCacheLogs);
 app.post('/api/monitoring/description-image-cache-trigger', monitoringController.triggerDescriptionImageCache);
 app.post('/api/monitoring/description-image-cache-force-refresh', monitoringController.triggerDescriptionImageCacheForceRefresh);
+app.get('/api/monitoring/search-results-cache-logs', monitoringController.getSearchResultsCacheLogs);
+app.post('/api/monitoring/search-results-cache-trigger', monitoringController.triggerSearchResultsCache);
 
 // Debug endpoint to check favorites data
 app.get('/api/monitoring/debug-favorites', async (req, res) => {
@@ -446,6 +448,7 @@ async function startServer() {
     // startPeriodicTokenRefresh();
     startPeriodicStreamUrlRefresh();
     startPeriodicDescriptionImageCache();
+    startPeriodicSearchResultsCache();
 
     return server;
   } catch (error) {
@@ -904,6 +907,78 @@ const startPeriodicDescriptionImageCache = () => {
 
   setTimeout(() => runJob(true), initialDelay);
   setInterval(() => runJob(false), intervalMs);
+};
+
+// Periodic stream URL pre-cache for filter page results (piratebay Porn HD — home + studios, first 2 pages)
+// Same idea as the favourites stream refresh but targets the filter/browse pages so results are instantly streamable.
+const startPeriodicSearchResultsCache = () => {
+  if (!storageProvider) {
+    logger.warn('Storage not available - skipping filter stream cache job');
+    return;
+  }
+
+  const FilterStreamCacheService = require('./services/searchResultsCacheService');
+  const StreamUrlRefreshService = require('./services/streamUrlRefreshService');
+  const AuthService = require('./config/passport');
+  const authService = new AuthService(storageProvider);
+  const refreshService = new StreamUrlRefreshService(storageProvider, authService);
+
+  const refreshInterval = 6 * 60 * 60 * 1000; // 6 hours — browse home (6 pages) + studio filters
+  const initialDelay = 3 * 60 * 1000;           // 3 minutes after startup
+
+  logger.info('Starting periodic filter stream URL cache job', {
+    intervalHours: refreshInterval / (60 * 60 * 1000),
+    note: 'Pre-caches Real-Debrid stream URLs for browse homepage (507, 6 pages) + 2 pages per studio filter',
+  });
+
+  monitoringController.backgroundTaskStats.searchResultsCache.nextRun =
+    new Date(Date.now() + initialDelay).toISOString();
+
+  const runJob = async (isInitial) => {
+    try {
+      monitoringController.backgroundTaskStats.searchResultsCache.status = 'running';
+      logger.info(`Running ${isInitial ? 'initial' : 'periodic'} filter stream URL cache job`);
+
+      const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
+      const result = await cacheService.runCacheJob();
+
+      logger.info('Filter stream URL cache job completed', {
+        totalSearches: result.totalSearches,
+        totalTorrents: result.totalTorrents,
+        uniqueMagnets: result.uniqueMagnets,
+        usersProcessed: result.usersProcessed,
+        alreadyCached: result.alreadyCached,
+        refreshed: result.refreshed,
+        failed: result.failed,
+      });
+
+      if (result.errors.length > 0) {
+        logger.warn('Filter stream cache job had errors', { errors: result.errors.slice(0, 5) });
+      }
+
+      monitoringController.updateTaskStats('searchResultsCache', {
+        success: true,
+        totalSearches: result.totalSearches,
+        totalTorrents: result.totalTorrents,
+        uniqueMagnets: result.uniqueMagnets,
+        usersProcessed: result.usersProcessed,
+        usersSkipped: result.usersSkipped,
+        alreadyCached: result.alreadyCached,
+        refreshed: result.refreshed,
+        noMagnet: result.noMagnet,
+        failed: result.failed,
+      });
+    } catch (error) {
+      logger.error('Error during filter stream cache job', { error: error.message });
+      monitoringController.updateTaskStats('searchResultsCache', {
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
+  setTimeout(() => runJob(true), initialDelay);
+  setInterval(() => runJob(false), refreshInterval);
 };
 
 module.exports = app;

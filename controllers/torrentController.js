@@ -76,6 +76,43 @@ const torrentController = {
     res.json(torrentScraperService.getAvailableScrapers());
   },
 
+  // Browse a piratebay category (no search query)
+  browseTorrents: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept'
+    );
+
+    const category = req.params.category || '507';
+    const page = req.params.page || 1;
+    const sort = req.query.sort || '3';
+
+    const options = {
+      minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
+      maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
+    };
+
+    try {
+      const pirateBay = require('../services/scrapers/pirateBay');
+      let results = await pirateBay.browse(category, page, sort, options);
+
+      if (!results) results = [];
+
+      // Add cover images
+      if (req.app.locals.cache) {
+        results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
+      }
+
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Browse failed',
+        message: error.message,
+      });
+    }
+  },
+
   // Single torrent search endpoint for specific websites
   searchSingleWebsite: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -268,6 +305,7 @@ module.exports = {
   getTorrentWebsites: torrentController.getTorrentWebsites,
   searchSingleWebsite: torrentController.searchSingleWebsite,
   advancedSearch: torrentController.advancedSearch,
+  browseTorrents: torrentController.browseTorrents,
   enrichResultsWithCoverImages: enrichResultsWithCoverImages,
   router: router,
 };

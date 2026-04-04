@@ -33,6 +33,13 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
+  searchResultsCache: {
+    lastRun: null,
+    nextRun: null,
+    intervalMs: 6 * 60 * 60 * 1000, // 6 hours — browse home + studio filters
+    results: [],
+    status: 'idle',
+  },
 };
 
 // In-memory API usage tracking
@@ -688,6 +695,109 @@ const triggerDescriptionImageCacheForceRefresh = async (req, res) => {
   }
 };
 
+/**
+ * Get search results cache job logs
+ */
+const getSearchResultsCacheLogs = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const logs = backgroundTaskStats.searchResultsCache.results.slice(0, limit);
+
+    res.json({
+      success: true,
+      logs,
+      count: logs.length,
+      status: backgroundTaskStats.searchResultsCache.status,
+      lastRun: backgroundTaskStats.searchResultsCache.lastRun,
+      nextRun: backgroundTaskStats.searchResultsCache.nextRun,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Manually trigger search results cache job
+ */
+const triggerSearchResultsCache = async (req, res) => {
+  try {
+    const storageProvider = req.app.locals.storageProvider;
+
+    if (!storageProvider) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage provider not available',
+      });
+    }
+
+    backgroundTaskStats.searchResultsCache.status = 'running';
+
+    res.json({
+      success: true,
+      message: 'Search results cache job started',
+      status: 'running',
+    });
+
+    // Run the job in the background
+    (async () => {
+      try {
+        const FilterStreamCacheService = require('../services/searchResultsCacheService');
+        const StreamUrlRefreshService = require('../services/streamUrlRefreshService');
+        const AuthService = require('../config/passport');
+        const logger = require('../middleware/logger');
+
+        const authService = new AuthService(storageProvider);
+        const refreshService = new StreamUrlRefreshService(storageProvider, authService);
+        const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
+
+        logger.info('Running manually triggered filter stream cache job');
+        const result = await cacheService.runCacheJob();
+
+        logger.info('Manual filter stream cache job completed', {
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          uniqueMagnets: result.uniqueMagnets,
+          usersProcessed: result.usersProcessed,
+          alreadyCached: result.alreadyCached,
+          refreshed: result.refreshed,
+          failed: result.failed,
+        });
+
+        updateTaskStats('searchResultsCache', {
+          success: true,
+          manual: true,
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          uniqueMagnets: result.uniqueMagnets,
+          usersProcessed: result.usersProcessed,
+          usersSkipped: result.usersSkipped,
+          alreadyCached: result.alreadyCached,
+          refreshed: result.refreshed,
+          noMagnet: result.noMagnet,
+          failed: result.failed,
+        });
+      } catch (error) {
+        const logger = require('../middleware/logger');
+        logger.error('Error during manual filter stream cache job', { error: error.message });
+        updateTaskStats('searchResultsCache', {
+          success: false,
+          manual: true,
+          error: error.message,
+        });
+      }
+    })();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
@@ -698,6 +808,8 @@ module.exports = {
   getDescriptionImageCacheLogs,
   triggerDescriptionImageCache,
   triggerDescriptionImageCacheForceRefresh,
+  getSearchResultsCacheLogs,
+  triggerSearchResultsCache,
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,

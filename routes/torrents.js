@@ -19,6 +19,13 @@ const setupTorrentRoutes = (storageProvider) => {
   // Route: POST /api/torrents/advanced-search
   router.post('/advanced-search', torrentController.advancedSearch);
 
+  // Browse category (no search query, e.g. homepage)
+  // Route: GET /api/torrents/browse/:category/:page?
+  router.get(
+    '/browse/:category/:page?',
+    torrentController.browseTorrents
+  );
+
   // Single website search endpoint
   // Route: GET /api/torrents/search/:website/:query/:page?
   router.get(

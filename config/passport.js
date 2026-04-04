@@ -312,6 +312,25 @@ class AuthService {
     return user?.real_debrid_api_key || null;
   }
 
+  /**
+   * Get all active users that have a Real-Debrid API key configured.
+   * Used by background jobs that need to process per-user RD accounts.
+   * @returns {Promise<Array<{id: string, real_debrid_api_key: string}>>}
+   */
+  async getUsersWithRealDebridKeys() {
+    try {
+      const sql = `
+        SELECT id, real_debrid_api_key FROM users
+        WHERE real_debrid_api_key IS NOT NULL AND real_debrid_api_key != '' AND is_active = 1
+      `;
+      const users = await this.cache.tursoClient.all(sql, []);
+      return users || [];
+    } catch (error) {
+      console.warn('getUsersWithRealDebridKeys error:', error.message);
+      return [];
+    }
+  }
+
   async createSession(userId, sessionData) {
     try {
       const sessionId = uuidv4();

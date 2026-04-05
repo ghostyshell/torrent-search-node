@@ -10,6 +10,8 @@ const BROWSE_SORT = '3';          // Date desc — /browse/507/{page}/3 (UI home
 const PAGES_BROWSE_HOME = 6;
 const HOME_QUERY = 'xxx';
 const PAGES_TO_CACHE = 5;
+const TRANS_QUERY = 'trans';
+const PAGES_TRANS_CACHE = 2; // matches UI common-search preset
 const MAX_ERRORS = 30;
 
 class DescriptionImageCacheService {
@@ -18,7 +20,7 @@ class DescriptionImageCacheService {
   }
 
   /**
-   * Main cache job: browse homepage (6 pages) + "xxx" search + all studio pages
+   * Main cache job: browse homepage (6 pages) + "xxx" search + "trans" (2 pages) + all studio pages
    * @param {Object} options
    * @param {boolean} options.forceRefresh - If true, replace existing covers
    */
@@ -50,6 +52,12 @@ class DescriptionImageCacheService {
     logger.info(`🔍 [DescImageCache] Processing home query "${HOME_QUERY}" (${PAGES_TO_CACHE} pages)`);
     for (let page = 1; page <= PAGES_TO_CACHE; page++) {
       await this.processSearchPage(HOME_QUERY, page, results);
+    }
+
+    // 2b. Common-search preset "trans" — first 2 pages only (Porn HD / 507)
+    logger.info(`🔍 [DescImageCache] Processing "${TRANS_QUERY}" (${PAGES_TRANS_CACHE} pages)`);
+    for (let page = 1; page <= PAGES_TRANS_CACHE; page++) {
+      await this.processSearchPage(TRANS_QUERY, page, results);
     }
 
     // 3. Each studio — pages 1-5 (Porn HD / 507, same as home query)

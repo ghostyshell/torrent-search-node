@@ -873,7 +873,7 @@ const startPeriodicDescriptionImageCache = () => {
 
   logger.info('Starting periodic description/image cache job', {
     intervalHours: intervalMs / (60 * 60 * 1000),
-    note: 'Caches cover images for piratebay Porn HD: browse homepage (6 pages) + xxx search + studios',
+    note: 'Caches cover images for piratebay Porn HD: browse (6 pages) + xxx (5 pages) + trans (2 pages) + studios',
   });
 
   monitoringController.backgroundTaskStats.descriptionImageCache.nextRun =
@@ -923,7 +923,7 @@ const startPeriodicDescriptionImageCache = () => {
   setInterval(() => runJob(false), intervalMs);
 };
 
-// Periodic stream URL pre-cache for filter page results (piratebay Porn HD — home + studios, first 2 pages)
+// Periodic stream URL pre-cache for filter page results (piratebay Porn HD — browse + trans 2 pages + studios)
 // Same idea as the favourites stream refresh but targets the filter/browse pages so results are instantly streamable.
 const startPeriodicSearchResultsCache = () => {
   if (!storageProvider) {
@@ -937,12 +937,12 @@ const startPeriodicSearchResultsCache = () => {
   const authService = new AuthService(storageProvider);
   const refreshService = new StreamUrlRefreshService(storageProvider, authService);
 
-  const refreshInterval = 6 * 60 * 60 * 1000; // 6 hours — browse home (6 pages) + studio filters
+  const refreshInterval = 6 * 60 * 60 * 1000; // 6 hours — browse + trans (2) + studio filters
   const initialDelay = 3 * 60 * 1000;           // 3 minutes after startup
 
   logger.info('Starting periodic filter stream URL cache job', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
-    note: 'Pre-caches Real-Debrid stream URLs for browse homepage (507, 6 pages) + 2 pages per studio filter',
+    note: 'Pre-caches Real-Debrid stream URLs for browse (507, 6 pages) + trans search (2 pages) + 2 pages per studio filter',
   });
 
   monitoringController.backgroundTaskStats.searchResultsCache.nextRun =

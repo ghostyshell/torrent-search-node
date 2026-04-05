@@ -37,7 +37,7 @@ const backgroundTaskStats = {
   searchResultsCache: {
     lastRun: null,
     nextRun: null,
-    intervalMs: 6 * 60 * 60 * 1000, // 6 hours — browse home + studio filters
+    intervalMs: 6 * 60 * 60 * 1000, // 6 hours — browse + trans + studio filters
     results: [],
     status: 'idle',
   },

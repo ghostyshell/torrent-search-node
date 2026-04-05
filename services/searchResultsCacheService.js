@@ -4,7 +4,8 @@ const { STUDIOS } = require('./studioSearchTerms');
 
 /**
  * Background job that pre-caches Real-Debrid stream URLs for torrents
- * appearing on the Pirate Bay browse homepage (category 507, sort by date, pages 1–6)
+ * appearing on the Pirate Bay browse homepage (category 507, sort by date, pages 1–6),
+ * the first 2 pages of the "trans" common-search query (507, seeders sort),
  * plus the first 2 pages of each studio filter query.
  *
  * Works per-user: each user with an RD API key gets the magnets added to
@@ -18,6 +19,8 @@ const PIRATEBAY_CATEGORY = '507'; // Porn HD
 const PIRATEBAY_SORT = '7';       // Seeders desc (studio searches)
 const BROWSE_SORT = '3';          // Date desc — matches /browse/507/{page}/3
 const PAGES_BROWSE_HOME = 6;      // Pre-cache stream URLs for first 6 browse pages
+const TRANS_QUERY = 'trans';
+const PAGES_TRANS_CACHE = 2;      // Common-search preset (matches UI)
 const PAGES_TO_CACHE = 2;         // Per studio search query
 const MAX_ERRORS = 50;
 
@@ -51,7 +54,7 @@ class FilterStreamCacheService {
     };
 
     logger.info(
-      `🔗 [FilterStreamCache] Starting job (browse ${PAGES_BROWSE_HOME} pages + ${PAGES_TO_CACHE} pages per studio query)`
+      `🔗 [FilterStreamCache] Starting job (browse ${PAGES_BROWSE_HOME} pages + "${TRANS_QUERY}" ${PAGES_TRANS_CACHE} pages + ${PAGES_TO_CACHE} pages per studio query)`
     );
 
     // ── Step 1: scrape all filter pages once ──
@@ -191,6 +194,9 @@ class FilterStreamCacheService {
 
     // Homepage browse (thehiddenbay.com/browse/507/{page}/3)
     for (let p = 1; p <= PAGES_BROWSE_HOME; p++) await addBrowsePage(p);
+
+    // Common-search preset "trans" — first 2 pages (same as UI ?preset=trans)
+    for (let p = 1; p <= PAGES_TRANS_CACHE; p++) await addPage(TRANS_QUERY, p);
 
     // Studio name searches — Porn HD (507), same as other pirateBay jobs here
     for (const studio of STUDIOS) {

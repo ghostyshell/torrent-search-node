@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { config } = require('../config/environment');
+const { runWithJobFileLogging } = require('../services/backgroundJobFileLogger');
 
 // In-memory storage for background task stats
 const backgroundTaskStats = {
@@ -422,40 +423,42 @@ const triggerStreamUrlRefresh = async (req, res) => {
 
     // Execute asynchronously
     (async () => {
-      try {
-        logger.info('Manual stream URL refresh triggered');
-        const result = await refreshService.refreshAllFavoriteStreamUrls();
-        logger.info('Manual stream URL refresh completed', {
-          totalFavorites: result.totalFavorites,
-          usersProcessed: result.usersProcessed,
-          refreshed: result.refreshed,
-          retriedSuccesses: result.retriedSuccesses,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
+      await runWithJobFileLogging('streamUrlRefresh', async () => {
+        try {
+          logger.info('Manual stream URL refresh triggered');
+          const result = await refreshService.refreshAllFavoriteStreamUrls();
+          logger.info('Manual stream URL refresh completed', {
+            totalFavorites: result.totalFavorites,
+            usersProcessed: result.usersProcessed,
+            refreshed: result.refreshed,
+            retriedSuccesses: result.retriedSuccesses,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
 
-        if (result.errors.length > 0) {
-          logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+          if (result.errors.length > 0) {
+            logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+          }
+
+          updateTaskStats('streamUrlRefresh', {
+            success: true,
+            manual: true,
+            totalFavorites: result.totalFavorites,
+            usersProcessed: result.usersProcessed,
+            refreshed: result.refreshed,
+            retriedSuccesses: result.retriedSuccesses,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
+        } catch (error) {
+          logger.error('Error during manual stream URL refresh', { error: error.message });
+          updateTaskStats('streamUrlRefresh', {
+            success: false,
+            manual: true,
+            error: error.message
+          });
         }
-
-        updateTaskStats('streamUrlRefresh', {
-          success: true,
-          manual: true,
-          totalFavorites: result.totalFavorites,
-          usersProcessed: result.usersProcessed,
-          refreshed: result.refreshed,
-          retriedSuccesses: result.retriedSuccesses,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
-      } catch (error) {
-        logger.error('Error during manual stream URL refresh', { error: error.message });
-        updateTaskStats('streamUrlRefresh', {
-          success: false,
-          manual: true,
-          error: error.message
-        });
-      }
+      });
     })();
   } catch (error) {
     res.status(500).json({
@@ -575,42 +578,44 @@ const triggerDescriptionImageCache = async (req, res) => {
     const cacheService = new DescriptionImageCacheService(storageProvider);
 
     (async () => {
-      try {
-        logger.info('Manual description/image cache job triggered');
-        const result = await cacheService.runCacheJob();
-        logger.info('Manual description/image cache job completed', {
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          imagesFound: result.imagesFound,
-          cached: result.cached,
-          replaced: result.replaced,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
+      await runWithJobFileLogging('descriptionImageCache', async () => {
+        try {
+          logger.info('Manual description/image cache job triggered');
+          const result = await cacheService.runCacheJob();
+          logger.info('Manual description/image cache job completed', {
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            imagesFound: result.imagesFound,
+            cached: result.cached,
+            replaced: result.replaced,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
 
-        if (result.errors.length > 0) {
-          logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+          if (result.errors.length > 0) {
+            logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+          }
+
+          updateTaskStats('descriptionImageCache', {
+            success: true,
+            manual: true,
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            imagesFound: result.imagesFound,
+            cached: result.cached,
+            replaced: result.replaced,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
+        } catch (error) {
+          logger.error('Error during manual description/image cache job', { error: error.message });
+          updateTaskStats('descriptionImageCache', {
+            success: false,
+            manual: true,
+            error: error.message
+          });
         }
-
-        updateTaskStats('descriptionImageCache', {
-          success: true,
-          manual: true,
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          imagesFound: result.imagesFound,
-          cached: result.cached,
-          replaced: result.replaced,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
-      } catch (error) {
-        logger.error('Error during manual description/image cache job', { error: error.message });
-        updateTaskStats('descriptionImageCache', {
-          success: false,
-          manual: true,
-          error: error.message
-        });
-      }
+      });
     })();
   } catch (error) {
     res.status(500).json({
@@ -648,44 +653,46 @@ const triggerDescriptionImageCacheForceRefresh = async (req, res) => {
     const cacheService = new DescriptionImageCacheService(storageProvider);
 
     (async () => {
-      try {
-        logger.info('Manual description/image cache job triggered (FORCE REFRESH)');
-        const result = await cacheService.runCacheJob({ forceRefresh: true });
-        logger.info('Manual description/image cache job completed (force refresh)', {
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          imagesFound: result.imagesFound,
-          cached: result.cached,
-          replaced: result.replaced,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
+      await runWithJobFileLogging('descriptionImageCache', async () => {
+        try {
+          logger.info('Manual description/image cache job triggered (FORCE REFRESH)');
+          const result = await cacheService.runCacheJob({ forceRefresh: true });
+          logger.info('Manual description/image cache job completed (force refresh)', {
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            imagesFound: result.imagesFound,
+            cached: result.cached,
+            replaced: result.replaced,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
 
-        if (result.errors.length > 0) {
-          logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+          if (result.errors.length > 0) {
+            logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+          }
+
+          updateTaskStats('descriptionImageCache', {
+            success: true,
+            manual: true,
+            forceRefresh: true,
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            imagesFound: result.imagesFound,
+            cached: result.cached,
+            replaced: result.replaced,
+            skipped: result.skipped,
+            failed: result.failed,
+          });
+        } catch (error) {
+          logger.error('Error during manual description/image cache job (force refresh)', { error: error.message });
+          updateTaskStats('descriptionImageCache', {
+            success: false,
+            manual: true,
+            forceRefresh: true,
+            error: error.message,
+          });
         }
-
-        updateTaskStats('descriptionImageCache', {
-          success: true,
-          manual: true,
-          forceRefresh: true,
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          imagesFound: result.imagesFound,
-          cached: result.cached,
-          replaced: result.replaced,
-          skipped: result.skipped,
-          failed: result.failed,
-        });
-      } catch (error) {
-        logger.error('Error during manual description/image cache job (force refresh)', { error: error.message });
-        updateTaskStats('descriptionImageCache', {
-          success: false,
-          manual: true,
-          forceRefresh: true,
-          error: error.message,
-        });
-      }
+      });
     })();
   } catch (error) {
     res.status(500).json({
@@ -744,51 +751,53 @@ const triggerSearchResultsCache = async (req, res) => {
 
     // Run the job in the background
     (async () => {
-      try {
-        const FilterStreamCacheService = require('../services/searchResultsCacheService');
-        const StreamUrlRefreshService = require('../services/streamUrlRefreshService');
-        const AuthService = require('../config/passport');
-        const logger = require('../middleware/logger');
+      await runWithJobFileLogging('searchResultsCache', async () => {
+        try {
+          const FilterStreamCacheService = require('../services/searchResultsCacheService');
+          const StreamUrlRefreshService = require('../services/streamUrlRefreshService');
+          const AuthService = require('../config/passport');
+          const logger = require('../middleware/logger');
 
-        const authService = new AuthService(storageProvider);
-        const refreshService = new StreamUrlRefreshService(storageProvider, authService);
-        const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
+          const authService = new AuthService(storageProvider);
+          const refreshService = new StreamUrlRefreshService(storageProvider, authService);
+          const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
 
-        logger.info('Running manually triggered filter stream cache job');
-        const result = await cacheService.runCacheJob();
+          logger.info('Running manually triggered filter stream cache job');
+          const result = await cacheService.runCacheJob();
 
-        logger.info('Manual filter stream cache job completed', {
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          uniqueMagnets: result.uniqueMagnets,
-          usersProcessed: result.usersProcessed,
-          alreadyCached: result.alreadyCached,
-          refreshed: result.refreshed,
-          failed: result.failed,
-        });
+          logger.info('Manual filter stream cache job completed', {
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            uniqueMagnets: result.uniqueMagnets,
+            usersProcessed: result.usersProcessed,
+            alreadyCached: result.alreadyCached,
+            refreshed: result.refreshed,
+            failed: result.failed,
+          });
 
-        updateTaskStats('searchResultsCache', {
-          success: true,
-          manual: true,
-          totalSearches: result.totalSearches,
-          totalTorrents: result.totalTorrents,
-          uniqueMagnets: result.uniqueMagnets,
-          usersProcessed: result.usersProcessed,
-          usersSkipped: result.usersSkipped,
-          alreadyCached: result.alreadyCached,
-          refreshed: result.refreshed,
-          noMagnet: result.noMagnet,
-          failed: result.failed,
-        });
-      } catch (error) {
-        const logger = require('../middleware/logger');
-        logger.error('Error during manual filter stream cache job', { error: error.message });
-        updateTaskStats('searchResultsCache', {
-          success: false,
-          manual: true,
-          error: error.message,
-        });
-      }
+          updateTaskStats('searchResultsCache', {
+            success: true,
+            manual: true,
+            totalSearches: result.totalSearches,
+            totalTorrents: result.totalTorrents,
+            uniqueMagnets: result.uniqueMagnets,
+            usersProcessed: result.usersProcessed,
+            usersSkipped: result.usersSkipped,
+            alreadyCached: result.alreadyCached,
+            refreshed: result.refreshed,
+            noMagnet: result.noMagnet,
+            failed: result.failed,
+          });
+        } catch (error) {
+          const logger = require('../middleware/logger');
+          logger.error('Error during manual filter stream cache job', { error: error.message });
+          updateTaskStats('searchResultsCache', {
+            success: false,
+            manual: true,
+            error: error.message,
+          });
+        }
+      });
     })();
   } catch (error) {
     res.status(500).json({

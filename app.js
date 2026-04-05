@@ -29,6 +29,8 @@ const favoritesController = require('./controllers/favoritesController');
 const videoController = require('./controllers/videoController');
 const proxyController = require('./controllers/proxyController');
 const monitoringController = require('./controllers/monitoringController');
+const jobLogsController = require('./controllers/jobLogsController');
+const { runWithJobFileLogging } = require('./services/backgroundJobFileLogger');
 
 // ===========================
 // ENVIRONMENT VALIDATION
@@ -120,6 +122,11 @@ app.post('/api/monitoring/description-image-cache-trigger', monitoringController
 app.post('/api/monitoring/description-image-cache-force-refresh', monitoringController.triggerDescriptionImageCacheForceRefresh);
 app.get('/api/monitoring/search-results-cache-logs', monitoringController.getSearchResultsCacheLogs);
 app.post('/api/monitoring/search-results-cache-trigger', monitoringController.triggerSearchResultsCache);
+
+app.get('/api/monitoring/job-logs/list', jobLogsController.listJobLogs);
+app.get('/api/monitoring/job-logs/search', jobLogsController.searchJobLogs);
+app.get('/api/monitoring/job-logs/file', jobLogsController.serveJobLogFile);
+app.post('/api/monitoring/job-logs/maintenance', jobLogsController.triggerJobLogMaintenance);
 
 // Debug endpoint to check favorites data
 app.get('/api/monitoring/debug-favorites', async (req, res) => {
@@ -449,6 +456,7 @@ async function startServer() {
     startPeriodicStreamUrlRefresh();
     startPeriodicDescriptionImageCache();
     startPeriodicSearchResultsCache();
+    startPeriodicJobLogMaintenance();
 
     return server;
   } catch (error) {
@@ -694,18 +702,20 @@ const startPeriodicStorageCleanup = () => {
   monitoringController.backgroundTaskStats.storageCleanup.nextRun = new Date(Date.now() + cleanupInterval).toISOString();
 
   setInterval(async () => {
-    try {
-      logger.info('Running periodic storage cleanup', {
-        cleanupTypes: ['expired_cache_entries', 'old_stream_urls'],
-        note: 'Favorites, images, and non-expired data are preserved',
-      });
-      await storageProvider.cleanup();
-      logger.info('Periodic storage cleanup completed successfully');
-      monitoringController.updateTaskStats('storageCleanup', { success: true });
-    } catch (error) {
-      logger.error('Error during scheduled cleanup', { error: error.message });
-      monitoringController.updateTaskStats('storageCleanup', { success: false, error: error.message });
-    }
+    await runWithJobFileLogging('storageCleanup', async () => {
+      try {
+        logger.info('Running periodic storage cleanup', {
+          cleanupTypes: ['expired_cache_entries', 'old_stream_urls'],
+          note: 'Favorites, images, and non-expired data are preserved',
+        });
+        await storageProvider.cleanup();
+        logger.info('Periodic storage cleanup completed successfully');
+        monitoringController.updateTaskStats('storageCleanup', { success: true });
+      } catch (error) {
+        logger.error('Error during scheduled cleanup', { error: error.message });
+        monitoringController.updateTaskStats('storageCleanup', { success: false, error: error.message });
+      }
+    });
   }, cleanupInterval);
 };
 
@@ -775,74 +785,76 @@ const startPeriodicStreamUrlRefresh = () => {
 
   // Run initial refresh after 70 seconds to let server fully initialize
   setTimeout(async () => {
-    try {
-      // Set status to running so dashboard shows live progress
-      monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
+    await runWithJobFileLogging('streamUrlRefresh', async () => {
+      try {
+        monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
 
-      logger.info('Running initial stream URL refresh for favorites');
-      logger.info('Stream URL refresh service initialized', {
-        hasStorage: !!storageProvider,
-        hasFavorites: !!storageProvider?.favorites
-      });
-      const result = await refreshService.refreshAllFavoriteStreamUrls();
-      logger.info('Initial stream URL refresh completed', {
-        totalFavorites: result.totalFavorites,
-        usersProcessed: result.usersProcessed,
-        refreshed: result.refreshed,
-        retriedSuccesses: result.retriedSuccesses,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
-      if (result.errors.length > 0) {
-        logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+        logger.info('Running initial stream URL refresh for favorites');
+        logger.info('Stream URL refresh service initialized', {
+          hasStorage: !!storageProvider,
+          hasFavorites: !!storageProvider?.favorites
+        });
+        const result = await refreshService.refreshAllFavoriteStreamUrls();
+        logger.info('Initial stream URL refresh completed', {
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          retriedSuccesses: result.retriedSuccesses,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+        if (result.errors.length > 0) {
+          logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+        }
+        monitoringController.updateTaskStats('streamUrlRefresh', {
+          success: true,
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          retriedSuccesses: result.retriedSuccesses,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during initial stream URL refresh', { error: error.message });
+        monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
       }
-      monitoringController.updateTaskStats('streamUrlRefresh', {
-        success: true,
-        totalFavorites: result.totalFavorites,
-        usersProcessed: result.usersProcessed,
-        refreshed: result.refreshed,
-        retriedSuccesses: result.retriedSuccesses,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
-    } catch (error) {
-      logger.error('Error during initial stream URL refresh', { error: error.message });
-      monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
-    }
+    });
   }, initialDelay);
 
   // Then run every 24 hours
   setInterval(async () => {
-    try {
-      // Set status to running so dashboard shows live progress
-      monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
+    await runWithJobFileLogging('streamUrlRefresh', async () => {
+      try {
+        monitoringController.backgroundTaskStats.streamUrlRefresh.status = 'running';
 
-      logger.info('Running periodic stream URL refresh for favorites');
-      const result = await refreshService.refreshAllFavoriteStreamUrls();
-      logger.info('Periodic stream URL refresh completed', {
-        totalFavorites: result.totalFavorites,
-        usersProcessed: result.usersProcessed,
-        refreshed: result.refreshed,
-        retriedSuccesses: result.retriedSuccesses,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
-      if (result.errors.length > 0) {
-        logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+        logger.info('Running periodic stream URL refresh for favorites');
+        const result = await refreshService.refreshAllFavoriteStreamUrls();
+        logger.info('Periodic stream URL refresh completed', {
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          retriedSuccesses: result.retriedSuccesses,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+        if (result.errors.length > 0) {
+          logger.warn('Stream URL refresh had errors', { errors: result.errors.slice(0, 5) });
+        }
+        monitoringController.updateTaskStats('streamUrlRefresh', {
+          success: true,
+          totalFavorites: result.totalFavorites,
+          usersProcessed: result.usersProcessed,
+          refreshed: result.refreshed,
+          retriedSuccesses: result.retriedSuccesses,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during scheduled stream URL refresh', { error: error.message });
+        monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
       }
-      monitoringController.updateTaskStats('streamUrlRefresh', {
-        success: true,
-        totalFavorites: result.totalFavorites,
-        usersProcessed: result.usersProcessed,
-        refreshed: result.refreshed,
-        retriedSuccesses: result.retriedSuccesses,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
-    } catch (error) {
-      logger.error('Error during scheduled stream URL refresh', { error: error.message });
-      monitoringController.updateTaskStats('streamUrlRefresh', { success: false, error: error.message });
-    }
+    });
   }, refreshInterval);
 };
 
@@ -868,41 +880,43 @@ const startPeriodicDescriptionImageCache = () => {
     new Date(Date.now() + initialDelay).toISOString();
 
   const runJob = async (isInitial) => {
-    try {
-      monitoringController.backgroundTaskStats.descriptionImageCache.status = 'running';
-      logger.info(`Running ${isInitial ? 'initial' : 'periodic'} description/image cache job`);
+    await runWithJobFileLogging('descriptionImageCache', async () => {
+      try {
+        monitoringController.backgroundTaskStats.descriptionImageCache.status = 'running';
+        logger.info(`Running ${isInitial ? 'initial' : 'periodic'} description/image cache job`);
 
-      const result = await cacheService.runCacheJob();
+        const result = await cacheService.runCacheJob();
 
-      logger.info('Description/image cache job completed', {
-        totalSearches: result.totalSearches,
-        totalTorrents: result.totalTorrents,
-        imagesFound: result.imagesFound,
-        cached: result.cached,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
+        logger.info('Description/image cache job completed', {
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
 
-      if (result.errors.length > 0) {
-        logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+        if (result.errors.length > 0) {
+          logger.warn('Description/image cache job had errors', { errors: result.errors.slice(0, 5) });
+        }
+
+        monitoringController.updateTaskStats('descriptionImageCache', {
+          success: true,
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          imagesFound: result.imagesFound,
+          cached: result.cached,
+          skipped: result.skipped,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during description/image cache job', { error: error.message });
+        monitoringController.updateTaskStats('descriptionImageCache', {
+          success: false,
+          error: error.message,
+        });
       }
-
-      monitoringController.updateTaskStats('descriptionImageCache', {
-        success: true,
-        totalSearches: result.totalSearches,
-        totalTorrents: result.totalTorrents,
-        imagesFound: result.imagesFound,
-        cached: result.cached,
-        skipped: result.skipped,
-        failed: result.failed,
-      });
-    } catch (error) {
-      logger.error('Error during description/image cache job', { error: error.message });
-      monitoringController.updateTaskStats('descriptionImageCache', {
-        success: false,
-        error: error.message,
-      });
-    }
+    });
   };
 
   setTimeout(() => runJob(true), initialDelay);
@@ -935,50 +949,84 @@ const startPeriodicSearchResultsCache = () => {
     new Date(Date.now() + initialDelay).toISOString();
 
   const runJob = async (isInitial) => {
-    try {
-      monitoringController.backgroundTaskStats.searchResultsCache.status = 'running';
-      logger.info(`Running ${isInitial ? 'initial' : 'periodic'} filter stream URL cache job`);
+    await runWithJobFileLogging('searchResultsCache', async () => {
+      try {
+        monitoringController.backgroundTaskStats.searchResultsCache.status = 'running';
+        logger.info(`Running ${isInitial ? 'initial' : 'periodic'} filter stream URL cache job`);
 
-      const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
-      const result = await cacheService.runCacheJob();
+        const cacheService = new FilterStreamCacheService(storageProvider, refreshService, authService);
+        const result = await cacheService.runCacheJob();
 
-      logger.info('Filter stream URL cache job completed', {
-        totalSearches: result.totalSearches,
-        totalTorrents: result.totalTorrents,
-        uniqueMagnets: result.uniqueMagnets,
-        usersProcessed: result.usersProcessed,
-        alreadyCached: result.alreadyCached,
-        refreshed: result.refreshed,
-        failed: result.failed,
-      });
+        logger.info('Filter stream URL cache job completed', {
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          uniqueMagnets: result.uniqueMagnets,
+          usersProcessed: result.usersProcessed,
+          alreadyCached: result.alreadyCached,
+          refreshed: result.refreshed,
+          failed: result.failed,
+        });
 
-      if (result.errors.length > 0) {
-        logger.warn('Filter stream cache job had errors', { errors: result.errors.slice(0, 5) });
+        if (result.errors.length > 0) {
+          logger.warn('Filter stream cache job had errors', { errors: result.errors.slice(0, 5) });
+        }
+
+        monitoringController.updateTaskStats('searchResultsCache', {
+          success: true,
+          totalSearches: result.totalSearches,
+          totalTorrents: result.totalTorrents,
+          uniqueMagnets: result.uniqueMagnets,
+          usersProcessed: result.usersProcessed,
+          usersSkipped: result.usersSkipped,
+          alreadyCached: result.alreadyCached,
+          refreshed: result.refreshed,
+          noMagnet: result.noMagnet,
+          failed: result.failed,
+        });
+      } catch (error) {
+        logger.error('Error during filter stream cache job', { error: error.message });
+        monitoringController.updateTaskStats('searchResultsCache', {
+          success: false,
+          error: error.message,
+        });
       }
-
-      monitoringController.updateTaskStats('searchResultsCache', {
-        success: true,
-        totalSearches: result.totalSearches,
-        totalTorrents: result.totalTorrents,
-        uniqueMagnets: result.uniqueMagnets,
-        usersProcessed: result.usersProcessed,
-        usersSkipped: result.usersSkipped,
-        alreadyCached: result.alreadyCached,
-        refreshed: result.refreshed,
-        noMagnet: result.noMagnet,
-        failed: result.failed,
-      });
-    } catch (error) {
-      logger.error('Error during filter stream cache job', { error: error.message });
-      monitoringController.updateTaskStats('searchResultsCache', {
-        success: false,
-        error: error.message,
-      });
-    }
+    });
   };
 
   setTimeout(() => runJob(true), initialDelay);
   setInterval(() => runJob(false), refreshInterval);
+};
+
+// Compress idle job .log files and delete logs older than retention (see config.logging)
+const startPeriodicJobLogMaintenance = () => {
+  const { runMaintenance } = require('./services/backgroundJobLogMaintenance');
+  const intervalMs = config.logging.backgroundJobLogMaintenanceIntervalMs;
+  const initialDelay = config.logging.backgroundJobLogMaintenanceInitialDelayMs;
+
+  logger.info('Scheduling background job log maintenance', {
+    initialDelayMinutes: initialDelay / 60000,
+    intervalHours: intervalMs / (60 * 60 * 1000),
+    retentionDays: config.logging.backgroundJobLogRetentionDays,
+    compressAfterHours: (config.logging.backgroundJobLogCompressAfterMs || 0) / (60 * 60 * 1000),
+  });
+
+  const tick = async () => {
+    try {
+      await runWithJobFileLogging('jobLogMaintenance', async () => {
+        const result = await runMaintenance();
+        logger.info('Scheduled job log maintenance finished', result);
+      });
+    } catch (error) {
+      logger.error('Job log maintenance scheduler error', { error: error.message });
+    }
+  };
+
+  setTimeout(() => {
+    tick();
+  }, initialDelay);
+  setInterval(() => {
+    tick();
+  }, intervalMs);
 };
 
 module.exports = app;

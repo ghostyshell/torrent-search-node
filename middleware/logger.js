@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { config } = require('../config/environment');
+const jobLogContext = require('../services/jobLogContext');
 
 class Logger {
   constructor() {
@@ -43,6 +44,15 @@ class Logger {
    * Write log to console and/or file
    */
   writeLog(level, formattedMessage) {
+    const jobSink = jobLogContext.getSink();
+    if (jobSink) {
+      try {
+        jobSink.appendRaw(formattedMessage + '\n');
+      } catch {
+        // avoid breaking primary logging
+      }
+    }
+
     // Console output
     if (this.enableConsole) {
       switch (level) {

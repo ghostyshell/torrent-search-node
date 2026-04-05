@@ -70,6 +70,32 @@ const config = {
     enableConsole: false,
     enableFile: true,
     logDir: path.join(__dirname, '..', 'logs'),
+    /** Subfolder layout: background-jobs/{version}/{jobName}/{YYYY-MM-DD}/{runId}.log */
+    backgroundJobsLogVersion: process.env.BACKGROUND_JOBS_LOG_VERSION || 'v1',
+    backgroundJobLogRetentionDays: Math.max(
+      1,
+      parseInt(process.env.BACKGROUND_JOB_LOG_RETENTION_DAYS || '30', 10) || 30
+    ),
+    /** Only gzip .log files idle at least this long (avoids compressing an active run) */
+    backgroundJobLogCompressAfterMs: Math.max(
+      60 * 1000,
+      parseInt(
+        process.env.BACKGROUND_JOB_LOG_COMPRESS_AFTER_MS || String(6 * 60 * 60 * 1000),
+        10
+      ) || 6 * 60 * 60 * 1000
+    ),
+    backgroundJobLogMaintenanceIntervalMs: Math.max(
+      60 * 60 * 1000,
+      parseInt(
+        process.env.BACKGROUND_JOB_LOG_MAINTENANCE_INTERVAL_MS || String(24 * 60 * 60 * 1000),
+        10
+      ) || 24 * 60 * 60 * 1000
+    ),
+    backgroundJobLogMaintenanceInitialDelayMs: Math.max(
+      5 * 60 * 1000,
+      parseInt(process.env.BACKGROUND_JOB_LOG_MAINTENANCE_INITIAL_DELAY_MS || String(15 * 60 * 1000), 10) ||
+        15 * 60 * 1000
+    ),
   },
 
   // Health check configuration

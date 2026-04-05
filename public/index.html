@@ -504,6 +504,37 @@
             </div>
         </div>
 
+        <!-- Persistent background job files (NDJSON per run under logs/background-jobs/) -->
+        <div class="card full-width">
+            <div class="card-title">Background job files (persistent)</div>
+            <p style="font-size: 12px; opacity: 0.85; margin: 0 0 10px 0;">
+                Each scheduled/manual job run writes <code>logs/background-jobs/v1/&lt;job&gt;/&lt;date&gt;/&lt;runId&gt;.log</code>.
+                Maintenance gzips idle logs and deletes files older than 30 days (configurable via env).
+            </p>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center;">
+                <button class="btn" type="button" onclick="fetchJobLogList()">Refresh file list</button>
+                <button class="btn" type="button" onclick="triggerJobLogMaintenanceUi()">Run maintenance now</button>
+                <input type="text" id="jobLogSearchQ" placeholder="Search substring…" style="flex: 1; min-width: 160px; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0;">
+                <select id="jobLogSearchJob" style="padding: 6px; border-radius: 6px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;">
+                    <option value="">All jobs</option>
+                    <option value="storageCleanup">storageCleanup</option>
+                    <option value="streamUrlRefresh">streamUrlRefresh</option>
+                    <option value="descriptionImageCache">descriptionImageCache</option>
+                    <option value="searchResultsCache">searchResultsCache</option>
+                    <option value="jobLogMaintenance">jobLogMaintenance</option>
+                </select>
+                <button class="btn" type="button" onclick="searchJobLogFiles()">Search</button>
+            </div>
+            <div id="jobLogListMeta" style="font-size: 12px; margin-bottom: 8px; color: #94a3b8;"></div>
+            <div class="logs-container" id="jobLogListContainer" style="max-height: 220px;">
+                <div class="loading">Click “Refresh file list”</div>
+            </div>
+            <div class="card-title" style="margin-top: 16px; font-size: 14px;">Search hits</div>
+            <div class="logs-container" id="jobLogSearchContainer" style="max-height: 240px;">
+                <div class="loading">No search yet</div>
+            </div>
+        </div>
+
         <!-- Logs -->
         <div class="card full-width">
             <div class="card-title">Application Logs</div>
@@ -706,9 +737,88 @@
                 storageCleanup: 'Storage Cleanup',
                 tokenRefresh: 'Token Refresh',
                 streamUrlRefresh: 'Stream URL Refresh',
-                descriptionImageCache: 'Description & Image Cache'
+                descriptionImageCache: 'Description & Image Cache',
+                searchResultsCache: 'Filter stream URL cache',
+                jobLogMaintenance: 'Job log maintenance'
             };
             return names[name] || name;
+        }
+
+        async function fetchJobLogList() {
+            const el = document.getElementById('jobLogListContainer');
+            const meta = document.getElementById('jobLogListMeta');
+            el.innerHTML = '<div class="loading">Loading…</div>';
+            try {
+                const res = await fetch('/api/monitoring/job-logs/list');
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                meta.textContent = `logVersion=${data.logVersion} · ${data.count} file(s) · root: ${data.root}`;
+                if (!data.files.length) {
+                    el.innerHTML = '<div class="loading">No job log files yet</div>';
+                    return;
+                }
+                el.innerHTML = data.files.slice(0, 80).map(f => {
+                    const q = new URLSearchParams({ job: f.job, date: f.date, name: f.name });
+                    const streamUrl = `/api/monitoring/job-logs/file?${q}&mode=stream`;
+                    const matUrl = f.compressed
+                        ? `/api/monitoring/job-logs/file?${q}&mode=materialize`
+                        : null;
+                    return `<div class="log-line" style="font-size: 12px; margin-bottom: 6px;">
+                        <span class="log-timestamp">${f.mtime}</span>
+                        <strong>${f.job}</strong> / ${f.date} / ${f.name}
+                        ${f.compressed ? ' <span style="color:#94a3b8">(gzip)</span>' : ''}
+                        · <a href="${streamUrl}" target="_blank" rel="noopener">Open (stream${f.compressed ? ' gunzip' : ''})</a>
+                        ${matUrl ? ` · <a href="${matUrl}" target="_blank" rel="noopener">Download (temp decompress)</a>` : ''}
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                el.innerHTML = `<div class="error-message">${e.message}</div>`;
+            }
+        }
+
+        async function searchJobLogFiles() {
+            const q = document.getElementById('jobLogSearchQ').value.trim();
+            const job = document.getElementById('jobLogSearchJob').value;
+            const el = document.getElementById('jobLogSearchContainer');
+            if (!q) {
+                el.innerHTML = '<div class="loading">Enter a search string</div>';
+                return;
+            }
+            el.innerHTML = '<div class="loading">Searching…</div>';
+            try {
+                const params = new URLSearchParams({ q, limit: '200', includeCompressed: 'true' });
+                if (job) params.set('job', job);
+                const res = await fetch('/api/monitoring/job-logs/search?' + params.toString());
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                if (!data.matches.length) {
+                    el.innerHTML = '<div class="loading">No matches</div>';
+                    return;
+                }
+                el.innerHTML = data.matches.map(m => `
+                    <div class="log-line" style="font-size: 11px; margin-bottom: 8px; word-break: break-all;">
+                        <div style="color:#94a3b8;margin-bottom:4px;">${m.file}</div>
+                        <div>${escapeHtml(m.line)}</div>
+                    </div>
+                `).join('') + (data.truncated ? '<div style="margin-top:8px;color:#fbbf24;">Truncated at limit</div>' : '');
+            } catch (e) {
+                el.innerHTML = `<div class="error-message">${e.message}</div>`;
+            }
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        async function triggerJobLogMaintenanceUi() {
+            try {
+                const res = await fetch('/api/monitoring/job-logs/maintenance', { method: 'POST' });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                alert(data.message || 'Started');
+            } catch (e) {
+                alert('Failed: ' + e.message);
+            }
         }
 
         function showError(message) {

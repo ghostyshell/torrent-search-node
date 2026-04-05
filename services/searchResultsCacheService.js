@@ -13,6 +13,9 @@ const { STUDIOS } = require('./studioSearchTerms');
  *
  * Scrapes filter pages once, then processes every user's RD account
  * against the collected magnets.
+ *
+ * For each magnet, always calls Real-Debrid refresh (same as the favorites stream
+ * URL job), even when a row exists in stream_urls — stored links may be expired.
  */
 
 const PIRATEBAY_CATEGORY = '507'; // Porn HD
@@ -209,26 +212,17 @@ class FilterStreamCacheService {
   // ─── per-user processing ───────────────────────────────────────
 
   async processUserMagnets(magnets, apiKey, results) {
-    for (const { magnetLink, magnetHash, torrentName } of magnets) {
-      // Skip if already cached
-      try {
-        const existing = await this.storage.streamUrls.getStreamUrlByHash(magnetHash);
-        if (existing) {
-          results.alreadyCached++;
-          continue;
-        }
-      } catch {
-        // check failed — try to refresh anyway
-      }
-
+    for (const { magnetLink, torrentName } of magnets) {
       const shortName = torrentName.substring(0, 60);
 
       try {
+        // Always refresh via RD (like favorites job). Do not skip when stream_urls
+        // has a row — the URL may be expired; setStreamUrl replaces the row on success.
         const result = await this.refreshService.refreshStreamUrl(magnetLink, apiKey, torrentName);
 
         if (result.success) {
           results.refreshed++;
-          logger.info(`✅ [FilterStreamCache] Cached: ${shortName}`);
+          logger.info(`✅ [FilterStreamCache] Refreshed: ${shortName}`);
         } else if (result.skipped) {
           results.alreadyCached++;
         } else {

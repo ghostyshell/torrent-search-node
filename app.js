@@ -942,7 +942,7 @@ const startPeriodicSearchResultsCache = () => {
 
   logger.info('Starting periodic filter stream URL cache job', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
-    note: 'Pre-caches Real-Debrid stream URLs for browse (507, 6 pages) + trans search (2 pages) + 2 pages per studio filter',
+    note: 'Refreshes RD stream URLs for browse (507, 6 pages) + trans (2 pages) + 2 pages per studio — always re-fetches (expired URLs replaced)',
   });
 
   monitoringController.backgroundTaskStats.searchResultsCache.nextRun =

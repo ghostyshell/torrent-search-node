@@ -770,7 +770,7 @@ const startPeriodicStreamUrlRefresh = () => {
     note: 'Refreshes Real-Debrid stream URLs for all favorites with magnet links',
   });
 
-  // Initialize next run time (first run after 5 minutes)
+  // Align monitoring nextRun with the initial setTimeout below (same initialDelay)
   monitoringController.backgroundTaskStats.streamUrlRefresh.nextRun = new Date(Date.now() + initialDelay).toISOString();
 
   // Run initial refresh after 70 seconds to let server fully initialize

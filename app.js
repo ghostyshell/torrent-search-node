@@ -861,7 +861,7 @@ const startPeriodicDescriptionImageCache = () => {
 
   logger.info('Starting periodic description/image cache job', {
     intervalHours: intervalMs / (60 * 60 * 1000),
-    note: 'Caches cover images for piratebay Porn HD: home page + all studios',
+    note: 'Caches cover images for piratebay Porn HD: browse homepage (6 pages) + xxx search + studios',
   });
 
   monitoringController.backgroundTaskStats.descriptionImageCache.nextRun =

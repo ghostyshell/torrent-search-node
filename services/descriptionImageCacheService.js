@@ -12,7 +12,9 @@ const STUDIOS = [
 ];
 
 const PIRATEBAY_CATEGORY = '507'; // Porn HD
-const PIRATEBAY_SORT = '7';       // Seeders desc
+const PIRATEBAY_SORT = '7';       // Seeders desc (search)
+const BROWSE_SORT = '3';          // Date desc — /browse/507/{page}/3 (UI homepage)
+const PAGES_BROWSE_HOME = 6;
 const HOME_QUERY = 'xxx';
 const PAGES_TO_CACHE = 5;
 const MAX_ERRORS = 30;
@@ -23,7 +25,7 @@ class DescriptionImageCacheService {
   }
 
   /**
-   * Main cache job: home page + all studio pages
+   * Main cache job: browse homepage (6 pages) + "xxx" search + all studio pages
    * @param {Object} options
    * @param {boolean} options.forceRefresh - If true, replace existing covers
    */
@@ -43,13 +45,21 @@ class DescriptionImageCacheService {
 
     logger.info(`🖼️ [DescImageCache] Starting description/image cache job${this.forceRefresh ? ' (FORCE REFRESH)' : ''}`);
 
-    // 1. Home page "xxx" query — pages 1-5
+    // 1. Browse homepage — same listing as UI when no search (thehiddenbay.com/browse/507/{page}/3)
+    logger.info(
+      `🔍 [DescImageCache] Processing browse homepage category ${PIRATEBAY_CATEGORY} sort ${BROWSE_SORT} (${PAGES_BROWSE_HOME} pages)`
+    );
+    for (let page = 1; page <= PAGES_BROWSE_HOME; page++) {
+      await this.processBrowsePage(page, results);
+    }
+
+    // 2. Home page "xxx" query — pages 1-5
     logger.info(`🔍 [DescImageCache] Processing home query "${HOME_QUERY}" (${PAGES_TO_CACHE} pages)`);
     for (let page = 1; page <= PAGES_TO_CACHE; page++) {
       await this.processSearchPage(HOME_QUERY, page, results);
     }
 
-    // 2. Each studio — pages 1-5 (empty base query, studio as the search term)
+    // 3. Each studio — pages 1-5 (empty base query, studio as the search term)
     for (const studio of STUDIOS) {
       logger.info(`🎬 [DescImageCache] Processing studio "${studio}" (${PAGES_TO_CACHE} pages)`);
       for (let page = 1; page <= PAGES_TO_CACHE; page++) {
@@ -72,6 +82,42 @@ class DescriptionImageCacheService {
     });
 
     return results;
+  }
+
+  /**
+   * Fetch one browse page (homepage listing) and process each torrent
+   */
+  async processBrowsePage(page, results) {
+    results.totalSearches++;
+    try {
+      const torrents = await pirateBay.browse(
+        PIRATEBAY_CATEGORY,
+        String(page),
+        BROWSE_SORT,
+        {}
+      );
+
+      if (!torrents || torrents.length === 0) {
+        logger.info(`[DescImageCache] No browse results page ${page}`);
+        return;
+      }
+
+      logger.info(
+        `[DescImageCache] browse/${PIRATEBAY_CATEGORY}/${page}/${BROWSE_SORT}: ${torrents.length} torrents`
+      );
+      results.totalTorrents += torrents.length;
+
+      for (const torrent of torrents) {
+        await this.processTorrent(torrent, results);
+        await this.sleep(1000);
+      }
+
+      await this.sleep(500);
+    } catch (err) {
+      results.failed++;
+      this.pushError(results, { browse: true, page, error: err.message });
+      logger.warn(`⚠️ [DescImageCache] Browse failed page ${page}`, { error: err.message });
+    }
   }
 
   /**

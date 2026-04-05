@@ -523,15 +523,22 @@
                     <option value="searchResultsCache">searchResultsCache</option>
                     <option value="jobLogMaintenance">jobLogMaintenance</option>
                 </select>
-                <button class="btn" type="button" onclick="searchJobLogFiles()">Search</button>
+                <select id="jobLogSearchSort" title="File order by modified time; within each file, desc shows last matching lines first" style="padding: 6px; border-radius: 6px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;">
+                    <option value="desc" selected>Newest first (desc)</option>
+                    <option value="asc">Oldest first (asc)</option>
+                </select>
+                <button class="btn" type="button" onclick="searchJobLogFiles(true)">Search</button>
             </div>
             <div id="jobLogListMeta" style="font-size: 12px; margin-bottom: 8px; color: #94a3b8;"></div>
             <div class="logs-container" id="jobLogListContainer" style="max-height: 220px;">
                 <div class="loading">Click “Refresh file list”</div>
             </div>
             <div class="card-title" style="margin-top: 16px; font-size: 14px;">Search hits</div>
-            <div class="logs-container" id="jobLogSearchContainer" style="max-height: 240px;">
-                <div class="loading">No search yet</div>
+            <div class="logs-container" id="jobLogSearchScroll" style="max-height: 360px; overflow-y: auto; position: relative;">
+                <div id="jobLogSearchMeta" style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">No search yet</div>
+                <div id="jobLogSearchResults"></div>
+                <div id="jobLogSearchSentinel" style="height: 32px; margin-top: 8px;"></div>
+                <button type="button" class="btn" id="jobLogLoadMoreBtn" style="display: none; margin-top: 4px;">Load more</button>
             </div>
         </div>
 
@@ -776,35 +783,154 @@
             }
         }
 
-        async function searchJobLogFiles() {
+        const jobLogSearchPage = {
+            q: '',
+            job: '',
+            sort: 'desc',
+            nextOffset: 0,
+            hasMore: false,
+            loading: false,
+            observer: null,
+        };
+
+        function jobLogDisconnectObserver() {
+            if (jobLogSearchPage.observer) {
+                jobLogSearchPage.observer.disconnect();
+                jobLogSearchPage.observer = null;
+            }
+        }
+
+        function jobLogEnsureObserver() {
+            const root = document.getElementById('jobLogSearchScroll');
+            const sentinel = document.getElementById('jobLogSearchSentinel');
+            if (!root || !sentinel) return;
+            jobLogDisconnectObserver();
+            jobLogSearchPage.observer = new IntersectionObserver(
+                (entries) => {
+                    const hit = entries[0];
+                    if (!hit || !hit.isIntersecting) return;
+                    if (!jobLogSearchPage.hasMore || jobLogSearchPage.loading) return;
+                    searchJobLogFiles(false);
+                },
+                { root, rootMargin: '120px', threshold: 0 }
+            );
+            jobLogSearchPage.observer.observe(sentinel);
+        }
+
+        function jobLogAppendMatch(m) {
+            const wrap = document.createElement('div');
+            wrap.className = 'log-line';
+            wrap.style.cssText = 'font-size: 11px; margin-bottom: 8px; word-break: break-all;';
+            const pathEl = document.createElement('div');
+            pathEl.style.cssText = 'color:#94a3b8;margin-bottom:4px;';
+            pathEl.textContent = m.file;
+            const lineEl = document.createElement('div');
+            lineEl.textContent = m.line;
+            wrap.appendChild(pathEl);
+            wrap.appendChild(lineEl);
+            document.getElementById('jobLogSearchResults').appendChild(wrap);
+        }
+
+        async function searchJobLogFiles(reset) {
             const q = document.getElementById('jobLogSearchQ').value.trim();
             const job = document.getElementById('jobLogSearchJob').value;
-            const el = document.getElementById('jobLogSearchContainer');
+            const sort = document.getElementById('jobLogSearchSort').value === 'asc' ? 'asc' : 'desc';
+            const meta = document.getElementById('jobLogSearchMeta');
+            const resultsEl = document.getElementById('jobLogSearchResults');
+            const loadBtn = document.getElementById('jobLogLoadMoreBtn');
+
             if (!q) {
-                el.innerHTML = '<div class="loading">Enter a search string</div>';
+                jobLogDisconnectObserver();
+                meta.textContent = 'Enter a search string';
+                resultsEl.innerHTML = '';
+                loadBtn.style.display = 'none';
                 return;
             }
-            el.innerHTML = '<div class="loading">Searching…</div>';
+
+            if (reset) {
+                jobLogDisconnectObserver();
+                jobLogSearchPage.q = q;
+                jobLogSearchPage.job = job;
+                jobLogSearchPage.sort = sort;
+                jobLogSearchPage.nextOffset = 0;
+                jobLogSearchPage.hasMore = false;
+                resultsEl.innerHTML = '';
+                meta.textContent = 'Searching…';
+            } else {
+                if (
+                    q !== jobLogSearchPage.q ||
+                    job !== jobLogSearchPage.job ||
+                    sort !== jobLogSearchPage.sort
+                ) {
+                    return searchJobLogFiles(true);
+                }
+                if (!jobLogSearchPage.hasMore || jobLogSearchPage.loading) return;
+            }
+
+            jobLogSearchPage.loading = true;
+            loadBtn.disabled = true;
+            loadBtn.textContent = 'Loading…';
+
             try {
-                const params = new URLSearchParams({ q, limit: '200', includeCompressed: 'true' });
+                const params = new URLSearchParams({
+                    q,
+                    limit: '50',
+                    offset: String(jobLogSearchPage.nextOffset),
+                    sort,
+                    includeCompressed: 'true',
+                });
                 if (job) params.set('job', job);
                 const res = await fetch('/api/monitoring/job-logs/search?' + params.toString());
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
-                if (!data.matches.length) {
-                    el.innerHTML = '<div class="loading">No matches</div>';
+
+                if (reset && !data.matches.length) {
+                    meta.textContent = 'No matches';
+                    loadBtn.style.display = 'none';
                     return;
                 }
-                el.innerHTML = data.matches.map(m => `
-                    <div class="log-line" style="font-size: 11px; margin-bottom: 8px; word-break: break-all;">
-                        <div style="color:#94a3b8;margin-bottom:4px;">${m.file}</div>
-                        <div>${escapeHtml(m.line)}</div>
-                    </div>
-                `).join('') + (data.truncated ? '<div style="margin-top:8px;color:#fbbf24;">Truncated at limit</div>' : '');
+
+                data.matches.forEach(jobLogAppendMatch);
+
+                jobLogSearchPage.nextOffset = data.nextOffset;
+                jobLogSearchPage.hasMore = !!data.hasMore;
+
+                const sortLabel = sort === 'desc' ? 'newest first' : 'oldest first';
+                meta.textContent =
+                    `Showing ${jobLogSearchPage.nextOffset} hit(s) · sort: ${sortLabel}` +
+                    (jobLogSearchPage.hasMore ? ' · scroll down or use “Load more” for next page' : ' · end of results');
+
+                loadBtn.style.display = jobLogSearchPage.hasMore ? 'inline-block' : 'none';
+                loadBtn.disabled = false;
+                loadBtn.textContent = 'Load more';
+
+                if (jobLogSearchPage.hasMore) {
+                    jobLogEnsureObserver();
+                } else {
+                    jobLogDisconnectObserver();
+                }
             } catch (e) {
-                el.innerHTML = `<div class="error-message">${e.message}</div>`;
+                meta.textContent = 'Error: ' + e.message;
+                loadBtn.style.display = 'none';
+                jobLogDisconnectObserver();
+            } finally {
+                jobLogSearchPage.loading = false;
+                loadBtn.disabled = false;
+                if (jobLogSearchPage.hasMore) loadBtn.textContent = 'Load more';
             }
         }
+
+        (function initJobLogSearchUi() {
+            const loadBtn = document.getElementById('jobLogLoadMoreBtn');
+            if (loadBtn) loadBtn.addEventListener('click', () => searchJobLogFiles(false));
+            const sortEl = document.getElementById('jobLogSearchSort');
+            if (sortEl) {
+                sortEl.addEventListener('change', () => {
+                    const qv = document.getElementById('jobLogSearchQ').value.trim();
+                    if (qv) searchJobLogFiles(true);
+                });
+            }
+        })();
 
         function escapeHtml(s) {
             return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

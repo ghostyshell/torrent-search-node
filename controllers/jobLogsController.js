@@ -167,7 +167,10 @@ function collectLogFiles(root, { job, dateFrom, dateTo, includeCompressed }) {
 }
 
 /**
- * GET /api/monitoring/job-logs/search?q=&job=&dateFrom=&dateTo=&includeCompressed=&limit=
+ * GET /api/monitoring/job-logs/search
+ *   q (required), job?, dateFrom?, dateTo?, includeCompressed?,
+ *   offset (default 0), limit (default 50, max 200),
+ *   sort=desc|asc — file order by mtime; desc also reverses hits within each file (newer lines first). Default desc.
  */
 const searchJobLogs = async (req, res) => {
   try {
@@ -176,7 +179,9 @@ const searchJobLogs = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Query parameter q is required' });
     }
 
-    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 2000);
+    const sort = req.query.sort === 'asc' ? 'asc' : 'desc';
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 50), 200);
     const job = req.query.job || null;
     const dateFrom = req.query.dateFrom || null;
     const dateTo = req.query.dateTo || null;
@@ -191,32 +196,63 @@ const searchJobLogs = async (req, res) => {
     }
 
     const root = getJobsRoot();
-    const paths = collectLogFiles(root, { job, dateFrom, dateTo, includeCompressed });
+    let paths = collectLogFiles(root, { job, dateFrom, dateTo, includeCompressed });
+
+    paths = paths
+      .map((p) => {
+        try {
+          return { p, mtime: fs.statSync(p).mtimeMs };
+        } catch {
+          return { p, mtime: 0 };
+        }
+      })
+      .sort((a, b) => (sort === 'desc' ? b.mtime - a.mtime : a.mtime - b.mtime))
+      .map((x) => x.p);
+
     const needle = q.toLowerCase();
     const matches = [];
+    let skipped = 0;
 
     outer: for (const filePath of paths) {
+      const fileHits = [];
       try {
         for await (const line of eachLineOfLogFile(filePath)) {
           if (line.toLowerCase().includes(needle)) {
-            const rel = path.relative(root, filePath);
-            matches.push({
-              file: rel.split(path.sep).join('/'),
-              line,
-            });
-            if (matches.length >= limit) break outer;
+            fileHits.push(line);
           }
         }
       } catch {
         // skip unreadable / corrupt gzip
+        continue;
+      }
+
+      const ordered = sort === 'desc' ? [...fileHits].reverse() : fileHits;
+      const rel = path.relative(root, filePath).split(path.sep).join('/');
+
+      for (const line of ordered) {
+        if (skipped < offset) {
+          skipped++;
+          continue;
+        }
+        if (matches.length >= limit) {
+          break outer;
+        }
+        matches.push({ file: rel, line });
       }
     }
+
+    const nextOffset = offset + matches.length;
+    const hasMore = matches.length === limit;
 
     res.json({
       success: true,
       query: q,
-      matchCount: matches.length,
-      truncated: matches.length >= limit,
+      sort,
+      offset,
+      limit,
+      returned: matches.length,
+      nextOffset,
+      hasMore,
       matches,
     });
   } catch (error) {

@@ -2,14 +2,7 @@ const pirateBay = require('./scrapers/pirateBay');
 const pixhostService = require('./pixhostService');
 const logger = require('../middleware/logger');
 const fetch = require('node-fetch');
-
-const STUDIOS = [
-  'OnlyFans', 'Vixen', 'PureMature', 'Evil Angel', 'Bang Rammed',
-  'Bang PrettyAndRaw', 'BigTitCreampie', 'Wifey', 'BangBros', 'Blacked',
-  'BrazzersExxtra', 'MyFriendsHotMom', 'DeepLush', 'Milfy', 'Lubed',
-  'GenderX', 'DigitalPlayground', 'AssParade', 'Tushy', 'TushyRaw',
-  'SexArt', 'BlacksOnBlondes', 'XVideosRED',
-];
+const { STUDIOS } = require('./studioSearchTerms');
 
 const PIRATEBAY_CATEGORY = '507'; // Porn HD
 const PIRATEBAY_SORT = '7';       // Seeders desc (search)
@@ -59,13 +52,12 @@ class DescriptionImageCacheService {
       await this.processSearchPage(HOME_QUERY, page, results);
     }
 
-    // 3. Each studio — pages 1-5 (empty base query, studio as the search term)
+    // 3. Each studio — pages 1-5 (Porn HD / 507, same as home query)
     for (const studio of STUDIOS) {
       logger.info(`🎬 [DescImageCache] Processing studio "${studio}" (${PAGES_TO_CACHE} pages)`);
       for (let page = 1; page <= PAGES_TO_CACHE; page++) {
         await this.processSearchPage(studio, page, results);
       }
-      // Clear pixhost upload cache between studios to prevent memory buildup
       pixhostService.clearCache();
     }
 
@@ -141,10 +133,10 @@ class DescriptionImageCacheService {
 
       for (const torrent of torrents) {
         await this.processTorrent(torrent, results);
-        await this.sleep(1000); // match frontend's 1000ms delay between torrents
+        await this.sleep(1000);
       }
 
-      await this.sleep(500); // extra pause between pages
+      await this.sleep(500);
     } catch (err) {
       results.failed++;
       this.pushError(results, { query, page, error: err.message });

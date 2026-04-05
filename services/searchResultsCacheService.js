@@ -1,5 +1,6 @@
 const pirateBay = require('./scrapers/pirateBay');
 const logger = require('../middleware/logger');
+const { STUDIOS } = require('./studioSearchTerms');
 
 /**
  * Background job that pre-caches Real-Debrid stream URLs for torrents
@@ -12,14 +13,6 @@ const logger = require('../middleware/logger');
  * Scrapes filter pages once, then processes every user's RD account
  * against the collected magnets.
  */
-
-const STUDIOS = [
-  'OnlyFans', 'Vixen', 'PureMature', 'Evil Angel', 'Bang Rammed',
-  'Bang PrettyAndRaw', 'BigTitCreampie', 'Wifey', 'BangBros', 'Blacked',
-  'BrazzersExxtra', 'MyFriendsHotMom', 'DeepLush', 'Milfy', 'Lubed',
-  'GenderX', 'DigitalPlayground', 'AssParade', 'Tushy', 'TushyRaw',
-  'SexArt', 'BlacksOnBlondes', 'XVideosRED',
-];
 
 const PIRATEBAY_CATEGORY = '507'; // Porn HD
 const PIRATEBAY_SORT = '7';       // Seeders desc (studio searches)
@@ -199,7 +192,7 @@ class FilterStreamCacheService {
     // Homepage browse (thehiddenbay.com/browse/507/{page}/3)
     for (let p = 1; p <= PAGES_BROWSE_HOME; p++) await addBrowsePage(p);
 
-    // Studios
+    // Studio name searches — Porn HD (507), same as other pirateBay jobs here
     for (const studio of STUDIOS) {
       for (let p = 1; p <= PAGES_TO_CACHE; p++) await addPage(studio, p);
     }

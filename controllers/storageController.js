@@ -217,6 +217,87 @@ const storageController = {
     }
   },
 
+  // Deep refresh: re-runs the full StreamUrlRefreshService flow for one magnet
+  // (add → poll → unrestrict → HEAD-validate, with retry that deletes the
+  // stale RD torrent and re-adds the magnet on transient failure).
+  // Used by the frontend regen path so a single bad RD torrent can self-heal
+  // instead of falling into a loop of fresh-but-still-dead /unrestrict URLs.
+  refreshStreamUrl: async (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+    );
+
+    const storage = req.app.locals.cache;
+    if (!storage) {
+      return res.status(503).json({
+        success: false,
+        error: 'Storage not available',
+      });
+    }
+
+    const authHeader = req.headers.authorization || '';
+    const apiKey = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : '';
+    if (!apiKey) {
+      return res.status(401).json({
+        success: false,
+        error: 'Real-Debrid API key required in Authorization header',
+      });
+    }
+
+    const { magnetLink, torrentName } = req.body || {};
+    if (!magnetLink || typeof magnetLink !== 'string' || !magnetLink.startsWith('magnet:')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing or invalid magnetLink',
+      });
+    }
+
+    try {
+      const StreamUrlRefreshService = require('../services/streamUrlRefreshService');
+      // authService stub: refreshStreamUrl path doesn't use it (it only consumes
+      // the apiKey we pass through), so a no-op object is enough.
+      const refreshService = new StreamUrlRefreshService(storage, {});
+
+      const result = await refreshService.refreshStreamUrl(
+        magnetLink,
+        apiKey,
+        torrentName || 'Unknown'
+      );
+
+      if (!result.success) {
+        return res.status(502).json({
+          success: false,
+          error: result.error || 'Refresh failed',
+        });
+      }
+
+      // Refresh service writes through storage.setStreamUrl, so read it back
+      // to return the freshly cached URL to the caller.
+      const cached = await storage.getStreamUrl(magnetLink);
+      if (!cached) {
+        return res.status(500).json({
+          success: false,
+          error: 'Refresh reported success but cache read returned empty',
+        });
+      }
+
+      return res.json({
+        success: true,
+        ...cached,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to refresh stream URL',
+        message: error.message,
+      });
+    }
+  },
+
   // Add stored link
   addStoredLink: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -972,6 +1053,7 @@ module.exports = {
   getCoverImage: storageController.getCoverImage,
   storeStreamUrl: storageController.storeStreamUrl,
   getStreamUrl: storageController.getStreamUrl,
+  refreshStreamUrl: storageController.refreshStreamUrl,
   addCachedLink: storageController.addStoredLink,
   getCachedLinks: storageController.getStoredLinks,
   removeCachedLink: storageController.removeStoredLink,

@@ -162,6 +162,7 @@ app.post(
 );
 app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
 app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
+app.post('/api/cache/stream-url/refresh', cacheController.refreshStreamUrl);
 app.post('/api/cache/magnet', cacheController.storeMagnetLink);
 app.get('/api/cache/magnet', cacheController.getMagnetLink);
 // Note: Cached links routes moved to startServer() for proper auth middleware
@@ -366,6 +367,10 @@ async function startServer() {
     app.get(
       '/api/storage/stream-url/:magnetHash',
       cacheController.getStreamUrl
+    );
+    app.post(
+      '/api/storage/stream-url/refresh',
+      cacheController.refreshStreamUrl
     );
     app.post('/api/storage/cover-image', cacheController.storeCoverImage);
     app.get(
@@ -581,6 +586,10 @@ async function startServer() {
     app.get(
       '/api/storage/stream-url/:magnetHash',
       cacheController.getStreamUrl
+    );
+    app.post(
+      '/api/storage/stream-url/refresh',
+      cacheController.refreshStreamUrl
     );
     app.post('/api/storage/cover-image', cacheController.storeCoverImage);
     app.get(

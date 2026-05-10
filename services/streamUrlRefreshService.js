@@ -442,6 +442,19 @@ class StreamUrlRefreshService {
         return { success: false, error: 'Failed to unrestrict link' };
       }
 
+      // Probe the unrestricted URL before caching. RD's /unrestrict can return a URL
+      // even when the underlying file is dead on the host — without this check we
+      // happily cache a 403/404 and the user sees code 4 in the player.
+      const validation = await this.validateStreamUrl(unrestrictResponse.download);
+      if (!validation.ok) {
+        return {
+          success: false,
+          // Marked as a transient-style error so the retry loop in refreshStreamUrl
+          // re-adds the magnet from scratch on the next attempt.
+          error: `Failed to unrestrict link: validation returned ${validation.status || validation.error || 'unknown'}`,
+        };
+      }
+
       // Check range request support based on host (like frontend)
       const supportsRangeRequests = this.checkRangeRequestSupport(unrestrictResponse.host || '');
 
@@ -458,6 +471,43 @@ class StreamUrlRefreshService {
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Probe a download URL to confirm it actually serves bytes before we cache it.
+   * Tries HEAD first, then falls back to a 1-byte Range GET for hosts that 405 HEAD.
+   * Treats 200/206 as healthy.
+   */
+  async validateStreamUrl(url) {
+    const timeoutMs = 10000;
+    try {
+      const headResp = await fetch(url, { method: 'HEAD', timeout: timeoutMs });
+      if (headResp.status === 200 || headResp.status === 206) {
+        return { ok: true, status: headResp.status };
+      }
+      if (headResp.status !== 405 && headResp.status !== 501) {
+        return { ok: false, status: headResp.status };
+      }
+    } catch (err) {
+      // Fall through to Range GET — some hosts hang/refuse HEAD outright
+      logger.debug('Stream validate HEAD failed, trying Range GET', { error: err.message });
+    }
+
+    try {
+      const rangeResp = await fetch(url, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-0' },
+        timeout: timeoutMs,
+      });
+      // Drain a tiny bit so node-fetch can release the socket
+      try { await rangeResp.buffer(); } catch (_) { /* ignore */ }
+      if (rangeResp.status === 200 || rangeResp.status === 206) {
+        return { ok: true, status: rangeResp.status };
+      }
+      return { ok: false, status: rangeResp.status };
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
   }
 

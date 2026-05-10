@@ -1,4 +1,5 @@
 const BaseRepository = require('./BaseRepository');
+const { config } = require('../../config/environment');
 
 /**
  * Repository for stream URL caching
@@ -48,8 +49,14 @@ class StreamUrlRepository extends BaseRepository {
    * @returns {Promise<object|null>} Stream data or null
    */
   async getStreamUrlByHash(magnetHash) {
-    const sql = 'SELECT * FROM stream_urls WHERE magnet_hash = ?';
-    const row = await this.get(sql, [magnetHash]);
+    const ttlSeconds = config.cache && config.cache.streamUrlTtlSeconds;
+    const sql = ttlSeconds
+      ? `SELECT * FROM stream_urls
+         WHERE magnet_hash = ?
+           AND created_at > strftime('%s', 'now') - ?`
+      : 'SELECT * FROM stream_urls WHERE magnet_hash = ?';
+    const params = ttlSeconds ? [magnetHash, ttlSeconds] : [magnetHash];
+    const row = await this.get(sql, params);
 
     if (row) {
       // Update last accessed time
@@ -78,8 +85,14 @@ class StreamUrlRepository extends BaseRepository {
    */
   async hasStreamUrl(magnetLink) {
     const magnetHash = this.extractMagnetHash(magnetLink);
-    const sql = 'SELECT 1 FROM stream_urls WHERE magnet_hash = ?';
-    const row = await this.get(sql, [magnetHash]);
+    const ttlSeconds = config.cache && config.cache.streamUrlTtlSeconds;
+    const sql = ttlSeconds
+      ? `SELECT 1 FROM stream_urls
+         WHERE magnet_hash = ?
+           AND created_at > strftime('%s', 'now') - ?`
+      : 'SELECT 1 FROM stream_urls WHERE magnet_hash = ?';
+    const params = ttlSeconds ? [magnetHash, ttlSeconds] : [magnetHash];
+    const row = await this.get(sql, params);
     return !!row;
   }
 

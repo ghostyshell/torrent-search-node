@@ -114,6 +114,19 @@ const config = {
     },
   },
 
+  // Cache TTLs
+  cache: {
+    // How long a cached Real-Debrid stream URL is considered fresh.
+    // Read path treats anything older than this as a miss so the frontend
+    // regenerates instead of handing the player a stale token. The favorites
+    // refresh job runs every 24h, so default this to 20h to leave a 4h buffer.
+    streamUrlTtlSeconds: Math.max(
+      60,
+      parseInt(process.env.STREAM_URL_TTL_SECONDS || String(20 * 60 * 60), 10) ||
+        20 * 60 * 60
+    ),
+  },
+
   // Railway-specific configuration
   railway: {
     isRailway: !!process.env.RAILWAY_ENVIRONMENT,

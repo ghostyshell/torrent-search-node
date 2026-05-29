@@ -29,6 +29,14 @@ const setupAuthRoutes = (cache) => {
     }),
     async (req, res) => {
       try {
+        // Check email allowlist
+        const allowedEmails = process.env.ALLOWED_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+        const userEmail = req.user.email.toLowerCase();
+
+        if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail)) {
+          console.warn('Email not in allowlist:', req.user.email);
+          return res.redirect(process.env.FRONTEND_URL + '/login?email_not_allowed=1');
+        }
 
         // Temporary: Skip database session creation and just redirect with user data
         // TODO: Re-enable session creation once database is properly initialized
@@ -44,6 +52,7 @@ const setupAuthRoutes = (cache) => {
             name: req.user.name,
             picture: req.user.picture,
             timestamp: Date.now(),
+            isEmailAllowed: true,
           })
         ).toString('base64');
 
@@ -55,6 +64,7 @@ const setupAuthRoutes = (cache) => {
             name: req.user.name,
             email: req.user.email,
             picture: req.user.picture,
+            isEmailAllowed: true,
           })
         );
 
@@ -242,9 +252,13 @@ const setupAuthRoutes = (cache) => {
         });
       }
 
+      // Check email allowlist
+      const allowedEmails = process.env.ALLOWED_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+
       // First try database session validation
       const userSession = await authService.validateSession(token);
       if (userSession) {
+        const isEmailAllowed = allowedEmails.length === 0 || allowedEmails.includes(userSession.email.toLowerCase());
 
         res.json({
           success: true,
@@ -256,6 +270,7 @@ const setupAuthRoutes = (cache) => {
             hasRealDebridKey: !!userSession.real_debrid_api_key,
             createdAt: userSession.created_at,
             lastLoginAt: userSession.last_login_at,
+            isEmailAllowed: isEmailAllowed,
           },
         });
         return;
@@ -278,6 +293,10 @@ const setupAuthRoutes = (cache) => {
           throw new Error('Token expired');
         }
 
+        // Check email allowlist
+        const userEmail = tokenData.email.toLowerCase();
+        const isEmailAllowed = allowedEmails.length === 0 || allowedEmails.includes(userEmail);
+
         // Get user data from database to check Real Debrid key status
         const user = await authService.getUserByEmail(tokenData.email);
 
@@ -292,6 +311,7 @@ const setupAuthRoutes = (cache) => {
             hasRealDebridKey: user ? !!user.real_debrid_api_key : false,
             createdAt: user?.created_at || null,
             lastLoginAt: user?.last_login_at || null,
+            isEmailAllowed: isEmailAllowed,
           },
         });
       } catch (tokenError) {

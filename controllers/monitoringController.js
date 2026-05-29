@@ -5,6 +5,17 @@ const { config } = require('../config/environment');
 const { runWithJobFileLogging } = require('../services/backgroundJobFileLogger');
 
 // In-memory storage for background task stats
+const imageHostMigrationState = {
+  status: 'idle', // idle | running | completed | error
+  total: 0,
+  processed: 0,
+  succeeded: 0,
+  failed: 0,
+  startedAt: null,
+  completedAt: null,
+  lastError: null,
+};
+
 const backgroundTaskStats = {
   storageCleanup: {
     lastRun: null,
@@ -807,6 +818,92 @@ const triggerSearchResultsCache = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/monitoring/image-host-migration-status
+ * Returns the current state of the bulk fallback-URL migration job.
+ */
+const getImageHostMigrationStatus = (req, res) => {
+  res.json({ success: true, ...imageHostMigrationState });
+};
+
+/**
+ * POST /api/monitoring/image-host-migration-trigger
+ * Kicks off the background job that uploads all existing Pixhost-only cover
+ * images to all fallback hosts and writes the URLs back to the DB.
+ * Idempotent — if a run is already in progress, returns its status.
+ */
+const triggerImageHostMigration = async (req, res) => {
+  if (imageHostMigrationState.status === 'running') {
+    return res.json({ success: true, alreadyRunning: true, ...imageHostMigrationState });
+  }
+
+  const storageProvider = req.app.locals.storageProvider;
+  if (!storageProvider) {
+    return res.status(503).json({ success: false, error: 'Storage provider not available' });
+  }
+
+  // Respond immediately so the client isn't blocked
+  imageHostMigrationState.status = 'running';
+  imageHostMigrationState.startedAt = new Date().toISOString();
+  imageHostMigrationState.completedAt = null;
+  imageHostMigrationState.total = 0;
+  imageHostMigrationState.processed = 0;
+  imageHostMigrationState.succeeded = 0;
+  imageHostMigrationState.failed = 0;
+  imageHostMigrationState.lastError = null;
+
+  res.json({ success: true, started: true, ...imageHostMigrationState });
+
+  (async () => {
+    const multiHostService = require('../services/multiHostImageService');
+    const logger = require('../middleware/logger');
+    const BATCH = 50;
+    let offset = 0;
+
+    try {
+      // Count total rows that need migration
+      const countRow = await storageProvider.tursoClient.execute(
+        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url IS NOT NULL AND (fallback_urls IS NULL OR fallback_urls='')`
+      );
+      imageHostMigrationState.total = countRow?.rows?.[0]?.c || 0;
+
+      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} rows to process`);
+
+      while (true) {
+        const rows = await storageProvider.images.getImagesNeedingMigration(BATCH, offset);
+        if (!rows || rows.length === 0) break;
+
+        await Promise.all(
+          rows.map(async (row) => {
+            try {
+              const sourceUrl = row.original_url || row.pixhost_url;
+              const fallbacks = await multiHostService.uploadFromUrlToAllHosts(sourceUrl);
+              await storageProvider.images.updateFallbackUrls(row.torrent_key, fallbacks);
+              imageHostMigrationState.succeeded++;
+            } catch {
+              imageHostMigrationState.failed++;
+            } finally {
+              imageHostMigrationState.processed++;
+            }
+          })
+        );
+
+        offset += BATCH;
+        if (rows.length < BATCH) break;
+      }
+
+      imageHostMigrationState.status = 'completed';
+      imageHostMigrationState.completedAt = new Date().toISOString();
+      logger.info(`[ImageHostMigration] Done — ${imageHostMigrationState.succeeded} succeeded, ${imageHostMigrationState.failed} failed`);
+    } catch (err) {
+      imageHostMigrationState.status = 'error';
+      imageHostMigrationState.lastError = err.message;
+      imageHostMigrationState.completedAt = new Date().toISOString();
+      logger.error(`[ImageHostMigration] Fatal error: ${err.message}`);
+    }
+  })();
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
@@ -822,4 +919,6 @@ module.exports = {
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,
+  getImageHostMigrationStatus,
+  triggerImageHostMigration,
 };

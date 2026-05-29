@@ -122,6 +122,8 @@ app.post('/api/monitoring/description-image-cache-trigger', monitoringController
 app.post('/api/monitoring/description-image-cache-force-refresh', monitoringController.triggerDescriptionImageCacheForceRefresh);
 app.get('/api/monitoring/search-results-cache-logs', monitoringController.getSearchResultsCacheLogs);
 app.post('/api/monitoring/search-results-cache-trigger', monitoringController.triggerSearchResultsCache);
+app.get('/api/monitoring/image-host-migration-status', monitoringController.getImageHostMigrationStatus);
+app.post('/api/monitoring/image-host-migration-trigger', monitoringController.triggerImageHostMigration);
 
 app.get('/api/monitoring/job-logs/list', jobLogsController.listJobLogs);
 app.get('/api/monitoring/job-logs/search', jobLogsController.searchJobLogs);

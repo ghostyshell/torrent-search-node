@@ -113,6 +113,7 @@ const storageController = {
           imageUrl: imageData.imageUrl,
           type: 'url',
           originalUrl: imageData.originalUrl,
+          fallbackUrls: imageData.fallbackUrls || [],
         });
       } else {
         res.status(404).json({
@@ -904,6 +905,7 @@ const storageController = {
           success: true,
           imageUrl: coverImage.imageUrl || coverImage,
           originalUrl: coverImage.originalUrl || coverImage,
+          fallbackUrls: coverImage.fallbackUrls || [],
         });
       } else {
         res.status(404).json({

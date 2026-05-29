@@ -269,6 +269,9 @@ class TursoClient {
       // Migration: Add Google OAuth token columns to users table
       await this.migrateGoogleTokenColumns();
 
+      // Migration: Add fallback_urls column to images table
+      await this.migrateImagesFallbackUrls();
+
     } catch (migrationError) {
       console.warn(
         'TursoClient: Migration failed, continuing without migrations:',
@@ -453,6 +456,20 @@ class TursoClient {
           );
         }
       }
+    }
+  }
+
+  /**
+   * Migration: add fallback_urls column to the images table
+   */
+  async migrateImagesFallbackUrls() {
+    try {
+      const exists = await this.columnExists('images', 'fallback_urls');
+      if (!exists) {
+        await this.execute('ALTER TABLE images ADD COLUMN fallback_urls TEXT');
+      }
+    } catch (error) {
+      console.warn('⚠️ migrateImagesFallbackUrls warning:', error.message);
     }
   }
 

@@ -504,6 +504,29 @@
             </div>
         </div>
 
+        <!-- Image Host Migration -->
+        <div class="card full-width">
+            <div class="card-title">
+                Image Host Migration
+                <button class="refresh-btn" onclick="triggerImageHostMigration()" id="triggerImageMigrationBtn" style="margin-left: 16px;">
+                    Migrate Images to All Hosts
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
+                Uploads all existing Pixhost-only cover images to PostImage and Fastpic as fallback hosts.
+                Run this once after deploying the multi-host update to backfill the database.
+            </p>
+            <div id="imageMigrationStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px; background: #1e3a5f; color: #60a5fa;">
+                Loading status...
+            </div>
+            <div id="imageMigrationProgress" style="display: none; margin-top: 8px;">
+                <div style="background: #0f172a; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div id="imageMigrationBar" style="height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <div id="imageMigrationLabel" style="font-size: 11px; color: #64748b; margin-top: 4px;"></div>
+            </div>
+        </div>
+
         <!-- Persistent background job files (NDJSON per run under logs/background-jobs/) -->
         <div class="card full-width">
             <div class="card-title">Background job files (persistent)</div>
@@ -1303,13 +1326,97 @@
             }
         }
 
+        let imageMigrationPollTimer = null;
+
+        async function fetchImageHostMigrationStatus() {
+            try {
+                const res = await fetch('/api/monitoring/image-host-migration-status');
+                const data = await res.json();
+                if (!data.success) return;
+
+                const statusEl = document.getElementById('imageMigrationStatus');
+                const progressEl = document.getElementById('imageMigrationProgress');
+                const barEl = document.getElementById('imageMigrationBar');
+                const labelEl = document.getElementById('imageMigrationLabel');
+                const btn = document.getElementById('triggerImageMigrationBtn');
+
+                const statusMap = {
+                    idle:      { bg: '#1e3a5f', color: '#60a5fa',  text: 'Idle — never run or reset after restart' },
+                    running:   { bg: '#78350f', color: '#fbbf24',  text: 'Running…' },
+                    completed: { bg: '#14532d', color: '#4ade80',  text: 'Completed' },
+                    error:     { bg: '#7f1d1d', color: '#fca5a5',  text: 'Error' },
+                };
+                const s = statusMap[data.status] || statusMap.idle;
+                statusEl.style.backgroundColor = s.bg;
+                statusEl.style.color = s.color;
+
+                let detail = `<strong>Status:</strong> ${s.text}`;
+                if (data.status !== 'idle') {
+                    detail += ` | <strong>Processed:</strong> ${data.processed} / ${data.total || '?'}`;
+                    detail += ` | <strong>OK:</strong> ${data.succeeded} | <strong>Failed:</strong> ${data.failed}`;
+                    if (data.startedAt) detail += ` | <strong>Started:</strong> ${formatTime(data.startedAt)}`;
+                    if (data.completedAt) detail += ` | <strong>Finished:</strong> ${formatTime(data.completedAt)}`;
+                    if (data.lastError) detail += ` | <strong>Error:</strong> ${data.lastError}`;
+                }
+                statusEl.innerHTML = detail;
+
+                if (data.status === 'running' && data.total > 0) {
+                    progressEl.style.display = 'block';
+                    const pct = Math.round((data.processed / data.total) * 100);
+                    barEl.style.width = pct + '%';
+                    labelEl.textContent = `${data.processed} of ${data.total} images (${pct}%)`;
+                } else if (data.status === 'completed') {
+                    progressEl.style.display = 'block';
+                    barEl.style.width = '100%';
+                    labelEl.textContent = `${data.succeeded} succeeded, ${data.failed} failed`;
+                } else {
+                    progressEl.style.display = 'none';
+                }
+
+                btn.disabled = data.status === 'running';
+                btn.textContent = data.status === 'running' ? 'Migrating…' : 'Migrate Images to All Hosts';
+
+                // Keep polling while running
+                if (data.status === 'running') {
+                    if (!imageMigrationPollTimer) {
+                        imageMigrationPollTimer = setInterval(fetchImageHostMigrationStatus, 3000);
+                    }
+                } else {
+                    if (imageMigrationPollTimer) {
+                        clearInterval(imageMigrationPollTimer);
+                        imageMigrationPollTimer = null;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to fetch image migration status:', e);
+            }
+        }
+
+        async function triggerImageHostMigration() {
+            const btn = document.getElementById('triggerImageMigrationBtn');
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting…';
+                const res = await fetch('/api/monitoring/image-host-migration-trigger', { method: 'POST' });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Unknown error');
+                showTemporaryMessage('Image host migration started. Progress updates every 3s.', 'success');
+                await fetchImageHostMigrationStatus();
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = 'Migrate Images to All Hosts';
+                showError('Failed to trigger migration: ' + e.message);
+            }
+        }
+
         async function refreshAll() {
             await Promise.all([
                 fetchDashboard(),
                 fetchApiUsage(),
                 fetchLogs(currentLogLevel),
                 fetchStreamRefreshLogs(),
-                fetchDescCacheLogs()
+                fetchDescCacheLogs(),
+                fetchImageHostMigrationStatus(),
             ]);
         }
 

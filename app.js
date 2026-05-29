@@ -111,30 +111,10 @@ app.use('/', healthRoutes);
 
 app.get('/api/cache/stats', cacheController.getStats);
 
-// Monitoring routes - Protected by IP allowlist
-const ipRestricted = ipAllowlistMiddleware.restrictToAllowlist();
+// Note: Monitoring routes are registered in startServer() after ipAllowlistMiddleware is initialized
 
-app.get('/api/monitoring/dashboard', ipRestricted, monitoringController.getDashboardData);
-app.get('/api/monitoring/logs', ipRestricted, monitoringController.getLogs);
-app.get('/api/monitoring/tasks', ipRestricted, monitoringController.getBackgroundTaskStats);
-app.get('/api/monitoring/api-usage', ipRestricted, monitoringController.getApiUsageStats);
-app.get('/api/monitoring/stream-url-refresh-logs', ipRestricted, monitoringController.getStreamUrlRefreshLogs);
-app.post('/api/monitoring/stream-url-refresh-trigger', ipRestricted, monitoringController.triggerStreamUrlRefresh);
-app.get('/api/monitoring/description-image-cache-logs', ipRestricted, monitoringController.getDescriptionImageCacheLogs);
-app.post('/api/monitoring/description-image-cache-trigger', ipRestricted, monitoringController.triggerDescriptionImageCache);
-app.post('/api/monitoring/description-image-cache-force-refresh', ipRestricted, monitoringController.triggerDescriptionImageCacheForceRefresh);
-app.get('/api/monitoring/search-results-cache-logs', ipRestricted, monitoringController.getSearchResultsCacheLogs);
-app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
-app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
-app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
-
-app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
-app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
-app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
-app.post('/api/monitoring/job-logs/maintenance', ipRestricted, jobLogsController.triggerJobLogMaintenance);
-
-// Debug endpoint to check favorites data - Protected by IP allowlist
-app.get('/api/monitoring/debug-favorites', ipRestricted, async (req, res) => {
+// Debug endpoint to check favorites data - Note: registered in startServer()
+app.get('/api/monitoring/debug-favorites', async (req, res) => {
   try {
     const storage = req.app.locals.storageProvider;
     if (!storage) {
@@ -250,6 +230,42 @@ async function startServer() {
 
     // Initialize IP allowlist middleware for monitoring endpoints
     const ipAllowlistMiddleware = new IpAllowlistMiddleware();
+    const ipRestricted = ipAllowlistMiddleware.restrictToAllowlist();
+
+    // Register monitoring routes with IP restriction
+    app.get('/api/monitoring/dashboard', ipRestricted, monitoringController.getDashboardData);
+    app.get('/api/monitoring/logs', ipRestricted, monitoringController.getLogs);
+    app.get('/api/monitoring/tasks', ipRestricted, monitoringController.getBackgroundTaskStats);
+    app.get('/api/monitoring/api-usage', ipRestricted, monitoringController.getApiUsageStats);
+    app.get('/api/monitoring/stream-url-refresh-logs', ipRestricted, monitoringController.getStreamUrlRefreshLogs);
+    app.post('/api/monitoring/stream-url-refresh-trigger', ipRestricted, monitoringController.triggerStreamUrlRefresh);
+    app.get('/api/monitoring/description-image-cache-logs', ipRestricted, monitoringController.getDescriptionImageCacheLogs);
+    app.post('/api/monitoring/description-image-cache-trigger', ipRestricted, monitoringController.triggerDescriptionImageCache);
+    app.post('/api/monitoring/description-image-cache-force-refresh', ipRestricted, monitoringController.triggerDescriptionImageCacheForceRefresh);
+    app.get('/api/monitoring/search-results-cache-logs', ipRestricted, monitoringController.getSearchResultsCacheLogs);
+    app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
+    app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
+    app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
+    app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
+    app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
+    app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
+    app.post('/api/monitoring/job-logs/maintenance', ipRestricted, jobLogsController.triggerJobLogMaintenance);
+    app.get('/api/monitoring/debug-favorites', ipRestricted, async (req, res) => {
+      try {
+        const storage = req.app.locals.storageProvider;
+        if (!storage) {
+          return res.json({ error: 'No storage provider' });
+        }
+        const stats = await storage.favorites.getStats();
+        const sampleEntries = await storage.tursoClient.client.execute(
+          'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
+        );
+        const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
+        res.json({ stats, sampleFavoriteEntries: sampleEntries.rows, refreshQueryResult: refreshData });
+      } catch (error) {
+        res.json({ error: error.message, stack: error.stack });
+      }
+    });
 
     // Register auth routes
     const authRouter = setupAuthRoutes(storageProvider);
@@ -487,6 +503,42 @@ async function startServer() {
 
     // Initialize IP allowlist middleware for monitoring endpoints
     const ipAllowlistMiddleware = new IpAllowlistMiddleware();
+    const ipRestricted = ipAllowlistMiddleware.restrictToAllowlist();
+
+    // Register monitoring routes with IP restriction (fallback)
+    app.get('/api/monitoring/dashboard', ipRestricted, monitoringController.getDashboardData);
+    app.get('/api/monitoring/logs', ipRestricted, monitoringController.getLogs);
+    app.get('/api/monitoring/tasks', ipRestricted, monitoringController.getBackgroundTaskStats);
+    app.get('/api/monitoring/api-usage', ipRestricted, monitoringController.getApiUsageStats);
+    app.get('/api/monitoring/stream-url-refresh-logs', ipRestricted, monitoringController.getStreamUrlRefreshLogs);
+    app.post('/api/monitoring/stream-url-refresh-trigger', ipRestricted, monitoringController.triggerStreamUrlRefresh);
+    app.get('/api/monitoring/description-image-cache-logs', ipRestricted, monitoringController.getDescriptionImageCacheLogs);
+    app.post('/api/monitoring/description-image-cache-trigger', ipRestricted, monitoringController.triggerDescriptionImageCache);
+    app.post('/api/monitoring/description-image-cache-force-refresh', ipRestricted, monitoringController.triggerDescriptionImageCacheForceRefresh);
+    app.get('/api/monitoring/search-results-cache-logs', ipRestricted, monitoringController.getSearchResultsCacheLogs);
+    app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
+    app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
+    app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
+    app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
+    app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
+    app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
+    app.post('/api/monitoring/job-logs/maintenance', ipRestricted, jobLogsController.triggerJobLogMaintenance);
+    app.get('/api/monitoring/debug-favorites', ipRestricted, async (req, res) => {
+      try {
+        const storage = req.app.locals.storageProvider;
+        if (!storage) {
+          return res.json({ error: 'No storage provider' });
+        }
+        const stats = await storage.favorites.getStats();
+        const sampleEntries = await storage.tursoClient.client.execute(
+          'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
+        );
+        const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
+        res.json({ stats, sampleFavoriteEntries: sampleEntries.rows, refreshQueryResult: refreshData });
+      } catch (error) {
+        res.json({ error: error.message, stack: error.stack });
+      }
+    });
 
     // Register auth routes with minimal setup
     const authRouter = setupAuthRoutes(storageProvider);

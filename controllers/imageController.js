@@ -547,5 +547,7 @@ module.exports = {
   uploadToPixhost: imageController.uploadToPixhost,
   proxyImage: imageController.proxyImage,
   batchProcessImages: imageController.batchProcessImages,
+  checkPixhostAccessibility: imageController.checkPixhostAccessibility,
+  getPixhostFallbacks: imageController.getPixhostFallbacks,
   router: router,
 };

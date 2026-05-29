@@ -22,6 +22,7 @@ const setupAuthRoutes = require('./routes/auth');
 const setupTorrentRoutes = require('./routes/torrents');
 const setupImageRoutes = require('./routes/images');
 const AuthMiddleware = require('./middleware/auth');
+const IpAllowlistMiddleware = require('./middleware/ipAllowlist');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
@@ -110,28 +111,30 @@ app.use('/', healthRoutes);
 
 app.get('/api/cache/stats', cacheController.getStats);
 
-// Monitoring routes
-app.get('/api/monitoring/dashboard', monitoringController.getDashboardData);
-app.get('/api/monitoring/logs', monitoringController.getLogs);
-app.get('/api/monitoring/tasks', monitoringController.getBackgroundTaskStats);
-app.get('/api/monitoring/api-usage', monitoringController.getApiUsageStats);
-app.get('/api/monitoring/stream-url-refresh-logs', monitoringController.getStreamUrlRefreshLogs);
-app.post('/api/monitoring/stream-url-refresh-trigger', monitoringController.triggerStreamUrlRefresh);
-app.get('/api/monitoring/description-image-cache-logs', monitoringController.getDescriptionImageCacheLogs);
-app.post('/api/monitoring/description-image-cache-trigger', monitoringController.triggerDescriptionImageCache);
-app.post('/api/monitoring/description-image-cache-force-refresh', monitoringController.triggerDescriptionImageCacheForceRefresh);
-app.get('/api/monitoring/search-results-cache-logs', monitoringController.getSearchResultsCacheLogs);
-app.post('/api/monitoring/search-results-cache-trigger', monitoringController.triggerSearchResultsCache);
-app.get('/api/monitoring/image-host-migration-status', monitoringController.getImageHostMigrationStatus);
-app.post('/api/monitoring/image-host-migration-trigger', monitoringController.triggerImageHostMigration);
+// Monitoring routes - Protected by IP allowlist
+const ipRestricted = ipAllowlistMiddleware.restrictToAllowlist();
 
-app.get('/api/monitoring/job-logs/list', jobLogsController.listJobLogs);
-app.get('/api/monitoring/job-logs/search', jobLogsController.searchJobLogs);
-app.get('/api/monitoring/job-logs/file', jobLogsController.serveJobLogFile);
-app.post('/api/monitoring/job-logs/maintenance', jobLogsController.triggerJobLogMaintenance);
+app.get('/api/monitoring/dashboard', ipRestricted, monitoringController.getDashboardData);
+app.get('/api/monitoring/logs', ipRestricted, monitoringController.getLogs);
+app.get('/api/monitoring/tasks', ipRestricted, monitoringController.getBackgroundTaskStats);
+app.get('/api/monitoring/api-usage', ipRestricted, monitoringController.getApiUsageStats);
+app.get('/api/monitoring/stream-url-refresh-logs', ipRestricted, monitoringController.getStreamUrlRefreshLogs);
+app.post('/api/monitoring/stream-url-refresh-trigger', ipRestricted, monitoringController.triggerStreamUrlRefresh);
+app.get('/api/monitoring/description-image-cache-logs', ipRestricted, monitoringController.getDescriptionImageCacheLogs);
+app.post('/api/monitoring/description-image-cache-trigger', ipRestricted, monitoringController.triggerDescriptionImageCache);
+app.post('/api/monitoring/description-image-cache-force-refresh', ipRestricted, monitoringController.triggerDescriptionImageCacheForceRefresh);
+app.get('/api/monitoring/search-results-cache-logs', ipRestricted, monitoringController.getSearchResultsCacheLogs);
+app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
+app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
+app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
 
-// Debug endpoint to check favorites data
-app.get('/api/monitoring/debug-favorites', async (req, res) => {
+app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
+app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
+app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
+app.post('/api/monitoring/job-logs/maintenance', ipRestricted, jobLogsController.triggerJobLogMaintenance);
+
+// Debug endpoint to check favorites data - Protected by IP allowlist
+app.get('/api/monitoring/debug-favorites', ipRestricted, async (req, res) => {
   try {
     const storage = req.app.locals.storageProvider;
     if (!storage) {
@@ -244,6 +247,9 @@ async function startServer() {
 
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(storageProvider);
+
+    // Initialize IP allowlist middleware for monitoring endpoints
+    const ipAllowlistMiddleware = new IpAllowlistMiddleware();
 
     // Register auth routes
     const authRouter = setupAuthRoutes(storageProvider);
@@ -478,6 +484,9 @@ async function startServer() {
 
     // Initialize auth middleware (will handle database unavailability gracefully)
     authMiddleware = new AuthMiddleware(storageProvider);
+
+    // Initialize IP allowlist middleware for monitoring endpoints
+    const ipAllowlistMiddleware = new IpAllowlistMiddleware();
 
     // Register auth routes with minimal setup
     const authRouter = setupAuthRoutes(storageProvider);

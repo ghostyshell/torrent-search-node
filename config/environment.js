@@ -112,6 +112,8 @@ const config = {
       windowMs: 15 * 60 * 1000, // 15 minutes
       max: isProduction ? 100 : 1000, // requests per window
     },
+    // IP allowlist for monitoring/debug endpoints
+    monitoringIpAllowlist: getMonitoringIpAllowlist(),
   },
 
   // Cache TTLs
@@ -135,6 +137,20 @@ const config = {
     publicDomain: process.env.RAILWAY_PUBLIC_DOMAIN,
   },
 };
+
+/**
+ * Get IP allowlist for monitoring/debug endpoints
+ */
+function getMonitoringIpAllowlist() {
+  const allowlistStr = process.env.MONITORING_IP_ALLOWLIST || '';
+  if (!allowlistStr.trim()) {
+    return []; // Empty = no IP restrictions (relies on auth only)
+  }
+  return allowlistStr
+    .split(',')
+    .map((ip) => ip.trim())
+    .filter(Boolean);
+}
 
 /**
  * Get CORS origins based on environment
@@ -206,6 +222,19 @@ function validateEnvironment() {
         errors.push('PORT should be set by Railway automatically');
       }
     }
+  }
+
+  return errors;
+}
+
+/**
+ * Validate CORS configuration
+ */
+function validateCorsConfig() {
+  const errors = [];
+
+  if (config.cors.origins.includes('*') && isProduction) {
+    errors.push('CORS wildcard (*) is not recommended for production');
   }
 
   return errors;

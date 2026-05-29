@@ -318,6 +318,147 @@ const imageController = {
     }
   },
 
+  // Pixhost accessibility check endpoint
+  checkPixhostAccessibility: async (req, res) => {
+    const fetch = require('node-fetch');
+
+    // Pixhost subdomains to test
+    const pixhostSubdomains = [
+      'img1.pixhost.to',
+      'img2.pixhost.to',
+      'img3.pixhost.to',
+      'img4.pixhost.to',
+      'img5.pixhost.to',
+    ];
+
+    // Fallback hosts (same as Go version)
+    const fallbackHosts = ['postimage', 'fastpic'];
+
+    const testResults = {};
+    let accessible = false;
+
+    // Test each Pixhost subdomain
+    await Promise.all(
+      pixhostSubdomains.map(async (subdomain) => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          const response = await fetch(`https://${subdomain}/`, {
+            method: 'HEAD',
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.status < 400) {
+            testResults[subdomain] = true;
+            accessible = true;
+          } else {
+            testResults[subdomain] = false;
+          }
+        } catch (error) {
+          testResults[subdomain] = false;
+          console.debug('Pixhost subdomain unreachable:', subdomain, error.message);
+        }
+      })
+    );
+
+    // Get recommendation
+    const recommendation = accessible
+      ? {
+          usePixhost: true,
+          primaryHost: pixhostSubdomains.find((s) => testResults[s]) || 'img1.pixhost.to',
+          fallbackHosts,
+        }
+      : {
+          usePixhost: false,
+          fallbackHosts,
+        };
+
+    res.json({
+      success: true,
+      pixhostAccessible: accessible,
+      subdomainStatus: testResults,
+      recommendation,
+    });
+  },
+
+  // Get Pixhost fallback URLs
+  getPixhostFallbacks: async (req, res) => {
+    const imageUrl = req.query.url;
+
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL parameter is required',
+      });
+    }
+
+    try {
+      const parsedUrl = new URL(imageUrl);
+
+      // Check if it's a Pixhost URL
+      if (!parsedUrl.hostname.includes('pixhost.to')) {
+        return res.json({
+          success: true,
+          fallbacks: [],
+          isPixhost: false,
+        });
+      }
+
+      // Extract the image path
+      let imagePath = '';
+      const pixhostSubdomains = [
+        'img1.pixhost.to',
+        'img2.pixhost.to',
+        'img3.pixhost.to',
+        'img4.pixhost.to',
+        'img5.pixhost.to',
+      ];
+
+      for (const subdomain of pixhostSubdomains) {
+        const prefix = `https://${subdomain}/images/`;
+        if (imageUrl.startsWith(prefix)) {
+          imagePath = imageUrl.substring(prefix.length);
+          break;
+        }
+      }
+
+      // Handle show URL format
+      if (!imagePath && imageUrl.startsWith('https://pixhost.to/show/')) {
+        imagePath = imageUrl.substring('https://pixhost.to/show/'.length);
+      }
+
+      if (!imagePath) {
+        return res.json({
+          success: true,
+          fallbacks: [imageUrl],
+          isPixhost: true,
+        });
+      }
+
+      // Generate fallback URLs for all subdomains
+      const fallbacks = pixhostSubdomains.map(
+        (subdomain) => `https://${subdomain}/images/${imagePath}`
+      );
+
+      res.json({
+        success: true,
+        fallbacks,
+        isPixhost: true,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid URL format',
+      });
+    }
+  },
+
   // Private helper method for single image upload
   _uploadSingleImageToPixhost: async (imageUrl) => {
     const fetch = require('node-fetch');

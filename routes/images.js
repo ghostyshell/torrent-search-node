@@ -21,6 +21,14 @@ const setupImageRoutes = (storageProvider) => {
   router.post('/pixhost/upload', imageController.uploadToPixhost);
   router.post('/upload', imageController.uploadToPixhost);
 
+  // Pixhost accessibility check endpoint
+  // Route: GET /api/images/pixhost/check-accessibility
+  router.get('/pixhost/check-accessibility', imageController.checkPixhostAccessibility);
+
+  // Pixhost fallback URLs endpoint
+  // Route: GET /api/images/pixhost/fallbacks
+  router.get('/pixhost/fallbacks', imageController.getPixhostFallbacks);
+
   // Image proxy endpoint
   // Route: GET /api/images/proxy
   router.get('/proxy', imageController.proxyImage);

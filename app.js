@@ -466,8 +466,6 @@ async function startServer() {
 
     // Start periodic tasks after successful initialization
     startPeriodicStorageCleanup();
-    // TODO: Re-enable after fixing DB init issue
-    // startPeriodicTokenRefresh();
     startPeriodicStreamUrlRefresh();
     startPeriodicDescriptionImageCache();
     startPeriodicSearchResultsCache();
@@ -798,48 +796,6 @@ const startPeriodicCoverStorageMaintenance = () => {
   setInterval(runMaintenance, MAINTENANCE_INTERVAL);
 
   logger.info('Started cover storage maintenance (refresh links + cleanup non-favorites every 5h)');
-};
-
-// Periodic Google token refresh handler
-const startPeriodicTokenRefresh = () => {
-  if (!storageProvider) {
-    logger.warn('Storage not available - skipping token refresh');
-    return;
-  }
-
-  const AuthService = require('./config/passport');
-  const authService = new AuthService(storageProvider);
-
-  // Google access tokens expire in 1 hour, refresh every 45 minutes
-  const refreshInterval = 45 * 60 * 1000; // 45 minutes
-  logger.info('Starting periodic Google token refresh', {
-    intervalMinutes: refreshInterval / (60 * 1000),
-    note: 'Keeps user sessions alive by refreshing Google access tokens',
-  });
-
-  // Run initial refresh after 1 minute to let server fully initialize
-  setTimeout(async () => {
-    try {
-      const result = await authService.refreshAllGoogleTokens();
-      if (result.refreshed > 0 || result.failed > 0) {
-        logger.info('Initial Google token refresh completed', result);
-      }
-    } catch (error) {
-      logger.error('Error during initial token refresh', { error: error.message });
-    }
-  }, 60 * 1000);
-
-  // Then run periodically
-  setInterval(async () => {
-    try {
-      const result = await authService.refreshAllGoogleTokens();
-      if (result.refreshed > 0 || result.failed > 0) {
-        logger.info('Periodic Google token refresh completed', result);
-      }
-    } catch (error) {
-      logger.error('Error during scheduled token refresh', { error: error.message });
-    }
-  }, refreshInterval);
 };
 
 // Periodic stream URL refresh for favorites

@@ -107,7 +107,6 @@ class TursoClient {
         original_url TEXT,
         torrent_name TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        metadata TEXT,
         storage_key TEXT,
         UNIQUE(torrent_key, image_type)
       )`,
@@ -244,9 +243,6 @@ class TursoClient {
       // Migration: Add user_id columns for user-specific data
       await this.migrateUserColumns();
 
-      // Migration: Add Google OAuth token columns to users table
-      await this.migrateGoogleTokenColumns();
-
       // Migration: Add storage_key column to images table (object storage)
       await this.migrateImagesStorageKey();
 
@@ -355,31 +351,6 @@ class TursoClient {
     }
   }
 
-  /**
-   * Migration method to add Google OAuth token columns to users table
-   */
-  async migrateGoogleTokenColumns() {
-    const columns = [
-      { name: 'google_access_token', type: 'TEXT' },
-      { name: 'google_refresh_token', type: 'TEXT' },
-      { name: 'google_token_expires_at', type: 'INTEGER' },
-    ];
-
-    for (const column of columns) {
-      try {
-        const sql = `ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`;
-        await this.execute(sql);
-      } catch (error) {
-        // Column might already exist, ignore duplicate column errors
-        if (!error.message.includes('duplicate column name')) {
-          console.warn(
-            `⚠️ Failed to add column ${column.name} to users:`,
-            error.message
-          );
-        }
-      }
-    }
-  }
 
   /**
    * Migration: add storage_key column to the images table. Holds the object

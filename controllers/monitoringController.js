@@ -13,13 +13,6 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
-  tokenRefresh: {
-    lastRun: null,
-    nextRun: null,
-    intervalMs: 45 * 60 * 1000, // 45 minutes
-    results: [],
-    status: 'disabled',
-  },
   streamUrlRefresh: {
     lastRun: null,
     nextRun: null,

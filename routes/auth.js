@@ -17,7 +17,6 @@ const setupAuthRoutes = (cache) => {
     passport.authenticate('google', {
       scope: ['profile', 'email'],
       prompt: 'select_account',
-      accessType: 'offline', // Request refresh token for background token refresh
     })
   );
 

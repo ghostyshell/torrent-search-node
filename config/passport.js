@@ -64,9 +64,6 @@ class AuthService {
           },
           async (accessToken, refreshToken, profile, done) => {
             try {
-              // Google access tokens expire in 1 hour (3600 seconds)
-              const tokenExpiresAt = Math.floor(Date.now() / 1000) + 3600;
-
               const userData = {
                 id: profile.id,
                 google_id: profile.id,
@@ -74,10 +71,6 @@ class AuthService {
                 name: profile.displayName,
                 picture: profile.photos[0].value,
                 last_login_at: Math.floor(Date.now() / 1000),
-                // Store OAuth tokens for background refresh
-                google_access_token: accessToken,
-                google_refresh_token: refreshToken,
-                google_token_expires_at: tokenExpiresAt,
               };
 
               // Temporary: Skip database operations and return user data directly
@@ -127,16 +120,6 @@ class AuthService {
             google_id: userData.google_id,
             updated_at: Math.floor(Date.now() / 1000),
           };
-          // Update Google tokens if provided
-          if (userData.google_access_token) {
-            updateData.google_access_token = userData.google_access_token;
-          }
-          if (userData.google_refresh_token) {
-            updateData.google_refresh_token = userData.google_refresh_token;
-          }
-          if (userData.google_token_expires_at) {
-            updateData.google_token_expires_at = userData.google_token_expires_at;
-          }
           await this.updateUser(existingUser.id, updateData);
         } catch (updateError) {
           console.warn(
@@ -154,9 +137,6 @@ class AuthService {
         name: userData.name,
         picture: userData.picture,
         google_id: userData.google_id,
-        google_access_token: userData.google_access_token || null,
-        google_refresh_token: userData.google_refresh_token || null,
-        google_token_expires_at: userData.google_token_expires_at || null,
         created_at: Math.floor(Date.now() / 1000),
         updated_at: Math.floor(Date.now() / 1000),
         last_login_at: Math.floor(Date.now() / 1000),
@@ -192,8 +172,8 @@ class AuthService {
   async createUser(userData) {
     try {
       const sql = `
-        INSERT INTO users (id, email, name, picture, google_id, google_access_token, google_refresh_token, google_token_expires_at, created_at, updated_at, last_login_at, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (id, email, name, picture, google_id, created_at, updated_at, last_login_at, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const result = await this.cache.tursoClient.run(sql, [
@@ -202,9 +182,6 @@ class AuthService {
         userData.name,
         userData.picture,
         userData.google_id,
-        userData.google_access_token || null,
-        userData.google_refresh_token || null,
-        userData.google_token_expires_at || null,
         userData.created_at,
         userData.updated_at,
         userData.last_login_at,
@@ -449,103 +426,6 @@ class AuthService {
     }
   }
 
-  // Get all users who have refresh tokens for background token refresh
-  async getUsersWithRefreshTokens() {
-    if (
-      !this.cache ||
-      !this.cache.tursoClient ||
-      !this.cache.tursoClient.client ||
-      !this.cache.isInitialized
-    ) {
-      return [];
-    }
-
-    try {
-      const sql = `
-        SELECT id, email, google_refresh_token, google_token_expires_at
-        FROM users
-        WHERE google_refresh_token IS NOT NULL AND is_active = 1
-      `;
-      const users = await this.cache.tursoClient.all(sql);
-      return users || [];
-    } catch (error) {
-      console.warn('getUsersWithRefreshTokens error:', error.message);
-      return [];
-    }
-  }
-
-  // Refresh Google access token for a specific user
-  async refreshGoogleToken(userId) {
-    try {
-      const user = await this.getUserById(userId);
-      if (!user || !user.google_refresh_token) {
-        return { success: false, error: 'No refresh token available' };
-      }
-
-      const { clientId, clientSecret } = getGoogleOAuthCredentials();
-
-      // Call Google's token endpoint to refresh the access token
-      const response = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: user.google_refresh_token,
-          grant_type: 'refresh_token',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.warn(`Failed to refresh token for user ${userId}:`, errorData);
-        return { success: false, error: errorData.error_description || 'Token refresh failed' };
-      }
-
-      const tokenData = await response.json();
-
-      // Google access tokens expire in 1 hour (3600 seconds)
-      const expiresAt = Math.floor(Date.now() / 1000) + (tokenData.expires_in || 3600);
-
-      // Update the user's access token
-      await this.updateUser(userId, {
-        google_access_token: tokenData.access_token,
-        google_token_expires_at: expiresAt,
-      });
-
-      return { success: true, expiresAt };
-    } catch (error) {
-      console.warn(`Token refresh error for user ${userId}:`, error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Refresh all users' Google tokens that are about to expire
-  async refreshAllGoogleTokens() {
-    const users = await this.getUsersWithRefreshTokens();
-    const currentTime = Math.floor(Date.now() / 1000);
-    // Refresh tokens that expire within the next 10 minutes
-    const refreshThreshold = currentTime + 10 * 60;
-
-    let refreshed = 0;
-    let failed = 0;
-
-    for (const user of users) {
-      // Only refresh if token expires within threshold or has no expiry time
-      if (!user.google_token_expires_at || user.google_token_expires_at <= refreshThreshold) {
-        const result = await this.refreshGoogleToken(user.id);
-        if (result.success) {
-          refreshed++;
-        } else {
-          failed++;
-        }
-      }
-    }
-
-    return { refreshed, failed, total: users.length };
-  }
 }
 
 module.exports = AuthService;

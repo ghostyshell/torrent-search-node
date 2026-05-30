@@ -10,7 +10,6 @@ const LOG_VERSION = config.logging.backgroundJobsLogVersion || 'v1';
 const ALLOWED_JOB_NAMES = new Set([
   'storageCleanup',
   'streamUrlRefresh',
-  'tokenRefresh',
   'descriptionImageCache',
   'searchResultsCache',
   'jobLogMaintenance',

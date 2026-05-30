@@ -855,15 +855,14 @@ const triggerImageHostMigration = async (req, res) => {
   res.json({ success: true, started: true, ...imageHostMigrationState });
 
   (async () => {
-    const multiHostService = require('../services/multiHostImageService');
+    const objectStorage = require('../services/objectStorageService');
     const logger = require('../middleware/logger');
     const BATCH = 100; // DB page size
-    const CONCURRENCY = 3; // parallel uploads — keep low to respect host rate limits
-    const DELAY_MS = 500; // pause between concurrency chunks
-    // Backup hosts (imgbb free tier) rate-limit aggressive bursts. If uploads
-    // start failing in a long unbroken streak it's almost certainly a rate/quota
-    // limit, so abort rather than burning through every remaining row (they stay
-    // NULL and can be retried on a later run once the limit resets).
+    const CONCURRENCY = 5; // parallel uploads to object storage
+    const DELAY_MS = 200; // pause between concurrency chunks
+    // If uploads fail in a long unbroken streak (e.g. bad credentials or the
+    // bucket is unreachable), abort rather than churning every remaining row —
+    // they stay on Pixhost and can be retried after the run.
     const MAX_CONSECUTIVE_FAILURES = 60;
     let offset = 0;
     let consecutiveFailures = 0;
@@ -872,13 +871,22 @@ const triggerImageHostMigration = async (req, res) => {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     try {
-      // Count total rows that need migration
+      if (!objectStorage.isEnabled()) {
+        throw new Error(
+          'object storage not configured — set S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY'
+        );
+      }
+
+      // Ensure non-favorite ("temp") covers expire per the lifecycle rule.
+      await objectStorage.ensureLifecycleRule(logger);
+
+      // Count cover rows still hosted on Pixhost
       const countRow = await storageProvider.tursoClient.execute(
-        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url IS NOT NULL AND (fallback_urls IS NULL OR fallback_urls='')`
+        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url LIKE '%pixhost.to%'`
       );
       imageHostMigrationState.total = countRow?.rows?.[0]?.c || 0;
 
-      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} rows to process`);
+      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} Pixhost covers to move to object storage`);
 
       while (!aborted) {
         const rows = await storageProvider.images.getImagesNeedingMigration(BATCH, offset);
@@ -889,15 +897,19 @@ const triggerImageHostMigration = async (req, res) => {
           await Promise.all(
             chunk.map(async (row) => {
               try {
-                const sourceUrl = row.original_url || row.pixhost_url;
-                const { urls, error } = await multiHostService.uploadFromUrlDetailed(sourceUrl);
-                if (urls.length > 0) {
-                  await storageProvider.images.updateFallbackUrls(row.torrent_key, urls);
+                const { url, error } = await objectStorage.uploadCoverFromUrl({
+                  torrentKey: row.torrent_key,
+                  imageUrl: row.pixhost_url,
+                  isFavorite: !!row.is_favorite,
+                });
+                if (url) {
+                  // Repoint the cover at object storage and drop old fallbacks.
+                  await storageProvider.images.updateCoverStorageUrl(row.torrent_key, url);
                   imageHostMigrationState.succeeded++;
                   consecutiveFailures = 0;
                 } else {
-                  // Nothing written → row stays in the "needs migration" set.
-                  // Count it as failed so the offset advances past it.
+                  // Nothing written → row stays Pixhost-hosted (still in the
+                  // set). Count it as failed so the offset advances past it.
                   imageHostMigrationState.failed++;
                   consecutiveFailures++;
                   if (error) imageHostMigrationState.lastError = error;
@@ -915,25 +927,24 @@ const triggerImageHostMigration = async (req, res) => {
           if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
             aborted = true;
             logger.error(
-              `[ImageHostMigration] Aborting after ${consecutiveFailures} consecutive failures (likely rate limited). Last error: ${imageHostMigrationState.lastError}`
+              `[ImageHostMigration] Aborting after ${consecutiveFailures} consecutive failures. Last error: ${imageHostMigrationState.lastError}`
             );
             break;
           }
           await sleep(DELAY_MS);
         }
 
-        // Only rows that got fallback_urls written drop out of the filtered set;
-        // every row left behind the cursor is a failed/empty one (oldest first
-        // by created_at). Advancing the offset to the failed count skips exactly
-        // those, so the run processes each row once and terminates instead of
-        // looping forever on rows that produced no backup.
+        // Migrated rows have a non-Pixhost pixhost_url and drop out of the set;
+        // every row left behind the cursor is a failed one (oldest first by
+        // created_at). Advancing the offset to the failed count skips exactly
+        // those, so the run processes each row once and terminates.
         offset = imageHostMigrationState.failed;
       }
 
       if (aborted) {
         imageHostMigrationState.status = 'error';
         imageHostMigrationState.lastError =
-          `Aborted after consecutive upload failures (likely rate limited): ${imageHostMigrationState.lastError}`;
+          `Aborted after consecutive upload failures: ${imageHostMigrationState.lastError}`;
       } else {
         imageHostMigrationState.status = 'completed';
       }

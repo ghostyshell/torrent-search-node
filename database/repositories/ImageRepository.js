@@ -174,19 +174,34 @@ class ImageRepository extends BaseRepository {
   }
 
   /**
-   * Return rows that have a pixhost_url but no fallback_urls yet,
-   * for use by the bulk migration job.
+   * Return cover rows still hosted on Pixhost, for the bulk migration to object
+   * storage. is_favorite marks rows whose torrent is favorited so the migration
+   * can store them permanently vs. under an expiring prefix.
    */
   async getImagesNeedingMigration(limit = 50, offset = 0) {
     const sql = `
-      SELECT torrent_key, pixhost_url, original_url FROM images
-      WHERE image_type = 'cover'
-        AND pixhost_url IS NOT NULL
-        AND (fallback_urls IS NULL OR fallback_urls = '')
-      ORDER BY created_at ASC
+      SELECT i.torrent_key, i.pixhost_url, i.original_url,
+        EXISTS(SELECT 1 FROM favorite_entries f WHERE f.torrent_key = i.torrent_key) AS is_favorite
+      FROM images i
+      WHERE i.image_type = 'cover'
+        AND i.pixhost_url LIKE '%pixhost.to%'
+      ORDER BY i.created_at ASC
       LIMIT ? OFFSET ?
     `;
     return this.all(sql, [limit, offset]);
+  }
+
+  /**
+   * Point a cover row at its object-storage URL and drop any old fallback URLs.
+   * Used by the migration to replace the Pixhost URL with the Sliplane one.
+   */
+  async updateCoverStorageUrl(torrentKey, storageUrl) {
+    const sql = `
+      UPDATE images SET pixhost_url = ?, fallback_urls = NULL
+      WHERE torrent_key = ? AND image_type = 'cover'
+    `;
+    const result = await this.run(sql, [storageUrl, torrentKey]);
+    return result.changes > 0;
   }
 
   async deleteCoverImage(torrent) {

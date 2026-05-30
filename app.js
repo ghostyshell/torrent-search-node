@@ -34,6 +34,7 @@ const setupTorrentRoutes = require('./routes/torrents');
 const setupImageRoutes = require('./routes/images');
 const AuthMiddleware = require('./middleware/auth');
 const IpAllowlistMiddleware = require('./middleware/ipAllowlist');
+const dashboardAuth = require('./middleware/dashboardAuth');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
@@ -120,6 +121,11 @@ app.use('/', healthRoutes);
 // --- CACHE ROUTES ---
 
 app.get('/api/cache/stats', cacheController.getStats);
+
+// Password-gate all monitoring/dashboard endpoints. Registered here (before the
+// routes themselves, which are added in startServer) so it runs first for any
+// /api/monitoring/* request.
+app.use('/api/monitoring', dashboardAuth());
 
 // Note: Monitoring routes are registered in startServer() after ipAllowlistMiddleware is initialized
 

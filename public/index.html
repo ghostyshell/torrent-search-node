@@ -577,6 +577,51 @@
     </div>
 
     <script>
+        // ===== Dashboard auth =====
+        // The monitoring endpoints require a password (DASHBOARD_PASSWORD on the
+        // backend). It's entered once, stored in a cookie, and sent on every
+        // /api/monitoring/* request via the X-Dashboard-Password header.
+        function getDashboardPassword() {
+            const entry = document.cookie
+                .split(';')
+                .map((c) => c.trim())
+                .find((c) => c.startsWith('dashboard_auth='));
+            return entry ? decodeURIComponent(entry.slice('dashboard_auth='.length)) : '';
+        }
+        function setDashboardPassword(pw) {
+            // 30-day cookie, same-origin only
+            document.cookie =
+                'dashboard_auth=' + encodeURIComponent(pw) +
+                '; path=/; max-age=' + (30 * 24 * 60 * 60) + '; SameSite=Strict';
+        }
+        function promptDashboardPassword(message) {
+            const pw = window.prompt(message || 'Enter dashboard password:');
+            if (pw) setDashboardPassword(pw);
+            return pw || '';
+        }
+        // Ask once up front if we don't have it yet.
+        if (!getDashboardPassword()) {
+            promptDashboardPassword('Enter the dashboard password to access monitoring:');
+        }
+        // Send the password on every monitoring call; re-prompt on 401.
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = async (input, init = {}) => {
+            const url = typeof input === 'string' ? input : (input && input.url) || '';
+            if (!url.includes('/api/monitoring/')) {
+                return _origFetch(input, init);
+            }
+            const withPw = (pw) => ({
+                ...init,
+                headers: { ...(init.headers || {}), 'X-Dashboard-Password': pw },
+            });
+            let res = await _origFetch(input, withPw(getDashboardPassword()));
+            if (res.status === 401) {
+                const pw = promptDashboardPassword('Incorrect or missing dashboard password. Re-enter:');
+                if (pw) res = await _origFetch(input, withPw(pw));
+            }
+            return res;
+        };
+
         let currentLogLevel = 'all';
         let refreshInterval = null;
 

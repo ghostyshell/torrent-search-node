@@ -113,6 +113,10 @@ const config = {
     },
     // IP allowlist for monitoring/debug endpoints
     monitoringIpAllowlist: getMonitoringIpAllowlist(),
+    // Password gating the monitoring dashboard endpoints (sent via the
+    // X-Dashboard-Password header or dashboard_auth cookie). When unset the
+    // dashboard is not password-protected (relies on the IP allowlist).
+    dashboardPassword: process.env.DASHBOARD_PASSWORD || null,
   },
 
   // Cache TTLs

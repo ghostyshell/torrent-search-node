@@ -73,7 +73,8 @@ class ImageRepository extends BaseRepository {
       if (imageBuffer) {
         try {
           const results = await this.multiHostService.uploadToAllHosts(imageBuffer);
-          fallbackUrls = results;
+          // Extract just the URLs from { host, url } objects
+          fallbackUrls = results.map((r) => r.url).filter(Boolean);
         } catch {
           // silently omit fallbacks
         }

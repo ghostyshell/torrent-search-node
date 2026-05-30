@@ -423,8 +423,8 @@
                     <div class="stat-item-label">Memory (MB)</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-item-value" id="nodeVersion">-</div>
-                    <div class="stat-item-label">Node.js</div>
+                    <div class="stat-item-value" id="goVersion">-</div>
+                    <div class="stat-item-label">Go Version</div>
                 </div>
             </div>
         </div>
@@ -594,7 +594,7 @@
                 // System stats
                 document.getElementById('uptime').textContent = formatUptime(data.system.uptime);
                 document.getElementById('memory').textContent = data.system.memory.heapUsed;
-                document.getElementById('nodeVersion').textContent = data.system.nodeVersion;
+                document.getElementById('goVersion').textContent = data.system.nodeVersion;
 
                 // API stats
                 document.getElementById('totalRequests').textContent = data.api.totalRequests.toLocaleString();

@@ -828,8 +828,7 @@ const getImageHostMigrationStatus = (req, res) => {
 
 /**
  * POST /api/monitoring/image-host-migration-trigger
- * Kicks off the background job that uploads all existing Pixhost-only cover
- * images to all fallback hosts and writes the URLs back to the DB.
+ * Kicks off the background job that uploads all existing covers to S3 object storage.
  * Idempotent — if a run is already in progress, returns its status.
  */
 const triggerImageHostMigration = async (req, res) => {
@@ -861,8 +860,7 @@ const triggerImageHostMigration = async (req, res) => {
     const CONCURRENCY = 2; // parallel uploads — keep low so /health stays responsive
     const DELAY_MS = 300; // pause between concurrency chunks (yields the event loop)
     // If uploads fail in a long unbroken streak (e.g. bad credentials or the
-    // bucket is unreachable), abort rather than churning every remaining row —
-    // they stay on Pixhost and can be retried after the run.
+    // bucket is unreachable), abort rather than churning every remaining row.
     const MAX_CONSECUTIVE_FAILURES = 60;
     let offset = 0;
     let consecutiveFailures = 0;
@@ -894,11 +892,8 @@ const triggerImageHostMigration = async (req, res) => {
           await Promise.all(
             chunk.map(async (row) => {
               try {
-                // Prefer a Pixhost source (reliable); fall back to original_url.
-                const source =
-                  row.pixhost_url && row.pixhost_url.includes('pixhost.to')
-                    ? row.pixhost_url
-                    : row.original_url || row.pixhost_url;
+                // Use original_url as source for upload (or pixhost_url as fallback)
+                const source = row.original_url || row.pixhost_url;
                 const { key, error } = await objectStorage.uploadCoverFromUrl({
                   torrentKey: row.torrent_key,
                   imageUrl: source,

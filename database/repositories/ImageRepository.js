@@ -3,94 +3,42 @@ const BaseRepository = require('./BaseRepository');
 class ImageRepository extends BaseRepository {
   constructor(dbManager) {
     super(dbManager);
-    this.pixhostService = require('../../services/pixhostService');
-    this.multiHostService = require('../../services/multiHostImageService');
+    this.objectStorageService = require('../../services/objectStorageService');
   }
 
   /**
-   * Set cover image for a torrent, uploading to Pixhost (primary) and all
-   * fallback hosts in parallel.
+   * Set cover image for a torrent, uploading to S3 object storage.
    */
   async setCoverImage(torrent, imageUrl, imageData = null) {
     const torrentKey = this.generateTorrentKey(torrent);
 
     try {
-      let pixhostUrl = imageUrl;
-      let imageBuffer = null;
-      let fallbackUrls = [];
+      // Upload to S3 object storage
+      const { key, error } = await this.objectStorageService.uploadCoverFromUrl({
+        torrentKey,
+        imageUrl,
+        isFavorite: !!torrent.favoriteEntryId,
+      });
 
-      // Fetch buffer once for re-use across all host uploads
-      if (imageUrl && !imageUrl.includes('pixhost.to')) {
-        try {
-          const fetch = require('node-fetch');
-          const response = await fetch(imageUrl, {
-            timeout: 30000,
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              Accept: 'image/*,*/*;q=0.8',
-            },
-          });
-          if (response.ok) {
-            imageBuffer = await response.buffer();
-          }
-        } catch {
-          // silently fall through
-        }
+      if (!key) {
+        console.warn(`⚠️ [ImageRepository] S3 upload failed:`, error);
+        return false;
       }
 
-      // Upload to Pixhost (primary)
-      if (imageBuffer) {
-        try {
-          const uploadResult = await this.pixhostService.uploadBuffer(imageBuffer);
-          pixhostUrl = uploadResult.directImageUrl;
-        } catch (uploadError) {
-          const msg = uploadError.message || '';
-          if (
-            !msg.includes('ENOTFOUND') &&
-            !msg.includes('EAI_AGAIN') &&
-            !msg.includes('ECONNREFUSED') &&
-            !msg.includes('ETIMEDOUT')
-          ) {
-            console.warn(`⚠️ [ImageRepository] Pixhost upload failed:`, msg);
-          }
-        }
-      } else if (
-        imageUrl &&
-        !imageUrl.includes('pixhost.to') &&
-        !imageUrl.includes('img1.pixhost.to')
-      ) {
-        // Buffer fetch failed — try URL-based upload as fallback
-        try {
-          const uploadResult = await this.pixhostService.uploadFromUrl(imageUrl);
-          pixhostUrl = uploadResult.directImageUrl;
-        } catch {
-          // silently keep original URL
-        }
-      }
-
-      // Upload to fallback hosts in parallel (non-blocking; never fails the whole save)
-      if (imageBuffer) {
-        try {
-          const results = await this.multiHostService.uploadToAllHosts(imageBuffer);
-          // Extract just the URLs from { host, url } objects
-          fallbackUrls = results.map((r) => r.url).filter(Boolean);
-        } catch {
-          // silently omit fallbacks
-        }
-      }
+      // Get presigned URL for immediate use
+      const presignedUrl = await this.objectStorageService.getPresignedUrl(key);
 
       const sql = `
-        INSERT OR REPLACE INTO images (torrent_key, image_type, pixhost_url, original_url, torrent_name, fallback_urls)
+        INSERT OR REPLACE INTO images (torrent_key, image_type, pixhost_url, original_url, torrent_name, storage_key)
         VALUES (?, 'cover', ?, ?, ?, ?)
       `;
 
       const result = await this.run(sql, [
         torrentKey,
-        pixhostUrl,
+        presignedUrl,
         imageUrl,
         torrent.Name || 'Unknown',
-        fallbackUrls.length > 0 ? JSON.stringify(fallbackUrls) : null,
+        key,
       ]);
 
       return result.changes > 0;
@@ -110,7 +58,7 @@ class ImageRepository extends BaseRepository {
 
   async getCoverImageByKey(torrentKey) {
     const sql = `
-      SELECT pixhost_url, original_url, fallback_urls, storage_key FROM images
+      SELECT pixhost_url, storage_key FROM images
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
 
@@ -118,33 +66,14 @@ class ImageRepository extends BaseRepository {
 
     if (!row) return null;
 
-    // Prefer object storage (presigned URL) if migration completed for this cover
-    // The presigned URL is stored in pixhost_url column when storage_key is set
-    if (row.storage_key && row.pixhost_url) {
+    // Return S3 presigned URL (stored in pixhost_url column)
+    if (row.pixhost_url) {
       return {
         type: 'url',
         imageUrl: row.pixhost_url,
         originalUrl: row.pixhost_url,
         fallbackUrls: [],
         storageKey: row.storage_key,
-      };
-    }
-
-    // Fall back to legacy pixhost_url
-    if (row.pixhost_url) {
-      let fallbackUrls = [];
-      if (row.fallback_urls) {
-        try {
-          fallbackUrls = JSON.parse(row.fallback_urls);
-        } catch {
-          fallbackUrls = [];
-        }
-      }
-      return {
-        type: 'url',
-        imageUrl: row.pixhost_url,
-        originalUrl: row.original_url || row.pixhost_url,
-        fallbackUrls,
       };
     }
 
@@ -165,26 +94,10 @@ class ImageRepository extends BaseRepository {
 
   async updateCoverImageUrl(torrentKey, imageUrl) {
     const sql = `
-      UPDATE images SET pixhost_url = ?, original_url = ?
+      UPDATE images SET pixhost_url = ?
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
-    const result = await this.run(sql, [imageUrl, imageUrl, torrentKey]);
-    return result.changes > 0;
-  }
-
-  /**
-   * Update fallback_urls for an existing image row.
-   * Called by the bulk migration job.
-   */
-  async updateFallbackUrls(torrentKey, fallbackUrls) {
-    const sql = `
-      UPDATE images SET fallback_urls = ?
-      WHERE torrent_key = ? AND image_type = 'cover'
-    `;
-    const result = await this.run(sql, [
-      fallbackUrls.length > 0 ? JSON.stringify(fallbackUrls) : null,
-      torrentKey,
-    ]);
+    const result = await this.run(sql, [imageUrl, torrentKey]);
     return result.changes > 0;
   }
 
@@ -209,11 +122,11 @@ class ImageRepository extends BaseRepository {
 
   /**
    * Point a cover row at its (presigned) object-storage URL, record the object
-   * key for later presign refreshes, and drop any old fallback URLs.
+   * key for later presign refreshes.
    */
   async updateCoverStorage(torrentKey, presignedUrl, storageKey) {
     const sql = `
-      UPDATE images SET pixhost_url = ?, storage_key = ?, fallback_urls = NULL
+      UPDATE images SET pixhost_url = ?, storage_key = ?
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
     const result = await this.run(sql, [presignedUrl, storageKey, torrentKey]);
@@ -276,45 +189,15 @@ class ImageRepository extends BaseRepository {
       ['cover']
     );
 
-    const withFallbacksResult = await this.get(
-      `SELECT COUNT(*) as count FROM images WHERE image_type = 'cover' AND fallback_urls IS NOT NULL AND fallback_urls != ''`,
+    const withStorageResult = await this.get(
+      `SELECT COUNT(*) as count FROM images WHERE image_type = 'cover' AND storage_key IS NOT NULL`,
       []
     );
 
     return {
       totalImages: countResult?.count || 0,
-      withFallbackUrls: withFallbacksResult?.count || 0,
+      withObjectStorage: withStorageResult?.count || 0,
     };
-  }
-
-  /**
-   * Get image record by pixhost URL (for looking up backup host fallbacks)
-   */
-  async getByPixhostUrl(pixhostUrl) {
-    const sql = `
-      SELECT pixhost_url, original_url, fallback_urls FROM images
-      WHERE image_type = 'cover' AND pixhost_url = ?
-    `;
-    const row = await this.get(sql, [pixhostUrl]);
-
-    if (row && row.pixhost_url) {
-      let fallbackUrls = [];
-      if (row.fallback_urls) {
-        try {
-          fallbackUrls = JSON.parse(row.fallback_urls);
-        } catch {
-          fallbackUrls = [];
-        }
-      }
-      return {
-        type: 'url',
-        imageUrl: row.pixhost_url,
-        originalUrl: row.original_url || row.pixhost_url,
-        fallbackUrls,
-      };
-    }
-
-    return null;
   }
 }
 

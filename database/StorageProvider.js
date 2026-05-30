@@ -59,33 +59,8 @@ class StorageProvider {
    */
   async setCoverImage(torrent, imageUrl, imageData = null) {
     try {
-      // Store in images repository
-      const success = await this.images.setCoverImage(torrent, imageUrl, imageData);
-
-      if (success && imageUrl) {
-        // Update related entities if they exist
-        const pixhostUrl = imageUrl.includes('pixhost.to') ? imageUrl : imageUrl;
-
-        // Update favorite entry if exists
-        if (torrent.favoriteEntryId) {
-          await this.favorites.updateCoverImage(torrent.favoriteEntryId, pixhostUrl);
-        }
-
-        // Update cached link if exists
-        if (torrent.isCachedLink && torrent.cachedLinkId) {
-          await this.cachedLinks.updateCoverImage(torrent.cachedLinkId, pixhostUrl);
-        }
-
-        // Try to find and update favorite entry by torrent key
-        if (!torrent.favoriteEntryId && !torrent.isCachedLink) {
-          const favoriteEntry = await this.favorites.getFavoriteEntry(torrent);
-          if (favoriteEntry && favoriteEntry.id) {
-            await this.favorites.updateCoverImage(favoriteEntry.id, pixhostUrl);
-          }
-        }
-      }
-
-      return success;
+      // Store in images repository (uploads to S3 object storage)
+      return await this.images.setCoverImage(torrent, imageUrl, imageData);
     } catch (error) {
       console.error(
         `❌ [StorageManager] Error setting cover image for ${torrent.Name}:`,

@@ -1,5 +1,5 @@
 const pirateBay = require('./scrapers/pirateBay');
-const pixhostService = require('./pixhostService');
+const objectStorageService = require('./objectStorageService');
 const logger = require('../middleware/logger');
 const fetch = require('node-fetch');
 const { STUDIOS } = require('./studioSearchTerms');
@@ -66,7 +66,6 @@ class DescriptionImageCacheService {
       for (let page = 1; page <= PAGES_TO_CACHE; page++) {
         await this.processSearchPage(studio, page, results);
       }
-      pixhostService.clearCache();
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -159,8 +158,7 @@ class DescriptionImageCacheService {
    *   2. From the returned images, randomly pick one of the first 3
    *   3. Enhance the URL (remove .md thumbnails, etc.) — same logic as frontend
    *   4. Validate the enhanced URL with a HEAD request (5s timeout)
-   *   5. Upload to Pixhost
-   *   6. Store via storage.images.setCoverImage()
+   *   5. Store via storage.images.setCoverImage() (uploads to S3)
    *
    * Always force-refreshes: overwrites existing cover images so broken/default
    * images get replaced.
@@ -215,18 +213,10 @@ class DescriptionImageCacheService {
         finalImageUrl = rawUrl.replace(/\.md(\.[^.]+)$/, '$1');
       }
 
-      // Upload to Pixhost
-      let pixhostUrl = null;
-      try {
-        const uploadResult = await pixhostService.uploadFromUrl(finalImageUrl);
-        pixhostUrl = uploadResult.directImageUrl;
-      } catch (uploadErr) {
-        logger.info(`[DescImageCache] Pixhost upload failed for "${torrent.Name}": ${uploadErr.message}`);
-      }
+      // Upload to S3 object storage
+      const urlToStore = finalImageUrl;
 
-      const urlToStore = pixhostUrl || finalImageUrl;
-
-      // Store via setCoverImage
+      // Store via setCoverImage (uploads to S3)
       const success = await this.storage.images.setCoverImage(torrent, urlToStore);
       if (success) {
         results.cached++;

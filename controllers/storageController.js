@@ -63,7 +63,7 @@ const storageController = {
         });
       }
 
-      // Always use the setCoverImage method which handles Pixhost upload
+      // Use setCoverImage method which uploads to S3 object storage
       const success = await storage.setCoverImage(torrent, imageUrl, imageData);
 
       if (success) {

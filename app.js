@@ -289,7 +289,6 @@ async function startServer() {
 
     // Register old image route paths for backward compatibility
     app.use('/api/google-images', imageRouter);
-    app.use('/api/pixhost', imageRouter);
     app.use('/api/proxy', imageRouter);
 
     // Register torrent routes
@@ -562,7 +561,6 @@ async function startServer() {
     const imageRouter = setupImageRoutes(storageProvider);
     app.use('/api/images', imageRouter);
     app.use('/api/google-images', imageRouter);
-    app.use('/api/pixhost', imageRouter);
     app.use('/api/proxy', imageRouter);
 
     // Register torrent routes

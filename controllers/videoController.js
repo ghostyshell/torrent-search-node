@@ -153,19 +153,6 @@ const videoController = {
             timestamp,
           });
 
-          // Upload to pixhost for better hosting
-          let pixhostUrl = null;
-          try {
-            pixhostUrl = await videoController._uploadToPixhost(
-              screenshotBuffer,
-              tempFilename
-            );
-          } catch (pixhostError) {
-            logger.warn('Error uploading to pixhost', {
-              error: pixhostError.message,
-            });
-          }
-
           // Normalize timestamp for consistent cache keys
           const normalizedTimestamp = Number(timestamp.toFixed(6));
 
@@ -176,7 +163,6 @@ const videoController = {
             try {
               const screenshotData = {
                 base64: `data:image/jpeg;base64,${base64Screenshot}`,
-                pixhostUrl: pixhostUrl,
                 timestamp: normalizedTimestamp,
                 filename: filename || tempFilename,
                 generatedAt: new Date().toISOString(),
@@ -205,7 +191,6 @@ const videoController = {
                     timestamp: normalizedTimestamp,
                     filename: filename || tempFilename,
                     base64Data: `data:image/jpeg;base64,${base64Screenshot}`,
-                    pixhostUrl: pixhostUrl,
                     sizeKB: fileSizeKB,
                     videoUrl: videoUrl.substring(0, 100) + '...',
                     metadata: {
@@ -639,64 +624,6 @@ const videoController = {
   }),
 
   // Private helper methods
-  _uploadToPixhost: async (imageBuffer, filename) => {
-    const fetch = require('node-fetch');
-    const FormData = require('form-data');
-
-    const form = new FormData();
-    form.append('img', imageBuffer, {
-      filename: filename,
-      contentType: 'image/jpeg',
-    });
-    form.append('content_type', '1'); // 1 for adult content (prevents removal)
-    form.append('max_th_size', '420');
-
-    const pixhostResponse = await fetch('https://api.pixhost.to/images', {
-      method: 'POST',
-      body: form,
-      headers: {
-        Accept: 'application/json',
-        ...form.getHeaders(),
-      },
-    });
-
-    if (pixhostResponse.ok) {
-      const result = await pixhostResponse.json();
-      if (result.show_url) {
-        // Extract subdomain number from thumbnail URL for correct direct URL
-        let pixhostUrl;
-        if (result.th_url) {
-          const thMatch = result.th_url.match(/t(\d+)\.pixhost\.to/);
-          if (thMatch) {
-            const subdomainNum = thMatch[1];
-            pixhostUrl = result.show_url.replace(
-              'https://pixhost.to/show/',
-              `https://img${subdomainNum}.pixhost.to/images/`
-            );
-          } else {
-            pixhostUrl = result.show_url.replace(
-              'https://pixhost.to/show/',
-              'https://img1.pixhost.to/images/'
-            );
-          }
-        } else {
-          pixhostUrl = result.show_url.replace(
-            'https://pixhost.to/show/',
-            'https://img1.pixhost.to/images/'
-          );
-        }
-        logger.info('Screenshot uploaded to pixhost', { pixhostUrl });
-        return pixhostUrl;
-      }
-    } else {
-      logger.warn('Pixhost upload failed', {
-        status: pixhostResponse.status,
-        statusText: pixhostResponse.statusText,
-      });
-      throw new Error(`Pixhost upload failed: ${pixhostResponse.statusText}`);
-    }
-    return null;
-  },
 
   _getCachedScreenshots: async (magnetLink, cache) => {
     // Validate inputs

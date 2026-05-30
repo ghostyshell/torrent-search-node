@@ -98,7 +98,7 @@ class TursoClient {
         metadata TEXT
       )`,
 
-      // Image URLs table for Pixhost-hosted images
+      // Image URLs table for S3 object storage covers
       `CREATE TABLE IF NOT EXISTS images (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         torrent_key TEXT NOT NULL,
@@ -108,6 +108,7 @@ class TursoClient {
         torrent_name TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         metadata TEXT,
+        storage_key TEXT,
         UNIQUE(torrent_key, image_type)
       )`,
 
@@ -178,7 +179,6 @@ class TursoClient {
         timestamp INTEGER NOT NULL,
         filename TEXT,
         base64_data TEXT,
-        pixhost_url TEXT,
         size_kb INTEGER,
         video_url TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
@@ -258,19 +258,11 @@ class TursoClient {
 
       await this.migrateCoverImageColumns();
 
-      // Migration: Update images table to use URLs only
-
-      await this.migrateImagesToUrlOnly();
-
       // Migration: Add user_id columns for user-specific data
-
       await this.migrateUserColumns();
 
       // Migration: Add Google OAuth token columns to users table
       await this.migrateGoogleTokenColumns();
-
-      // Migration: Add fallback_urls column to images table
-      await this.migrateImagesFallbackUrls();
 
       // Migration: Add storage_key column to images table (object storage)
       await this.migrateImagesStorageKey();
@@ -343,62 +335,6 @@ class TursoClient {
   }
 
   /**
-   * Migration method to update images table to store URLs only
-   */
-  async migrateImagesToUrlOnly() {
-    try {
-      // Check if the pixhost_url column exists
-      const hasPixhostUrl = await this.columnExists('images', 'pixhost_url');
-
-      if (!hasPixhostUrl) {
-        // Add pixhost_url column
-        await this.execute('ALTER TABLE images ADD COLUMN pixhost_url TEXT');
-
-      }
-
-      // Check if we need to drop the image_data column
-      const hasImageData = await this.columnExists('images', 'image_data');
-
-      if (hasImageData) {
-        // SQLite doesn't support DROP COLUMN directly, so we need to recreate the table
-        const tempTableSql = `
-          CREATE TABLE IF NOT EXISTS images_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            torrent_key TEXT NOT NULL,
-            image_type TEXT NOT NULL,
-            pixhost_url TEXT NOT NULL,
-            original_url TEXT,
-            torrent_name TEXT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-            metadata TEXT,
-            UNIQUE(torrent_key, image_type)
-          )
-        `;
-
-        await this.execute(tempTableSql);
-
-        // Copy data from old table to new table (excluding image_data)
-        const copyDataSql = `
-          INSERT OR IGNORE INTO images_new (id, torrent_key, image_type, pixhost_url, original_url, torrent_name, created_at, metadata)
-          SELECT id, torrent_key, image_type,
-                 COALESCE(original_url, '') as pixhost_url,
-                 original_url, torrent_name, created_at, metadata
-          FROM images
-        `;
-
-        await this.execute(copyDataSql);
-
-        // Drop old table and rename new table
-        await this.execute('DROP TABLE images');
-        await this.execute('ALTER TABLE images_new RENAME TO images');
-
-      }
-    } catch (error) {
-      console.warn('⚠️ Images table migration warning:', error.message);
-    }
-  }
-
-  /**
    * Migration method to add user_id columns to existing tables
    */
   async migrateUserColumns() {
@@ -459,20 +395,6 @@ class TursoClient {
           );
         }
       }
-    }
-  }
-
-  /**
-   * Migration: add fallback_urls column to the images table
-   */
-  async migrateImagesFallbackUrls() {
-    try {
-      const exists = await this.columnExists('images', 'fallback_urls');
-      if (!exists) {
-        await this.execute('ALTER TABLE images ADD COLUMN fallback_urls TEXT');
-      }
-    } catch (error) {
-      console.warn('⚠️ migrateImagesFallbackUrls warning:', error.message);
     }
   }
 

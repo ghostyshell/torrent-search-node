@@ -76,7 +76,7 @@ const torrentController = {
     res.json(torrentScraperService.getAvailableScrapers());
   },
 
-  // Browse a piratebay category (no search query)
+  // Browse a torrent site by category (no search query)
   browseTorrents: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header(
@@ -84,19 +84,26 @@ const torrentController = {
       'Origin, X-Requested-With, Content-Type, Accept'
     );
 
-    const category = req.params.category || '507';
-    const page = req.params.page || 1;
-    const sort = req.query.sort || '3';
+    const category   = req.params.category || '507';
+    const page       = req.params.page || 1;
+    const sort       = req.query.sort || '3';
+    // Allow ?website=hiddenbay; default to piratebay for backward-compat
+    const websiteName = (req.query.website || 'piratebay').toLowerCase();
 
     const options = {
       minSeeders: req.query.minSeeders ? parseInt(req.query.minSeeders) : null,
-      maxResults: req.query.maxResults ? parseInt(req.query.maxResults) : null,
+      maxResults:  req.query.maxResults  ? parseInt(req.query.maxResults)  : null,
     };
 
     try {
-      const pirateBay = require('../services/scrapers/pirateBay');
-      let results = await pirateBay.browse(category, page, sort, options);
+      const scraper = torrentScraperService.getScraper(websiteName);
+      if (!scraper || typeof scraper.browse !== 'function') {
+        return res.status(400).json({
+          error: `Scraper "${websiteName}" does not support browsing`,
+        });
+      }
 
+      let results = await scraper.browse(category, page, sort, options);
       if (!results) results = [];
 
       // Add cover images
@@ -107,7 +114,7 @@ const torrentController = {
       res.json(results);
     } catch (error) {
       res.status(500).json({
-        error: 'Browse failed',
+        error:   'Browse failed',
         message: error.message,
       });
     }

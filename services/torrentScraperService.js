@@ -6,23 +6,25 @@
  */
 
 // Import individual scraper modules
-const limeTorrent = require('./scrapers/limeTorrent');
-const nyaaSI = require('./scrapers/nyaaSI');
-const pirateBay = require('./scrapers/pirateBay');
+const limeTorrent   = require('./scrapers/limeTorrent');
+const nyaaSI        = require('./scrapers/nyaaSI');
+const pirateBay     = require('./scrapers/pirateBay');
 const torrentProject = require('./scrapers/torrentProject');
-const yts = require('./scrapers/yts');
-const x1337 = require('./scrapers/1337x');
+const yts           = require('./scrapers/yts');
+const x1337         = require('./scrapers/1337x');
+const hiddenBay     = require('./scrapers/hiddenbay');
 
 /**
  * Available torrent scrapers mapped by website identifier
  */
 const scrapers = {
-  limetorrent: limeTorrent,
-  nyaasi: nyaaSI,
-  piratebay: pirateBay,
+  limetorrent:   limeTorrent,
+  nyaasi:        nyaaSI,
+  piratebay:     pirateBay,
   torrentproject: torrentProject,
-  yts: yts,
-  '1337x': x1337,
+  yts:           yts,
+  '1337x':       x1337,
+  hiddenbay:     hiddenBay,
 };
 
 /**

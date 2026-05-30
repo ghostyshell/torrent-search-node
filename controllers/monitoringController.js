@@ -962,30 +962,10 @@ const triggerImageHostMigration = async (req, res) => {
   })();
 };
 
-module.exports = {
-  getLogs,
-  getBackgroundTaskStats,
-  getApiUsageStats,
-  getDashboardData,
-  getStreamUrlRefreshLogs,
-  triggerStreamUrlRefresh,
-  getDescriptionImageCacheLogs,
-  triggerDescriptionImageCache,
-  triggerDescriptionImageCacheForceRefresh,
-  getSearchResultsCacheLogs,
-  triggerSearchResultsCache,
-  apiTrackingMiddleware,
-  updateTaskStats,
-  backgroundTaskStats,
-  getImageHostMigrationStatus,
-  triggerImageHostMigration,
-  isImageMigrationRunning: () => imageHostMigrationState.status === 'running',
-  triggerCoverStorageMaintenance,
-};
-
 /**
  * POST /api/monitoring/cover-storage-maintenance-trigger
  * Manually triggers the cover storage maintenance job (refresh presigned URLs + cleanup expired temp).
+ * Idempotent — safe to call even while scheduled maintenance is running.
  */
 const triggerCoverStorageMaintenance = async (req, res) => {
   const storageProvider = req.app.locals.storageProvider;
@@ -1013,4 +993,25 @@ const triggerCoverStorageMaintenance = async (req, res) => {
     logger.error('Manual cover storage maintenance failed', { error: e.message });
     res.status(500).json({ success: false, error: e.message });
   }
+};
+
+module.exports = {
+  getLogs,
+  getBackgroundTaskStats,
+  getApiUsageStats,
+  getDashboardData,
+  getStreamUrlRefreshLogs,
+  triggerStreamUrlRefresh,
+  getDescriptionImageCacheLogs,
+  triggerDescriptionImageCache,
+  triggerDescriptionImageCacheForceRefresh,
+  getSearchResultsCacheLogs,
+  triggerSearchResultsCache,
+  apiTrackingMiddleware,
+  updateTaskStats,
+  backgroundTaskStats,
+  getImageHostMigrationStatus,
+  triggerImageHostMigration,
+  isImageMigrationRunning: () => imageHostMigrationState.status === 'running',
+  triggerCoverStorageMaintenance,
 };

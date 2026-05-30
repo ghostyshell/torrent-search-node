@@ -110,13 +110,28 @@ class ImageRepository extends BaseRepository {
 
   async getCoverImageByKey(torrentKey) {
     const sql = `
-      SELECT pixhost_url, original_url, fallback_urls FROM images
+      SELECT pixhost_url, original_url, fallback_urls, storage_key FROM images
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
 
     const row = await this.get(sql, [torrentKey]);
 
-    if (row && row.pixhost_url) {
+    if (!row) return null;
+
+    // Prefer object storage (presigned URL) if migration completed for this cover
+    // The presigned URL is stored in pixhost_url column when storage_key is set
+    if (row.storage_key && row.pixhost_url) {
+      return {
+        type: 'url',
+        imageUrl: row.pixhost_url,
+        originalUrl: row.pixhost_url,
+        fallbackUrls: [],
+        storageKey: row.storage_key,
+      };
+    }
+
+    // Fall back to legacy pixhost_url
+    if (row.pixhost_url) {
       let fallbackUrls = [];
       if (row.fallback_urls) {
         try {

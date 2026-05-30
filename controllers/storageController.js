@@ -204,8 +204,12 @@ const storageController = {
           ...streamData,
         });
       } else {
-        res.status(404).json({
+        // Not an error: a favorite simply may not have a cached stream URL yet.
+        // Return 200 with found:false so polling clients (e.g. per-card cache
+        // status checks) don't log noisy 404s in the browser console.
+        res.json({
           success: false,
+          found: false,
           error: 'Stream URL not found',
         });
       }
@@ -908,8 +912,11 @@ const storageController = {
           fallbackUrls: coverImage.fallbackUrls || [],
         });
       } else {
-        res.status(404).json({
+        // Not an error: many torrents legitimately have no stored cover.
+        // Return 200 with found:false so per-card cover lookups don't log 404s.
+        res.json({
           success: false,
+          found: false,
           error: 'Cover image not found for torrent',
         });
       }

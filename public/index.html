@@ -527,6 +527,24 @@
             </div>
         </div>
 
+        <!-- Cover Storage Maintenance -->
+        <div class="card full-width">
+            <div class="card-title">
+                Cover Storage Maintenance
+                <button class="refresh-btn" onclick="triggerCoverStorageMaintenance()" id="triggerCoverMaintenanceBtn" style="margin-left: 16px;">
+                    Run Maintenance
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
+                Refreshes presigned URLs for all S3-stored covers and cleans up expired non-favorite images.
+                Runs automatically every 5 hours.
+            </p>
+            <div id="coverMaintenanceStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px; background: #1e3a5f; color: #60a5fa;">
+                Loading...
+            </div>
+            <div id="coverMaintenanceLastRun" style="font-size: 12px; color: #64748b;"></div>
+        </div>
+
         <!-- Persistent background job files (NDJSON per run under logs/background-jobs/) -->
         <div class="card full-width">
             <div class="card-title">Background job files (persistent)</div>
@@ -544,6 +562,7 @@
                     <option value="streamUrlRefresh">streamUrlRefresh</option>
                     <option value="descriptionImageCache">descriptionImageCache</option>
                     <option value="searchResultsCache">searchResultsCache</option>
+                    <option value="coverStorageMaintenance">coverStorageMaintenance</option>
                     <option value="jobLogMaintenance">jobLogMaintenance</option>
                 </select>
                 <select id="jobLogSearchSort" title="File order by modified time; within each file, desc shows last matching lines first" style="padding: 6px; border-radius: 6px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155;">
@@ -1409,6 +1428,68 @@
             }
         }
 
+        async function fetchCoverStorageMaintenanceStatus() {
+            try {
+                const res = await fetch('/api/monitoring/job-logs/list');
+                const data = await res.json();
+                const coverLogs = data.files?.filter(f => f.job === 'coverStorageMaintenance') || [];
+                const latest = coverLogs.sort((a, b) => new Date(b.mtime) - new Date(a.mtime))[0];
+
+                const statusEl = document.getElementById('coverMaintenanceStatus');
+                const lastRunEl = document.getElementById('coverMaintenanceLastRun');
+
+                if (latest) {
+                    const logRes = await fetch(`/api/monitoring/job-logs/file?job=coverStorageMaintenance&date=${latest.date}&name=${latest.name}`);
+                    const lines = await logRes.text();
+                    const entries = lines.trim().split('\n').map(l => JSON.parse(l));
+                    const refreshEntry = entries.find(e => e.message?.includes('[CoverRefresh]'));
+                    const cleanupEntry = entries.find(e => e.message?.includes('[CoverCleanup]'));
+
+                    let summary = '✅ Last run: ' + new Date(latest.mtime).toLocaleString();
+                    if (refreshEntry) {
+                        const match = refreshEntry.message.match(/refreshed (\d+)\/(\d+)/);
+                        if (match) {
+                            summary += ` | Refreshed ${match[1]}/${match[2]} URLs`;
+                        }
+                    }
+                    if (cleanupEntry) {
+                        const match = cleanupEntry.message.match(/removed (\d+) expired/);
+                        if (match) {
+                            summary += ` | Cleaned ${match[1]} expired`;
+                        }
+                    }
+                    statusEl.textContent = summary;
+                    statusEl.style.background = '#1e5f3a';
+                    statusEl.style.color = '#60a5fa';
+                    lastRunEl.textContent = 'Next automatic run: every 5 hours';
+                } else {
+                    statusEl.textContent = 'No maintenance runs yet. Runs automatically every 5 hours after startup.';
+                    lastRunEl.textContent = '';
+                }
+            } catch (e) {
+                console.error('Failed to fetch cover maintenance status:', e);
+                document.getElementById('coverMaintenanceStatus').textContent = 'Failed to load status';
+            }
+        }
+
+        async function triggerCoverStorageMaintenance() {
+            const btn = document.getElementById('triggerCoverMaintenanceBtn');
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Running…';
+                const res = await fetch('/api/monitoring/cover-storage-maintenance-trigger', { method: 'POST' });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Unknown error');
+                showTemporaryMessage('Cover storage maintenance completed. Check logs for details.', 'success');
+                await fetchCoverStorageMaintenanceStatus();
+            } catch (e) {
+                showError('Failed to run maintenance: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run Maintenance';
+            }
+        }
+
         async function refreshAll() {
             await Promise.all([
                 fetchDashboard(),
@@ -1417,6 +1498,7 @@
                 fetchStreamRefreshLogs(),
                 fetchDescCacheLogs(),
                 fetchImageHostMigrationStatus(),
+                fetchCoverStorageMaintenanceStatus(),
             ]);
         }
 

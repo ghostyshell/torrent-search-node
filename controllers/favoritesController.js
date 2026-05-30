@@ -104,28 +104,32 @@ const favoritesController = {
         cache.getMergedFavoritesCount(req.userId),
       ]);
 
-      // Enrich favorites with cover images from images table (prefers S3 presigned URLs for migrated covers)
-      const enrichedFavorites = await Promise.all(
-        favorites.map(async (favorite) => {
-          try {
-            const coverImage = await cache.getCoverImageForTorrent(favorite);
-            if (coverImage) {
-              return {
-                ...favorite,
-                coverImage: {
-                  type: coverImage.type,
-                  url: coverImage.imageUrl || coverImage.originalUrl,
-                  mimeType: coverImage.mimeType,
-                },
-              };
-            }
-          } catch (error) {
-            // Silently continue if cover image lookup fails
-            console.warn('Failed to get cover image for favorite:', favorite.Name, error.message);
-          }
-          return favorite;
-        })
-      );
+      // Enrich favorites with cover images using a single batched lookup
+      // (prefers S3 presigned URLs for migrated covers). Avoids the previous
+      // N+1 query pattern of one cover lookup per favorite.
+      let coverImagesByTorrent = new Map();
+      try {
+        coverImagesByTorrent = await cache.getCoverImagesForTorrents(favorites);
+      } catch (error) {
+        console.warn('Failed to batch-load cover images for favorites:', error.message);
+      }
+
+      const enrichedFavorites = favorites.map((favorite) => {
+        // Drop the internal field surfaced for batch enrichment.
+        const { favoriteEntryCoverImageUrl, ...cleanFavorite } = favorite;
+        const coverImage = coverImagesByTorrent.get(favorite);
+        if (coverImage) {
+          return {
+            ...cleanFavorite,
+            coverImage: {
+              type: coverImage.type,
+              url: coverImage.imageUrl || coverImage.originalUrl,
+              mimeType: coverImage.mimeType,
+            },
+          };
+        }
+        return cleanFavorite;
+      });
 
       const totalPages = Math.ceil(totalCount / limit);
 

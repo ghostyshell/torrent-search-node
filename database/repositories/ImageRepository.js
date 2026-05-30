@@ -80,6 +80,50 @@ class ImageRepository extends BaseRepository {
     return null;
   }
 
+  /**
+   * Batch-load cover images for many torrent keys in a single query.
+   * Avoids the N+1 pattern when enriching a page of favorites.
+   * @param {string[]} torrentKeys
+   * @returns {Promise<Map<string, object>>} Map of torrentKey -> cover image object
+   */
+  async getCoverImagesByKeys(torrentKeys) {
+    const result = new Map();
+    if (!Array.isArray(torrentKeys) || torrentKeys.length === 0) {
+      return result;
+    }
+
+    // De-duplicate keys before building the IN clause.
+    const uniqueKeys = [...new Set(torrentKeys)];
+
+    // Chunk the IN clause to stay under SQLite's bound-variable limit and keep
+    // individual queries efficient.
+    const chunkSize = 500;
+    for (let start = 0; start < uniqueKeys.length; start += chunkSize) {
+      const chunk = uniqueKeys.slice(start, start + chunkSize);
+      const placeholders = chunk.map(() => '?').join(',');
+
+      const sql = `
+        SELECT torrent_key, pixhost_url, storage_key FROM images
+        WHERE image_type = 'cover' AND torrent_key IN (${placeholders})
+      `;
+
+      const rows = await this.all(sql, chunk);
+
+      for (const row of rows) {
+        if (!row.pixhost_url) continue;
+        result.set(row.torrent_key, {
+          type: 'url',
+          imageUrl: row.pixhost_url,
+          originalUrl: row.pixhost_url,
+          fallbackUrls: [],
+          storageKey: row.storage_key,
+        });
+      }
+    }
+
+    return result;
+  }
+
   async hasCoverImage(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
 

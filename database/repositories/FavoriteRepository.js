@@ -133,11 +133,12 @@ class FavoriteRepository extends BaseRepository {
     const userFilter = userId ? 'WHERE user_id = ?' : 'WHERE user_id IS NULL';
 
     const sql = `
-      SELECT torrent_key, torrent_data, sort_date, favorite_entry_id
+      SELECT torrent_key, torrent_data, sort_date, favorite_entry_id, cover_image_url
       FROM (
         SELECT
           torrent_key,
           torrent_data,
+          cover_image_url,
           created_at AS sort_date,
           id AS favorite_entry_id,
           ROW_NUMBER() OVER (
@@ -162,6 +163,9 @@ class FavoriteRepository extends BaseRepository {
           return {
             ...torrentData,
             favoriteEntryId: row.favorite_entry_id,
+            // Surfaced for batch cover-image enrichment; falls back to the
+            // favorite entry's own cover when the images table has none.
+            favoriteEntryCoverImageUrl: row.cover_image_url || null,
             dateAdded: new Date(row.sort_date * 1000).toISOString(),
           };
         } catch (parseErr) {

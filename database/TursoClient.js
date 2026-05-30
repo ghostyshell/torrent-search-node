@@ -208,6 +208,8 @@ class TursoClient {
       'CREATE INDEX IF NOT EXISTS idx_cached_links_date ON cached_links(date_added)',
       'CREATE INDEX IF NOT EXISTS idx_favorite_entries_torrent_key ON favorite_entries(torrent_key)',
       'CREATE INDEX IF NOT EXISTS idx_favorite_entries_created ON favorite_entries(created_at)',
+      // Composite index supporting the favorites list query (filter by user_id, order by created_at)
+      'CREATE INDEX IF NOT EXISTS idx_favorite_entries_user_created ON favorite_entries(user_id, created_at)',
       'CREATE INDEX IF NOT EXISTS idx_torrent_details_entry_id ON torrent_details(favorite_entry_id)',
       'CREATE INDEX IF NOT EXISTS idx_torrent_details_source ON torrent_details(source)',
       // Auth-related indexes

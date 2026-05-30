@@ -115,6 +115,77 @@ class StorageProvider {
   }
 
   /**
+   * Batch-resolve cover images for a page of torrents/favorites, avoiding the
+   * per-row N+1 query pattern. Mirrors getCoverImageForTorrent's source
+   * priority: images table -> favorite entry cover -> cached link cover.
+   * @param {Array} torrents - Torrent/favorite objects (as returned by getMergedFavorites)
+   * @returns {Promise<Map<object, object>>} Map keyed by the torrent object -> cover image
+   */
+  async getCoverImagesForTorrents(torrents) {
+    const result = new Map();
+    if (!Array.isArray(torrents) || torrents.length === 0) {
+      return result;
+    }
+
+    // 1. Single batched lookup against the images table by torrent_key.
+    const keyByTorrent = new Map();
+    const torrentKeys = [];
+    for (const torrent of torrents) {
+      const key = this.images.generateTorrentKey(torrent);
+      keyByTorrent.set(torrent, key);
+      torrentKeys.push(key);
+    }
+    const imagesByKey = await this.images.getCoverImagesByKeys(torrentKeys);
+
+    // 2. Resolve each torrent, falling back to the favorite-entry cover (already
+    //    surfaced on the object) and finally to cached-link covers.
+    const pendingCachedLinks = [];
+    for (const torrent of torrents) {
+      const key = keyByTorrent.get(torrent);
+      const fromImages = imagesByKey.get(key);
+      if (fromImages) {
+        result.set(torrent, fromImages);
+        continue;
+      }
+
+      if (torrent.favoriteEntryCoverImageUrl) {
+        result.set(torrent, {
+          type: 'url',
+          imageUrl: torrent.favoriteEntryCoverImageUrl,
+          originalUrl: torrent.favoriteEntryCoverImageUrl,
+        });
+        continue;
+      }
+
+      if (torrent.isCachedLink && torrent.cachedLinkId) {
+        pendingCachedLinks.push(torrent);
+      }
+    }
+
+    // 3. Cached-link covers are a small subset; resolve them concurrently.
+    await Promise.all(
+      pendingCachedLinks.map(async (torrent) => {
+        try {
+          const cachedLink = await this.cachedLinks.getCachedLinkById(
+            torrent.cachedLinkId
+          );
+          if (cachedLink && cachedLink.coverImageUrl) {
+            result.set(torrent, {
+              type: 'url',
+              imageUrl: cachedLink.coverImageUrl,
+              originalUrl: cachedLink.coverImageUrl,
+            });
+          }
+        } catch (error) {
+          // Ignore individual cached-link lookup failures.
+        }
+      })
+    );
+
+    return result;
+  }
+
+  /**
    * Cleanup old data across all repositories
    */
   async cleanup() {

@@ -877,8 +877,11 @@ const triggerImageHostMigration = async (req, res) => {
           rows.map(async (row) => {
             try {
               const sourceUrl = row.original_url || row.pixhost_url;
-              const fallbacks = await multiHostService.uploadFromUrlToAllHosts(sourceUrl);
-              if (fallbacks && fallbacks.length > 0) {
+              const results = await multiHostService.uploadFromUrlToAllHosts(sourceUrl);
+              // uploadFromUrlToAllHosts returns { host, url } objects; store
+              // plain URL strings (same shape setCoverImage writes).
+              const fallbacks = (results || []).map((r) => r.url).filter(Boolean);
+              if (fallbacks.length > 0) {
                 await storageProvider.images.updateFallbackUrls(row.torrent_key, fallbacks);
                 imageHostMigrationState.succeeded++;
               } else {

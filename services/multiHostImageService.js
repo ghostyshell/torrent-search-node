@@ -9,13 +9,66 @@
 const FormData = require('form-data');
 const fetch = require('node-fetch');
 
-const HOSTS = ['postimage', 'fastpic'];
+// Backup image hosts, in priority order. Each requires an API key (see
+// HOST_KEYS); a host is skipped unless its key is configured.
+const HOSTS = ['imgbb', 'postimage'];
+
+// Env var holding each host's API key.
+const HOST_KEYS = {
+  imgbb: 'IMGBB_API_KEY',
+  postimage: 'POSTIMAGES_API_KEY',
+};
+
+// ── imgbb ─────────────────────────────────────────────────────────────────────
+
+async function uploadToImgbb(imageBuffer) {
+  const apiKey = process.env.IMGBB_API_KEY;
+  if (!apiKey) {
+    throw new Error('imgbb: IMGBB_API_KEY not configured');
+  }
+
+  // imgbb accepts the image as a base64 string and the key as a query param.
+  const form = new FormData();
+  form.append('image', imageBuffer.toString('base64'));
+
+  const response = await fetch(
+    `https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      body: form,
+      headers: { Accept: 'application/json', ...form.getHeaders() },
+      timeout: 60000,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`imgbb API error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  // result.data.url is the direct, hotlinkable i.ibb.co URL.
+  const url = result?.data?.url || result?.data?.display_url || result?.data?.image?.url;
+  if (!result?.success || !url) {
+    throw new Error('imgbb: no URL in response');
+  }
+
+  return url;
+}
 
 // ── PostImage ─────────────────────────────────────────────────────────────────
 
 async function uploadToPostimage(imageBuffer) {
+  // The PostImages API returns an empty HTML body unless called with a
+  // registered API key, so it is skipped entirely (see getActiveHosts) until
+  // POSTIMAGES_API_KEY is configured.
+  const apiKey = process.env.POSTIMAGES_API_KEY;
+  if (!apiKey) {
+    throw new Error('PostImage: POSTIMAGES_API_KEY not configured');
+  }
+
   const form = new FormData();
-  form.append('img', imageBuffer, {
+  form.append('key', apiKey);
+  form.append('image', imageBuffer, {
     filename: 'image.jpg',
     contentType: 'image/jpeg',
   });
@@ -42,41 +95,11 @@ async function uploadToPostimage(imageBuffer) {
   return result.direct_link || result.link;
 }
 
-// ── Fastpic ───────────────────────────────────────────────────────────────────
-
-async function uploadToFastpic(imageBuffer) {
-  const form = new FormData();
-  form.append('uploading', '1');
-  form.append('file1', imageBuffer, {
-    filename: 'image.jpg',
-    contentType: 'image/jpeg',
-  });
-
-  const response = await fetch('https://fastpic.org/upload?api=1', {
-    method: 'POST',
-    body: form,
-    headers: { Accept: 'application/json', ...form.getHeaders() },
-    timeout: 60000,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Fastpic API error: ${response.status}`);
-  }
-
-  const result = await response.json();
-  const url = result.image_url || result.fullsize || result.link;
-  if (!url) {
-    throw new Error('Fastpic: no image URL in response');
-  }
-
-  return url;
-}
-
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 const UPLOADERS = {
+  imgbb: uploadToImgbb,
   postimage: uploadToPostimage,
-  fastpic: uploadToFastpic,
 };
 
 /**
@@ -87,9 +110,18 @@ const UPLOADERS = {
  * @param {Buffer} imageBuffer
  * @returns {Promise<Array<{host:string, url:string}>>}
  */
+function getActiveHosts() {
+  // Skip any host whose API key isn't configured so we don't fire doomed
+  // requests for every image.
+  return HOSTS.filter((host) => {
+    const keyVar = HOST_KEYS[host];
+    return !keyVar || !!process.env[keyVar];
+  });
+}
+
 async function uploadToAllHosts(imageBuffer) {
   const results = await Promise.allSettled(
-    HOSTS.map(async (host) => {
+    getActiveHosts().map(async (host) => {
       const url = await UPLOADERS[host](imageBuffer);
       return { host, url };
     })

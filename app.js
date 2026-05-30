@@ -5,6 +5,17 @@
 // Load environment configuration
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
+
+// Capture otherwise-fatal async errors so a single bad upload/request can't take
+// the whole process down (and so the cause is logged instead of vanishing).
+process.on('unhandledRejection', (reason) => {
+  logger.error('UnhandledRejection', {
+    reason: reason && reason.stack ? reason.stack : String(reason),
+  });
+});
+process.on('uncaughtException', (err) => {
+  logger.error('UncaughtException', { error: err && err.stack ? err.stack : String(err) });
+});
 const { corsMiddleware, validateCorsConfig } = require('./middleware/cors');
 const {
   errorHandler,
@@ -810,6 +821,8 @@ const startPeriodicCoverStorageMaintenance = () => {
 
   const runRefresh = () =>
     runWithJobFileLogging('coverPresignRefresh', async () => {
+      // Don't compete with a running migration for S3/DB/CPU.
+      if (monitoringController.isImageMigrationRunning()) return;
       try {
         await maint.refreshPresignedUrls(storageProvider, logger);
       } catch (e) {
@@ -818,6 +831,7 @@ const startPeriodicCoverStorageMaintenance = () => {
     });
   const runCleanup = () =>
     runWithJobFileLogging('coverTempCleanup', async () => {
+      if (monitoringController.isImageMigrationRunning()) return;
       try {
         await maint.cleanupExpiredTemp(storageProvider, logger);
       } catch (e) {
@@ -825,10 +839,10 @@ const startPeriodicCoverStorageMaintenance = () => {
       }
     });
 
-  // Initial runs shortly after startup, then on a schedule.
-  setTimeout(runRefresh, 2 * 60 * 1000);
+  // First runs well after startup (so they don't overlap a migration), then on schedule.
+  setTimeout(runRefresh, 30 * 60 * 1000);
   setInterval(runRefresh, REFRESH_INTERVAL);
-  setTimeout(runCleanup, 15 * 60 * 1000);
+  setTimeout(runCleanup, 45 * 60 * 1000);
   setInterval(runCleanup, CLEANUP_INTERVAL);
 
   logger.info('Started cover storage maintenance (presigned refresh every 3d, temp cleanup daily)');

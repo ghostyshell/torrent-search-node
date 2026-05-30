@@ -858,8 +858,8 @@ const triggerImageHostMigration = async (req, res) => {
     const objectStorage = require('../services/objectStorageService');
     const logger = require('../middleware/logger');
     const BATCH = 100; // DB page size
-    const CONCURRENCY = 5; // parallel uploads to object storage
-    const DELAY_MS = 200; // pause between concurrency chunks
+    const CONCURRENCY = 2; // parallel uploads — keep low so /health stays responsive
+    const DELAY_MS = 300; // pause between concurrency chunks (yields the event loop)
     // If uploads fail in a long unbroken streak (e.g. bad credentials or the
     // bucket is unreachable), abort rather than churning every remaining row —
     // they stay on Pixhost and can be retried after the run.
@@ -979,4 +979,5 @@ module.exports = {
   backgroundTaskStats,
   getImageHostMigrationStatus,
   triggerImageHostMigration,
+  isImageMigrationRunning: () => imageHostMigrationState.status === 'running',
 };

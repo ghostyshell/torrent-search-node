@@ -509,12 +509,12 @@
             <div class="card-title">
                 Image Host Migration
                 <button class="refresh-btn" onclick="triggerImageHostMigration()" id="triggerImageMigrationBtn" style="margin-left: 16px;">
-                    Migrate Images to All Hosts
+                    Migrate to Object Storage
                 </button>
             </div>
             <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
-                Uploads all existing Pixhost-only cover images to PostImage and Fastpic as fallback hosts.
-                Run this once after deploying the multi-host update to backfill the database.
+                Uploads all existing Pixhost cover images to S3 object storage (Sliplane).
+                Covers are served via presigned URLs; favorites are kept permanently, others expire after 30 days.
             </p>
             <div id="imageMigrationStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px; background: #1e3a5f; color: #60a5fa;">
                 Loading status...
@@ -1374,7 +1374,7 @@
                 }
 
                 btn.disabled = data.status === 'running';
-                btn.textContent = data.status === 'running' ? 'Migrating…' : 'Migrate Images to All Hosts';
+                btn.textContent = data.status === 'running' ? 'Migrating…' : 'Migrate to Object Storage';
 
                 // Keep polling while running
                 if (data.status === 'running') {

@@ -387,7 +387,7 @@ const imageController = {
     });
   },
 
-  // Get Pixhost fallback URLs
+  // Get Pixhost fallback URLs (includes backup host URLs from database)
   getPixhostFallbacks: async (req, res) => {
     const imageUrl = req.query.url;
 
@@ -410,7 +410,22 @@ const imageController = {
         });
       }
 
-      // Extract the image path
+      // Try to find stored fallback URLs from database (includes backup hosts)
+      const storage = req.app.locals.cache;
+      if (storage && storage.images) {
+        // Look up by pixhost URL to find stored backup host fallbacks
+        const storedImage = await storage.images.getByPixhostUrl(imageUrl);
+        if (storedImage && storedImage.fallbackUrls && storedImage.fallbackUrls.length > 0) {
+          return res.json({
+            success: true,
+            fallbacks: storedImage.fallbackUrls,
+            isPixhost: true,
+            hasBackupHosts: true,
+          });
+        }
+      }
+
+      // No stored fallbacks, generate pixhost subdomain fallbacks
       let imagePath = '';
       const pixhostSubdomains = [
         'img1.pixhost.to',

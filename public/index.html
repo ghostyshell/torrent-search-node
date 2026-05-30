@@ -594,7 +594,7 @@
                 // System stats
                 document.getElementById('uptime').textContent = formatUptime(data.system.uptime);
                 document.getElementById('memory').textContent = data.system.memory.heapUsed;
-                document.getElementById('goVersion').textContent = data.system.nodeVersion;
+                document.getElementById('goVersion').textContent = data.system.goVersion;
 
                 // API stats
                 document.getElementById('totalRequests').textContent = data.api.totalRequests.toLocaleString();

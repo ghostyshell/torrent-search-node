@@ -226,6 +226,36 @@ class ImageRepository extends BaseRepository {
       withFallbackUrls: withFallbacksResult?.count || 0,
     };
   }
+
+  /**
+   * Get image record by pixhost URL (for looking up backup host fallbacks)
+   */
+  async getByPixhostUrl(pixhostUrl) {
+    const sql = `
+      SELECT pixhost_url, original_url, fallback_urls FROM images
+      WHERE image_type = 'cover' AND pixhost_url = ?
+    `;
+    const row = await this.get(sql, [pixhostUrl]);
+
+    if (row && row.pixhost_url) {
+      let fallbackUrls = [];
+      if (row.fallback_urls) {
+        try {
+          fallbackUrls = JSON.parse(row.fallback_urls);
+        } catch {
+          fallbackUrls = [];
+        }
+      }
+      return {
+        type: 'url',
+        imageUrl: row.pixhost_url,
+        originalUrl: row.original_url || row.pixhost_url,
+        fallbackUrls,
+      };
+    }
+
+    return null;
+  }
 }
 
 module.exports = ImageRepository;

@@ -877,16 +877,13 @@ const triggerImageHostMigration = async (req, res) => {
         );
       }
 
-      // Ensure non-favorite ("temp") covers expire per the lifecycle rule.
-      await objectStorage.ensureLifecycleRule(logger);
-
-      // Count cover rows still hosted on Pixhost
+      // Count cover rows not yet copied to object storage
       const countRow = await storageProvider.tursoClient.execute(
-        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url LIKE '%pixhost.to%'`
+        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url IS NOT NULL AND storage_key IS NULL`
       );
       imageHostMigrationState.total = countRow?.rows?.[0]?.c || 0;
 
-      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} Pixhost covers to move to object storage`);
+      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} covers to move to object storage`);
 
       while (!aborted) {
         const rows = await storageProvider.images.getImagesNeedingMigration(BATCH, offset);
@@ -897,19 +894,25 @@ const triggerImageHostMigration = async (req, res) => {
           await Promise.all(
             chunk.map(async (row) => {
               try {
-                const { url, error } = await objectStorage.uploadCoverFromUrl({
+                // Prefer a Pixhost source (reliable); fall back to original_url.
+                const source =
+                  row.pixhost_url && row.pixhost_url.includes('pixhost.to')
+                    ? row.pixhost_url
+                    : row.original_url || row.pixhost_url;
+                const { key, error } = await objectStorage.uploadCoverFromUrl({
                   torrentKey: row.torrent_key,
-                  imageUrl: row.pixhost_url,
+                  imageUrl: source,
                   isFavorite: !!row.is_favorite,
                 });
-                if (url) {
-                  // Repoint the cover at object storage and drop old fallbacks.
-                  await storageProvider.images.updateCoverStorageUrl(row.torrent_key, url);
+                if (key) {
+                  // Store a presigned URL + the key (for later refresh), drop fallbacks.
+                  const presigned = await objectStorage.getPresignedUrl(key);
+                  await storageProvider.images.updateCoverStorage(row.torrent_key, presigned, key);
                   imageHostMigrationState.succeeded++;
                   consecutiveFailures = 0;
                 } else {
-                  // Nothing written → row stays Pixhost-hosted (still in the
-                  // set). Count it as failed so the offset advances past it.
+                  // Nothing stored → row still has storage_key NULL. Count it as
+                  // failed so the offset advances past it.
                   imageHostMigrationState.failed++;
                   consecutiveFailures++;
                   if (error) imageHostMigrationState.lastError = error;
@@ -934,10 +937,10 @@ const triggerImageHostMigration = async (req, res) => {
           await sleep(DELAY_MS);
         }
 
-        // Migrated rows have a non-Pixhost pixhost_url and drop out of the set;
-        // every row left behind the cursor is a failed one (oldest first by
-        // created_at). Advancing the offset to the failed count skips exactly
-        // those, so the run processes each row once and terminates.
+        // Migrated rows get storage_key set and drop out of the set; every row
+        // left behind the cursor is a failed one (oldest first by created_at).
+        // Advancing the offset to the failed count skips exactly those, so the
+        // run processes each row once and terminates.
         offset = imageHostMigrationState.failed;
       }
 

@@ -1,29 +1,33 @@
 /**
- * Object Storage Service (Sliplane S3-compatible bucket)
+ * Object Storage Service (Sliplane / S3-compatible bucket)
  *
- * Stores backup copies of cover images in a Sliplane object-storage bucket and
- * returns their public URLs, used as fallback_urls when Pixhost is unreachable.
+ * Cover images are stored in the bucket and served to the frontend via
+ * **presigned GET URLs** (the bucket is private — anonymous GETs are rejected).
+ * Presigned URLs expire (SigV4 max 7 days), so a background job periodically
+ * regenerates them, and another removes expired non-favorite objects (the
+ * provider has no lifecycle API).
+ *
+ * Keys:
+ *   ${KEY_PREFIX}/keep/<torrentKey>.jpg   favorites — kept indefinitely
+ *   ${KEY_PREFIX}/temp/<torrentKey>.jpg   non-favorites — cleaned up after
+ *                                         S3_TEMP_EXPIRE_DAYS
  *
  * Configuration (env):
- *   S3_ENDPOINT           S3-compatible endpoint URL (from the Sliplane dashboard)
- *   S3_REGION             Bucket region: "ger" or "us-east"
- *   S3_BUCKET             Bucket name
- *   S3_ACCESS_KEY_ID      Access key id  (the "client id")
- *   S3_SECRET_ACCESS_KEY  Secret access key (the "secret")
- *   S3_PUBLIC_BASE_URL    (optional) Public base URL for objects. Defaults to
- *                         `${S3_ENDPOINT}/${S3_BUCKET}`.
- *   S3_OBJECT_ACL         (optional) e.g. "public-read" if the bucket requires a
- *                         per-object ACL instead of a public bucket policy.
- *   S3_KEY_PREFIX         (optional) key prefix, default "covers".
- *   S3_TEMP_EXPIRE_DAYS   (optional) days before non-favorite covers expire,
- *                         default 30.
+ *   S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
+ *   S3_KEY_PREFIX        (optional) default "covers"
+ *   S3_TEMP_EXPIRE_DAYS  (optional) default 30
+ *   S3_PRESIGN_DAYS      (optional) presigned URL validity in days, default 7 (max)
  */
 
 const {
   S3Client,
   PutObjectCommand,
-  PutBucketLifecycleConfigurationCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  DeleteObjectCommand,
+  ListObjectsV2Command,
 } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const fetch = require('node-fetch');
 
 const ENDPOINT = process.env.S3_ENDPOINT;
@@ -31,13 +35,18 @@ const REGION = process.env.S3_REGION || 'us-east';
 const BUCKET = process.env.S3_BUCKET;
 const ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
-const PUBLIC_BASE_URL = (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
-const OBJECT_ACL = process.env.S3_OBJECT_ACL || undefined;
 const KEY_PREFIX = (process.env.S3_KEY_PREFIX || 'covers').replace(/^\/+|\/+$/g, '');
 const TEMP_EXPIRE_DAYS = parseInt(process.env.S3_TEMP_EXPIRE_DAYS || '30', 10);
+// SigV4 presigned URLs are valid for at most 7 days.
+const PRESIGN_EXPIRES_SECONDS = Math.min(
+  parseInt(process.env.S3_PRESIGN_DAYS || '7', 10) * 24 * 3600,
+  7 * 24 * 3600
+);
+
+const KEEP_PREFIX = `${KEY_PREFIX}/keep/`;
+const TEMP_PREFIX = `${KEY_PREFIX}/temp/`;
 
 let client = null;
-let lifecycleEnsured = false;
 
 function isEnabled() {
   return !!(ENDPOINT && BUCKET && ACCESS_KEY_ID && SECRET_ACCESS_KEY);
@@ -48,83 +57,91 @@ function getClient() {
     client = new S3Client({
       endpoint: ENDPOINT,
       region: REGION,
-      credentials: {
-        accessKeyId: ACCESS_KEY_ID,
-        secretAccessKey: SECRET_ACCESS_KEY,
-      },
-      forcePathStyle: true, // required by most S3-compatible providers
+      credentials: { accessKeyId: ACCESS_KEY_ID, secretAccessKey: SECRET_ACCESS_KEY },
+      forcePathStyle: true,
     });
   }
   return client;
 }
 
-function extForContentType(contentType) {
-  if (!contentType) return 'jpg';
-  if (contentType.includes('png')) return 'png';
-  if (contentType.includes('webp')) return 'webp';
-  if (contentType.includes('gif')) return 'gif';
-  return 'jpg';
-}
-
 /**
- * Object key for a cover. Favorites go under a "keep" prefix (never expire);
- * everything else under "temp" (expired by the lifecycle rule).
+ * Object key for a cover. Favorites under "keep", others under "temp". A single
+ * .jpg extension keeps keys deterministic from the torrent key (the real
+ * content-type is stored on the object, which is what browsers use).
  */
-function coverKey(torrentKey, isFavorite, contentType) {
-  const bucketDir = isFavorite ? 'keep' : 'temp';
-  const ext = extForContentType(contentType);
-  return `${KEY_PREFIX}/${bucketDir}/${torrentKey}.${ext}`;
+function coverKey(torrentKey, isFavorite) {
+  return `${isFavorite ? KEEP_PREFIX : TEMP_PREFIX}${torrentKey}.jpg`;
 }
 
-function publicUrlForKey(key) {
-  const base = PUBLIC_BASE_URL || `${(ENDPOINT || '').replace(/\/+$/, '')}/${BUCKET}`;
-  return `${base}/${key}`;
-}
-
-/**
- * Upload a cover image buffer and return its public URL.
- *
- * @param {object} opts
- * @param {string} opts.torrentKey
- * @param {Buffer} opts.buffer
- * @param {string} [opts.contentType]
- * @param {boolean} [opts.isFavorite]
- * @returns {Promise<string>} public URL of the stored object
- */
-async function uploadCoverImage({ torrentKey, buffer, contentType = 'image/jpeg', isFavorite = false }) {
-  if (!isEnabled()) {
-    throw new Error('object storage not configured (set S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY)');
-  }
-
-  const key = coverKey(torrentKey, isFavorite, contentType);
-
+/** Upload a cover image buffer; returns the object key. */
+async function uploadCover({ torrentKey, buffer, contentType = 'image/jpeg', isFavorite = false }) {
+  const key = coverKey(torrentKey, isFavorite);
   await getClient().send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       Body: buffer,
-      ContentType: contentType,
+      ContentType: contentType || 'image/jpeg',
       CacheControl: 'public, max-age=31536000, immutable',
-      ...(OBJECT_ACL ? { ACL: OBJECT_ACL } : {}),
     })
   );
+  return key;
+}
 
-  return publicUrlForKey(key);
+/** Generate a presigned GET URL for an object key. */
+async function getPresignedUrl(key, expiresIn = PRESIGN_EXPIRES_SECONDS) {
+  return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: BUCKET, Key: key }), {
+    expiresIn,
+  });
+}
+
+/** Whether an object exists in the bucket. */
+async function objectExists(key) {
+  try {
+    await getClient().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete an object. */
+async function deleteObject(key) {
+  await getClient().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+
+/** List objects under a prefix; returns [{ Key, LastModified }]. */
+async function listObjects(prefix) {
+  const out = [];
+  let ContinuationToken;
+  do {
+    const resp = await getClient().send(
+      new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken })
+    );
+    for (const o of resp.Contents || []) {
+      out.push({ Key: o.Key, LastModified: o.LastModified });
+    }
+    ContinuationToken = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+  } while (ContinuationToken);
+  return out;
 }
 
 /**
- * Fetch an image from a URL and upload it to object storage. Surfaces the
- * failure reason so the migration can record it.
+ * Fetch an image from a URL and upload it to object storage. Reuses an existing
+ * object (e.g. from an earlier run) without re-downloading. Returns the key.
  *
- * @param {object} opts
- * @param {string} opts.torrentKey
- * @param {string} opts.imageUrl   source image URL to copy
- * @param {boolean} [opts.isFavorite]
- * @returns {Promise<{ url: string|null, error: string|null }>}
+ * @returns {Promise<{ key: string|null, error: string|null }>}
  */
 async function uploadCoverFromUrl({ torrentKey, imageUrl, isFavorite = false }) {
   if (!isEnabled()) {
-    return { url: null, error: 'object storage not configured (set S3_ENDPOINT/S3_BUCKET/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY)' };
+    return { key: null, error: 'object storage not configured' };
+  }
+
+  const key = coverKey(torrentKey, isFavorite);
+
+  // If we already uploaded this object on a previous run, skip the download.
+  if (await objectExists(key)) {
+    return { key, error: null };
   }
 
   let buffer;
@@ -139,58 +156,34 @@ async function uploadCoverFromUrl({ torrentKey, imageUrl, isFavorite = false }) 
       },
     });
     if (!response.ok) {
-      return { url: null, error: `source fetch HTTP ${response.status}` };
+      return { key: null, error: `source fetch HTTP ${response.status}` };
     }
     contentType = response.headers.get('content-type') || 'image/jpeg';
     buffer = await response.buffer();
   } catch (e) {
-    return { url: null, error: `source fetch failed: ${e.message}` };
+    return { key: null, error: `source fetch failed: ${e.message}` };
   }
 
   try {
-    const url = await uploadCoverImage({ torrentKey, buffer, contentType, isFavorite });
-    return { url, error: null };
+    await uploadCover({ torrentKey, buffer, contentType, isFavorite });
+    return { key, error: null };
   } catch (e) {
-    return { url: null, error: `object storage upload failed: ${e.message}` };
-  }
-}
-
-/**
- * Apply the lifecycle rule that expires non-favorite ("temp") covers after
- * S3_TEMP_EXPIRE_DAYS. Idempotent and best-effort — logs and continues if the
- * provider doesn't support lifecycle configuration.
- */
-async function ensureLifecycleRule(logger = console) {
-  if (!isEnabled() || lifecycleEnsured) return;
-  try {
-    await getClient().send(
-      new PutBucketLifecycleConfigurationCommand({
-        Bucket: BUCKET,
-        LifecycleConfiguration: {
-          Rules: [
-            {
-              ID: 'expire-temp-covers',
-              Status: 'Enabled',
-              Filter: { Prefix: `${KEY_PREFIX}/temp/` },
-              Expiration: { Days: TEMP_EXPIRE_DAYS },
-            },
-          ],
-        },
-      })
-    );
-    lifecycleEnsured = true;
-    logger.info?.(`[ObjectStorage] Lifecycle rule set: expire ${KEY_PREFIX}/temp/ after ${TEMP_EXPIRE_DAYS}d`);
-  } catch (e) {
-    logger.warn?.(`[ObjectStorage] Could not set lifecycle rule (set expiration on ${KEY_PREFIX}/temp/ manually): ${e.message}`);
+    return { key: null, error: `object storage upload failed: ${e.message}` };
   }
 }
 
 module.exports = {
   isEnabled,
-  uploadCoverImage,
-  uploadCoverFromUrl,
-  ensureLifecycleRule,
   coverKey,
-  publicUrlForKey,
+  uploadCover,
+  uploadCoverFromUrl,
+  getPresignedUrl,
+  objectExists,
+  deleteObject,
+  listObjects,
+  KEY_PREFIX,
+  KEEP_PREFIX,
+  TEMP_PREFIX,
   TEMP_EXPIRE_DAYS,
+  PRESIGN_EXPIRES_SECONDS,
 };

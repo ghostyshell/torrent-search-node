@@ -272,6 +272,9 @@ class TursoClient {
       // Migration: Add fallback_urls column to images table
       await this.migrateImagesFallbackUrls();
 
+      // Migration: Add storage_key column to images table (object storage)
+      await this.migrateImagesStorageKey();
+
     } catch (migrationError) {
       console.warn(
         'TursoClient: Migration failed, continuing without migrations:',
@@ -470,6 +473,21 @@ class TursoClient {
       }
     } catch (error) {
       console.warn('⚠️ migrateImagesFallbackUrls warning:', error.message);
+    }
+  }
+
+  /**
+   * Migration: add storage_key column to the images table. Holds the object
+   * storage key so presigned cover URLs can be regenerated.
+   */
+  async migrateImagesStorageKey() {
+    try {
+      const exists = await this.columnExists('images', 'storage_key');
+      if (!exists) {
+        await this.execute('ALTER TABLE images ADD COLUMN storage_key TEXT');
+      }
+    } catch (error) {
+      console.warn('⚠️ migrateImagesStorageKey warning:', error.message);
     }
   }
 

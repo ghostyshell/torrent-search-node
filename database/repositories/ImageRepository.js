@@ -174,9 +174,9 @@ class ImageRepository extends BaseRepository {
   }
 
   /**
-   * Return cover rows still hosted on Pixhost, for the bulk migration to object
-   * storage. is_favorite marks rows whose torrent is favorited so the migration
-   * can store them permanently vs. under an expiring prefix.
+   * Return cover rows not yet copied to object storage (storage_key IS NULL),
+   * for the bulk migration. is_favorite marks rows whose torrent is favorited so
+   * the migration can store them permanently vs. under an expiring prefix.
    */
   async getImagesNeedingMigration(limit = 50, offset = 0) {
     const sql = `
@@ -184,7 +184,8 @@ class ImageRepository extends BaseRepository {
         EXISTS(SELECT 1 FROM favorite_entries f WHERE f.torrent_key = i.torrent_key) AS is_favorite
       FROM images i
       WHERE i.image_type = 'cover'
-        AND i.pixhost_url LIKE '%pixhost.to%'
+        AND i.pixhost_url IS NOT NULL
+        AND i.storage_key IS NULL
       ORDER BY i.created_at ASC
       LIMIT ? OFFSET ?
     `;
@@ -192,15 +193,44 @@ class ImageRepository extends BaseRepository {
   }
 
   /**
-   * Point a cover row at its object-storage URL and drop any old fallback URLs.
-   * Used by the migration to replace the Pixhost URL with the Sliplane one.
+   * Point a cover row at its (presigned) object-storage URL, record the object
+   * key for later presign refreshes, and drop any old fallback URLs.
    */
-  async updateCoverStorageUrl(torrentKey, storageUrl) {
+  async updateCoverStorage(torrentKey, presignedUrl, storageKey) {
     const sql = `
-      UPDATE images SET pixhost_url = ?, fallback_urls = NULL
+      UPDATE images SET pixhost_url = ?, storage_key = ?, fallback_urls = NULL
       WHERE torrent_key = ? AND image_type = 'cover'
     `;
-    const result = await this.run(sql, [storageUrl, torrentKey]);
+    const result = await this.run(sql, [presignedUrl, storageKey, torrentKey]);
+    return result.changes > 0;
+  }
+
+  /**
+   * Cover rows backed by object storage, for the presigned-URL refresh job.
+   */
+  async getObjectStorageCovers(limit = 200, offset = 0) {
+    const sql = `
+      SELECT torrent_key, storage_key FROM images
+      WHERE image_type = 'cover' AND storage_key IS NOT NULL
+      ORDER BY torrent_key ASC
+      LIMIT ? OFFSET ?
+    `;
+    return this.all(sql, [limit, offset]);
+  }
+
+  async updateCoverPresignedUrl(torrentKey, presignedUrl) {
+    const sql = `
+      UPDATE images SET pixhost_url = ?
+      WHERE torrent_key = ? AND image_type = 'cover'
+    `;
+    const result = await this.run(sql, [presignedUrl, torrentKey]);
+    return result.changes > 0;
+  }
+
+  /** Delete a cover row by its object storage key (used by the cleanup job). */
+  async deleteCoverByStorageKey(storageKey) {
+    const sql = `DELETE FROM images WHERE image_type = 'cover' AND storage_key = ?`;
+    const result = await this.run(sql, [storageKey]);
     return result.changes > 0;
   }
 

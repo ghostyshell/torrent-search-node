@@ -486,6 +486,7 @@ async function startServer() {
     startPeriodicDescriptionImageCache();
     startPeriodicSearchResultsCache();
     startPeriodicJobLogMaintenance();
+    startPeriodicCoverStorageMaintenance();
 
     return server;
   } catch (error) {
@@ -789,6 +790,48 @@ const startPeriodicStorageCleanup = () => {
       }
     });
   }, cleanupInterval);
+};
+
+// Periodic cover object-storage maintenance: refresh presigned URLs (so they
+// never lapse) and delete expired non-favorite ("temp") covers.
+const startPeriodicCoverStorageMaintenance = () => {
+  if (!storageProvider) {
+    logger.warn('Storage not available - skipping cover storage maintenance');
+    return;
+  }
+  const objectStorage = require('./services/objectStorageService');
+  if (!objectStorage.isEnabled()) {
+    logger.info('Object storage not configured - skipping cover storage maintenance');
+    return;
+  }
+  const maint = require('./services/coverStorageMaintenanceService');
+  const REFRESH_INTERVAL = 3 * 24 * 60 * 60 * 1000; // every 3 days (presigned URLs valid 7)
+  const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // daily
+
+  const runRefresh = () =>
+    runWithJobFileLogging('coverPresignRefresh', async () => {
+      try {
+        await maint.refreshPresignedUrls(storageProvider, logger);
+      } catch (e) {
+        logger.error('Cover presign refresh failed', { error: e.message });
+      }
+    });
+  const runCleanup = () =>
+    runWithJobFileLogging('coverTempCleanup', async () => {
+      try {
+        await maint.cleanupExpiredTemp(storageProvider, logger);
+      } catch (e) {
+        logger.error('Cover temp cleanup failed', { error: e.message });
+      }
+    });
+
+  // Initial runs shortly after startup, then on a schedule.
+  setTimeout(runRefresh, 2 * 60 * 1000);
+  setInterval(runRefresh, REFRESH_INTERVAL);
+  setTimeout(runCleanup, 15 * 60 * 1000);
+  setInterval(runCleanup, CLEANUP_INTERVAL);
+
+  logger.info('Started cover storage maintenance (presigned refresh every 3d, temp cleanup daily)');
 };
 
 // Periodic Google token refresh handler

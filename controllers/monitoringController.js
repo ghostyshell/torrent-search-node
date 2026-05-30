@@ -888,8 +888,12 @@ const triggerImageHostMigration = async (req, res) => {
           })
         );
 
-        offset += BATCH;
-        if (rows.length < BATCH) break;
+        // Succeeded rows get fallback_urls written and drop out of the
+        // "needs migration" filter, so only the failed rows remain behind the
+        // cursor (they're the oldest remaining by created_at). Advance the
+        // offset past exactly those to avoid both skipping unprocessed rows and
+        // looping forever on the failed ones.
+        offset = imageHostMigrationState.failed;
       }
 
       imageHostMigrationState.status = 'completed';

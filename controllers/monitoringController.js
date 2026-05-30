@@ -980,4 +980,37 @@ module.exports = {
   getImageHostMigrationStatus,
   triggerImageHostMigration,
   isImageMigrationRunning: () => imageHostMigrationState.status === 'running',
+  triggerCoverStorageMaintenance,
+};
+
+/**
+ * POST /api/monitoring/cover-storage-maintenance-trigger
+ * Manually triggers the cover storage maintenance job (refresh presigned URLs + cleanup expired temp).
+ */
+const triggerCoverStorageMaintenance = async (req, res) => {
+  const storageProvider = req.app.locals.storageProvider;
+  if (!storageProvider) {
+    return res.status(503).json({ success: false, error: 'Storage provider not available' });
+  }
+
+  const objectStorage = require('../services/objectStorageService');
+  if (!objectStorage.isEnabled()) {
+    return res.status(503).json({ success: false, error: 'Object storage not configured' });
+  }
+
+  const maint = require('../services/coverStorageMaintenanceService');
+  const logger = require('../middleware/logger');
+
+  try {
+    const refreshResult = await maint.refreshPresignedUrls(storageProvider, logger);
+    const cleanupResult = await maint.cleanupExpiredTemp(storageProvider, logger);
+    res.json({
+      success: true,
+      refresh: refreshResult,
+      cleanup: cleanupResult,
+    });
+  } catch (e) {
+    logger.error('Manual cover storage maintenance failed', { error: e.message });
+    res.status(500).json({ success: false, error: e.message });
+  }
 };

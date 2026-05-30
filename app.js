@@ -257,6 +257,7 @@ async function startServer() {
     app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
     app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
     app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
+    app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -531,6 +532,7 @@ async function startServer() {
     app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
     app.get('/api/monitoring/image-host-migration-status', ipRestricted, monitoringController.getImageHostMigrationStatus);
     app.post('/api/monitoring/image-host-migration-trigger', ipRestricted, monitoringController.triggerImageHostMigration);
+    app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -816,36 +818,30 @@ const startPeriodicCoverStorageMaintenance = () => {
     return;
   }
   const maint = require('./services/coverStorageMaintenanceService');
-  const REFRESH_INTERVAL = 3 * 24 * 60 * 60 * 1000; // every 3 days (presigned URLs valid 7)
-  const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // daily
+  const MAINTENANCE_INTERVAL = 5 * 60 * 60 * 1000; // every 5 hours
 
-  const runRefresh = () =>
-    runWithJobFileLogging('coverPresignRefresh', async () => {
+  const runMaintenance = () =>
+    runWithJobFileLogging('coverStorageMaintenance', async () => {
       // Don't compete with a running migration for S3/DB/CPU.
-      if (monitoringController.isImageMigrationRunning()) return;
-      try {
-        await maint.refreshPresignedUrls(storageProvider, logger);
-      } catch (e) {
-        logger.error('Cover presign refresh failed', { error: e.message });
+      if (monitoringController.isImageMigrationRunning()) {
+        logger.info('Skipping cover storage maintenance — migration in progress');
+        return;
       }
-    });
-  const runCleanup = () =>
-    runWithJobFileLogging('coverTempCleanup', async () => {
-      if (monitoringController.isImageMigrationRunning()) return;
       try {
+        // 1) Refresh presigned cover URLs so they never lapse.
+        await maint.refreshPresignedUrls(storageProvider, logger);
+        // 2) Remove expired non-favorite ("temp") covers + rows.
         await maint.cleanupExpiredTemp(storageProvider, logger);
       } catch (e) {
-        logger.error('Cover temp cleanup failed', { error: e.message });
+        logger.error('Cover storage maintenance failed', { error: e.message });
       }
     });
 
-  // First runs well after startup (so they don't overlap a migration), then on schedule.
-  setTimeout(runRefresh, 30 * 60 * 1000);
-  setInterval(runRefresh, REFRESH_INTERVAL);
-  setTimeout(runCleanup, 45 * 60 * 1000);
-  setInterval(runCleanup, CLEANUP_INTERVAL);
+  // First run 10 min after startup (skips if a migration is running), then every 5 hours.
+  setTimeout(runMaintenance, 10 * 60 * 1000);
+  setInterval(runMaintenance, MAINTENANCE_INTERVAL);
 
-  logger.info('Started cover storage maintenance (presigned refresh every 3d, temp cleanup daily)');
+  logger.info('Started cover storage maintenance (refresh links + cleanup non-favorites every 5h)');
 };
 
 // Periodic Google token refresh handler

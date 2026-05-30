@@ -14,6 +14,7 @@ const ALLOWED_JOB_NAMES = new Set([
   'descriptionImageCache',
   'searchResultsCache',
   'jobLogMaintenance',
+  'coverStorageMaintenance',
 ]);
 
 function assertJobName(jobName) {

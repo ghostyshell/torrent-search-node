@@ -324,6 +324,34 @@ class StorageProvider {
   }
 
   /**
+   * Get favorite details by ID, enriched with cover image from images table
+   * @param {string} favoriteId - Favorite entry ID
+   * @returns {Promise<object|null>} Favorite details with cover image
+   */
+  async getFavoriteDetails(favoriteId) {
+    const favoriteEntry = await this.favorites.getFavoriteEntryById(favoriteId);
+    if (!favoriteEntry) return null;
+
+    // Build torrent object from favorite entry
+    const torrent = {
+      ...favoriteEntry.torrentData,
+      favoriteEntryId: favoriteEntry.id,
+    };
+
+    // Get cover image from images table (prefers S3 presigned URLs for migrated covers)
+    const coverImage = await this.getCoverImageForTorrent(torrent);
+
+    return {
+      ...favoriteEntry,
+      coverImage: coverImage ? {
+        type: coverImage.type,
+        url: coverImage.imageUrl || coverImage.originalUrl,
+        mimeType: coverImage.mimeType,
+      } : null,
+    };
+  }
+
+  /**
    * @deprecated Use favorites.getAllFavoriteEntries() instead
    */
   async getAllFavoriteEntries() {

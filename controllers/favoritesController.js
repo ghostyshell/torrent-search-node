@@ -104,11 +104,34 @@ const favoritesController = {
         cache.getMergedFavoritesCount(req.userId),
       ]);
 
+      // Enrich favorites with cover images from images table (prefers S3 presigned URLs for migrated covers)
+      const enrichedFavorites = await Promise.all(
+        favorites.map(async (favorite) => {
+          try {
+            const coverImage = await cache.getCoverImageForTorrent(favorite);
+            if (coverImage) {
+              return {
+                ...favorite,
+                coverImage: {
+                  type: coverImage.type,
+                  url: coverImage.imageUrl || coverImage.originalUrl,
+                  mimeType: coverImage.mimeType,
+                },
+              };
+            }
+          } catch (error) {
+            // Silently continue if cover image lookup fails
+            console.warn('Failed to get cover image for favorite:', favorite.Name, error.message);
+          }
+          return favorite;
+        })
+      );
+
       const totalPages = Math.ceil(totalCount / limit);
 
       res.json({
         success: true,
-        favorites,
+        favorites: enrichedFavorites,
         pagination: {
           currentPage: page,
           totalPages: totalPages,

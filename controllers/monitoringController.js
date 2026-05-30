@@ -857,8 +857,19 @@ const triggerImageHostMigration = async (req, res) => {
   (async () => {
     const multiHostService = require('../services/multiHostImageService');
     const logger = require('../middleware/logger');
-    const BATCH = 50;
+    const BATCH = 100; // DB page size
+    const CONCURRENCY = 3; // parallel uploads — keep low to respect host rate limits
+    const DELAY_MS = 500; // pause between concurrency chunks
+    // Backup hosts (imgbb free tier) rate-limit aggressive bursts. If uploads
+    // start failing in a long unbroken streak it's almost certainly a rate/quota
+    // limit, so abort rather than burning through every remaining row (they stay
+    // NULL and can be retried on a later run once the limit resets).
+    const MAX_CONSECUTIVE_FAILURES = 60;
     let offset = 0;
+    let consecutiveFailures = 0;
+    let aborted = false;
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     try {
       // Count total rows that need migration
@@ -869,35 +880,47 @@ const triggerImageHostMigration = async (req, res) => {
 
       logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} rows to process`);
 
-      while (true) {
+      while (!aborted) {
         const rows = await storageProvider.images.getImagesNeedingMigration(BATCH, offset);
         if (!rows || rows.length === 0) break;
 
-        await Promise.all(
-          rows.map(async (row) => {
-            try {
-              const sourceUrl = row.original_url || row.pixhost_url;
-              const results = await multiHostService.uploadFromUrlToAllHosts(sourceUrl);
-              // uploadFromUrlToAllHosts returns { host, url } objects; store
-              // plain URL strings (same shape setCoverImage writes).
-              const fallbacks = (results || []).map((r) => r.url).filter(Boolean);
-              if (fallbacks.length > 0) {
-                await storageProvider.images.updateFallbackUrls(row.torrent_key, fallbacks);
-                imageHostMigrationState.succeeded++;
-              } else {
-                // No backup host accepted the image — nothing gets written, so
-                // the row stays in the "needs migration" set. Count it as failed
-                // so the offset advances past it (otherwise it is refetched
-                // forever) and it can be retried on a future run.
+        for (let i = 0; i < rows.length && !aborted; i += CONCURRENCY) {
+          const chunk = rows.slice(i, i + CONCURRENCY);
+          await Promise.all(
+            chunk.map(async (row) => {
+              try {
+                const sourceUrl = row.original_url || row.pixhost_url;
+                const { urls, error } = await multiHostService.uploadFromUrlDetailed(sourceUrl);
+                if (urls.length > 0) {
+                  await storageProvider.images.updateFallbackUrls(row.torrent_key, urls);
+                  imageHostMigrationState.succeeded++;
+                  consecutiveFailures = 0;
+                } else {
+                  // Nothing written → row stays in the "needs migration" set.
+                  // Count it as failed so the offset advances past it.
+                  imageHostMigrationState.failed++;
+                  consecutiveFailures++;
+                  if (error) imageHostMigrationState.lastError = error;
+                }
+              } catch (e) {
                 imageHostMigrationState.failed++;
+                consecutiveFailures++;
+                imageHostMigrationState.lastError = e.message;
+              } finally {
+                imageHostMigrationState.processed++;
               }
-            } catch {
-              imageHostMigrationState.failed++;
-            } finally {
-              imageHostMigrationState.processed++;
-            }
-          })
-        );
+            })
+          );
+
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            aborted = true;
+            logger.error(
+              `[ImageHostMigration] Aborting after ${consecutiveFailures} consecutive failures (likely rate limited). Last error: ${imageHostMigrationState.lastError}`
+            );
+            break;
+          }
+          await sleep(DELAY_MS);
+        }
 
         // Only rows that got fallback_urls written drop out of the filtered set;
         // every row left behind the cursor is a failed/empty one (oldest first
@@ -907,7 +930,13 @@ const triggerImageHostMigration = async (req, res) => {
         offset = imageHostMigrationState.failed;
       }
 
-      imageHostMigrationState.status = 'completed';
+      if (aborted) {
+        imageHostMigrationState.status = 'error';
+        imageHostMigrationState.lastError =
+          `Aborted after consecutive upload failures (likely rate limited): ${imageHostMigrationState.lastError}`;
+      } else {
+        imageHostMigrationState.status = 'completed';
+      }
       imageHostMigrationState.completedAt = new Date().toISOString();
       logger.info(`[ImageHostMigration] Done — ${imageHostMigrationState.succeeded} succeeded, ${imageHostMigrationState.failed} failed`);
     } catch (err) {

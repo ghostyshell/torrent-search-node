@@ -161,4 +161,63 @@ async function uploadFromUrlToAllHosts(imageUrl) {
   }
 }
 
-module.exports = { uploadToAllHosts, uploadFromUrlToAllHosts, HOSTS };
+/**
+ * Like uploadFromUrlToAllHosts but surfaces the reason for an empty result so
+ * callers can distinguish a source-fetch failure (e.g. Pixhost blocking us)
+ * from a backup-host upload failure (e.g. imgbb rate limit).
+ *
+ * @param {string} imageUrl
+ * @returns {Promise<{ urls: string[], error: string|null }>}
+ */
+async function uploadFromUrlDetailed(imageUrl) {
+  let buffer;
+  try {
+    const response = await fetch(imageUrl, {
+      timeout: 30000,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'image/*,*/*;q=0.8',
+      },
+    });
+    if (!response.ok) {
+      return { urls: [], error: `source fetch HTTP ${response.status}` };
+    }
+    buffer = await response.buffer();
+  } catch (e) {
+    return { urls: [], error: `source fetch failed: ${e.message}` };
+  }
+
+  const hosts = getActiveHosts();
+  if (hosts.length === 0) {
+    return { urls: [], error: 'no backup hosts configured (set IMGBB_API_KEY)' };
+  }
+
+  const settled = await Promise.allSettled(
+    hosts.map(async (host) => {
+      try {
+        return { host, url: await UPLOADERS[host](buffer) };
+      } catch (e) {
+        throw new Error(`${host}: ${e.message}`);
+      }
+    })
+  );
+
+  const urls = settled
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value.url)
+    .filter(Boolean);
+  const error = settled
+    .filter((r) => r.status === 'rejected')
+    .map((r) => r.reason.message)
+    .join('; ');
+
+  return { urls, error: urls.length > 0 ? null : error || 'no url returned' };
+}
+
+module.exports = {
+  uploadToAllHosts,
+  uploadFromUrlToAllHosts,
+  uploadFromUrlDetailed,
+  HOSTS,
+};

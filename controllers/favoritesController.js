@@ -339,128 +339,6 @@ const favoritesController = {
     }
   },
 
-  // Get favorite screenshots
-  getFavoriteScreenshots: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
-    const cache = req.app.locals.cache;
-    if (!cache || !cache.isInitialized) {
-      return res.status(503).json({
-        success: false,
-        error: 'Cache not available',
-      });
-    }
-
-    try {
-      const { favoriteId } = req.params;
-
-      if (!favoriteId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing favoriteId parameter',
-        });
-      }
-
-      const screenshots = await cache.getFavoriteScreenshots(favoriteId);
-
-      if (screenshots) {
-        res.json({
-          success: true,
-          screenshots,
-        });
-      } else {
-        res.status(404).json({
-          success: false,
-          error: 'Screenshots not found',
-        });
-      }
-    } catch (error) {
-      // Check if error is due to database not being available
-      if (
-        error.message.includes('Database client not initialized') ||
-        error.message.includes('not initialized')
-      ) {
-        return res.status(503).json({
-          success: false,
-          error: 'Cache not available',
-        });
-      }
-
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get favorite screenshots',
-        message: error.message,
-      });
-    }
-  },
-
-  // Store favorite screenshots
-  storeFavoriteScreenshots: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
-    const cache = req.app.locals.cache;
-    if (!cache || !cache.isInitialized) {
-      return res.status(503).json({
-        success: false,
-        error: 'Cache not available',
-      });
-    }
-
-    try {
-      const { favoriteId } = req.params;
-      const { screenshots } = req.body;
-
-      if (!favoriteId || !screenshots) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields: favoriteId and screenshots',
-        });
-      }
-
-      const success = await cache.storeFavoriteScreenshots(
-        favoriteId,
-        screenshots
-      );
-
-      if (success) {
-        res.json({
-          success: true,
-          message: 'Screenshots stored successfully',
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          error: 'Failed to store screenshots',
-        });
-      }
-    } catch (error) {
-      // Check if error is due to database not being available
-      if (
-        error.message.includes('Database client not initialized') ||
-        error.message.includes('not initialized')
-      ) {
-        return res.status(503).json({
-          success: false,
-          error: 'Cache not available',
-        });
-      }
-
-      res.status(500).json({
-        success: false,
-        error: 'Failed to store screenshots',
-        message: error.message,
-      });
-    }
-  },
-
   // Check if torrent is in favorites
   checkFavorite: async (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -580,8 +458,6 @@ module.exports = {
   removeFavorite: favoritesController.removeFavorite,
   getFavoriteDetails: favoritesController.getFavoriteDetails,
   storeFavoriteDetails: favoritesController.storeFavoriteDetails,
-  getFavoriteScreenshots: favoritesController.getFavoriteScreenshots,
-  storeFavoriteScreenshots: favoritesController.storeFavoriteScreenshots,
   checkFavorite: favoritesController.checkFavorite,
   storeFavoriteEntry: favoritesController.storeFavoriteEntry,
 };

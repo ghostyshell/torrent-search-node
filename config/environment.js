@@ -61,7 +61,6 @@ const config = {
   // External API keys
   apiKeys: {
     realDebrid: process.env.REAL_DEBRID_API_KEY,
-    shotstack: process.env.SHOTSTACK_API_KEY,
   },
 
   // Logging configuration

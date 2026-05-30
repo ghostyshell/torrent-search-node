@@ -1,8 +1,8 @@
 const BaseRepository = require('./BaseRepository');
 
 /**
- * Repository for torrent details and screenshots
- * Manages detailed torrent information and associated screenshots
+ * Repository for torrent details
+ * Manages detailed torrent information
  */
 class TorrentDetailsRepository extends BaseRepository {
   /**
@@ -102,116 +102,16 @@ class TorrentDetailsRepository extends BaseRepository {
   }
 
   /**
-   * Add screenshot for a favorite
-   * @param {string} favoriteId - Favorite entry ID
-   * @param {object} screenshotData - Screenshot data
-   * @returns {Promise<boolean>} Success status
-   */
-  async addScreenshot(favoriteId, screenshotData) {
-    const sql = `
-      INSERT OR REPLACE INTO favorite_screenshots
-      (favorite_entry_id, timestamp, filename, base64_data, pixhost_url, size_kb, video_url, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const result = await this.run(sql, [
-      favoriteId,
-      screenshotData.timestamp,
-      screenshotData.filename || null,
-      screenshotData.base64Data || null,
-      screenshotData.pixhostUrl || null,
-      screenshotData.sizeKB || null,
-      screenshotData.videoUrl || null,
-      screenshotData.metadata ? JSON.stringify(screenshotData.metadata) : null,
-    ]);
-
-    return result.changes > 0;
-  }
-
-  /**
-   * Get screenshots for a favorite
-   * @param {string} favoriteId - Favorite entry ID
-   * @returns {Promise<Array>} Array of screenshots
-   */
-  async getScreenshots(favoriteId) {
-    const sql = `
-      SELECT * FROM favorite_screenshots
-      WHERE favorite_entry_id = ?
-      ORDER BY timestamp ASC
-    `;
-
-    const rows = await this.all(sql, [favoriteId]);
-    return rows.map((row) => this._mapScreenshot(row));
-  }
-
-  /**
-   * Get single screenshot
-   * @param {string} favoriteId - Favorite entry ID
-   * @param {number} timestamp - Screenshot timestamp
-   * @returns {Promise<object|null>} Screenshot or null
-   */
-  async getScreenshot(favoriteId, timestamp) {
-    const sql = `
-      SELECT * FROM favorite_screenshots
-      WHERE favorite_entry_id = ? AND timestamp = ?
-    `;
-
-    const row = await this.get(sql, [favoriteId, timestamp]);
-
-    if (row) {
-      return this._mapScreenshot(row);
-    }
-
-    return null;
-  }
-
-  /**
-   * Remove screenshot(s) for a favorite
-   * @param {string} favoriteId - Favorite entry ID
-   * @param {number|null} timestamp - Optional specific timestamp
-   * @returns {Promise<boolean>} Success status
-   */
-  async removeScreenshot(favoriteId, timestamp = null) {
-    let sql, params;
-
-    if (timestamp !== null) {
-      sql =
-        'DELETE FROM favorite_screenshots WHERE favorite_entry_id = ? AND timestamp = ?';
-      params = [favoriteId, timestamp];
-    } else {
-      sql = 'DELETE FROM favorite_screenshots WHERE favorite_entry_id = ?';
-      params = [favoriteId];
-    }
-
-    const result = await this.run(sql, params);
-    return result.changes > 0;
-  }
-
-  /**
-   * Check if screenshots exist for a favorite
-   * @param {string} favoriteId - Favorite entry ID
-   * @returns {Promise<boolean>} True if screenshots exist
-   */
-  async hasScreenshots(favoriteId) {
-    const sql =
-      'SELECT 1 FROM favorite_screenshots WHERE favorite_entry_id = ? LIMIT 1';
-    const row = await this.get(sql, [favoriteId]);
-    return !!row;
-  }
-
-  /**
-   * Get statistics about torrent details and screenshots
+   * Get statistics about torrent details
    * @returns {Promise<object>} Statistics
    */
   async getStats() {
-    const [detailsCount, screenshotsCount] = await Promise.all([
-      this.get('SELECT COUNT(*) as count FROM torrent_details'),
-      this.get('SELECT COUNT(*) as count FROM favorite_screenshots'),
-    ]);
+    const detailsCount = await this.get(
+      'SELECT COUNT(*) as count FROM torrent_details'
+    );
 
     return {
       totalTorrentDetails: detailsCount?.count || 0,
-      totalScreenshots: screenshotsCount?.count || 0,
     };
   }
 
@@ -233,25 +133,6 @@ class TorrentDetailsRepository extends BaseRepository {
       error: row.error_message,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-    };
-  }
-
-  /**
-   * Map database row to screenshot object
-   * @private
-   */
-  _mapScreenshot(row) {
-    return {
-      id: row.id,
-      favoriteEntryId: row.favorite_entry_id,
-      timestamp: row.timestamp,
-      filename: row.filename,
-      base64Data: row.base64_data,
-      pixhostUrl: row.pixhost_url,
-      sizeKB: row.size_kb,
-      videoUrl: row.video_url,
-      metadata: row.metadata ? JSON.parse(row.metadata) : null,
-      createdAt: row.created_at,
     };
   }
 }

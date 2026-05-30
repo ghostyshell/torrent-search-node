@@ -38,7 +38,6 @@ const IpAllowlistMiddleware = require('./middleware/ipAllowlist');
 // Controllers
 const cacheController = require('./controllers/storageController');
 const favoritesController = require('./controllers/favoritesController');
-const videoController = require('./controllers/videoController');
 const proxyController = require('./controllers/proxyController');
 const monitoringController = require('./controllers/monitoringController');
 const jobLogsController = require('./controllers/jobLogsController');
@@ -171,18 +170,6 @@ app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 
 // --- IMAGE ROUTES ---
 // Note: These will be registered in startServer() using setupImageRoutes()
-
-// --- VIDEO ROUTES ---
-app.post('/api/video/screenshot', videoController.generateScreenshot);
-app.post('/api/video/screenshots', videoController.getCachedScreenshotsPost);
-app.get(
-  '/api/video/screenshots/:magnetLink',
-  videoController.getCachedScreenshotsGet
-);
-app.post(
-  '/api/video/batch-screenshots',
-  videoController.generateBatchScreenshots
-);
 
 // --- TORRENT ROUTES ---
 // Note: These will be registered in startServer() using setupTorrentRoutes()
@@ -321,16 +308,6 @@ async function startServer() {
       '/api/favorites/:favoriteId/details',
       authMiddleware.requireAuth(),
       favoritesController.storeFavoriteDetails
-    );
-    app.get(
-      '/api/favorites/:favoriteId/screenshots',
-      authMiddleware.requireAuth(),
-      favoritesController.getFavoriteScreenshots
-    );
-    app.post(
-      '/api/favorites/:favoriteId/screenshots',
-      authMiddleware.requireAuth(),
-      favoritesController.storeFavoriteScreenshots
     );
     app.post(
       '/api/favorites/check',
@@ -591,16 +568,6 @@ async function startServer() {
       '/api/favorites/:favoriteId/details',
       authMiddleware.requireAuth(),
       favoritesController.storeFavoriteDetails
-    );
-    app.get(
-      '/api/favorites/:favoriteId/screenshots',
-      authMiddleware.requireAuth(),
-      favoritesController.getFavoriteScreenshots
-    );
-    app.post(
-      '/api/favorites/:favoriteId/screenshots',
-      authMiddleware.requireAuth(),
-      favoritesController.storeFavoriteScreenshots
     );
     app.post(
       '/api/favorites/check',

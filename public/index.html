@@ -614,7 +614,7 @@
                 if (data.database) {
                     const dbStats = document.getElementById('dbStats');
                     dbStats.innerHTML = Object.entries(data.database)
-                        .filter(([key]) => !['databaseType', 'environment', 'torrentDetails', 'favoriteScreenshots', 'cache'].includes(key))
+                        .filter(([key]) => !['databaseType', 'environment', 'torrentDetails', 'cache'].includes(key))
                         .map(([key, value]) => `
                             <div class="db-stat">
                                 <div class="db-stat-value">${value}</div>

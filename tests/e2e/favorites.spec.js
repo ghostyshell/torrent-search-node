@@ -259,61 +259,6 @@ test.describe('Favorites API Endpoints', () => {
     }
   });
 
-  test('GET /api/favorites/:favoriteId/screenshots should handle favorite screenshots', async ({
-    request,
-  }) => {
-    const authedRequest = TestAuthHelper.createAuthRequest(request);
-    const testFavoriteId = 'test_favorite_123';
-    const response = await authedRequest.get(
-      `/api/favorites/${testFavoriteId}/screenshots`
-    );
-
-    expect([200, 404, 503]).toContain(response.status());
-
-    const data = await response.json();
-    expect(data).toHaveProperty('success');
-
-    if (response.status() === 200) {
-      expect(data.success).toBe(true);
-      expect(data).toHaveProperty('screenshots');
-    } else if (response.status() === 404) {
-      expect(data.success).toBe(false);
-      expect(data).toHaveProperty('error', 'Screenshots not found');
-    }
-  });
-
-  test('POST /api/favorites/:favoriteId/screenshots should store favorite screenshots', async ({
-    request,
-  }) => {
-    const authedRequest = TestAuthHelper.createAuthRequest(request);
-    const testFavoriteId = 'test_favorite_123';
-    const testScreenshots = [
-      { timestamp: 30, url: 'https://example.com/screenshot1.jpg' },
-      { timestamp: 60, url: 'https://example.com/screenshot2.jpg' },
-    ];
-
-    const response = await authedRequest.post(
-      `/api/favorites/${testFavoriteId}/screenshots`,
-      {
-        data: { screenshots: testScreenshots },
-      }
-    );
-
-    if (response.status() === 200) {
-      const data = await response.json();
-      expect(data.success).toBe(true);
-      expect(data).toHaveProperty('message', 'Screenshots stored successfully');
-    } else if (response.status() === 400) {
-      const data = await response.json();
-      expect(data).toHaveProperty(
-        'error',
-        'Missing required fields: favoriteId and screenshots'
-      );
-    } else {
-      expect([500, 503]).toContain(response.status());
-    }
-  });
-
   test('POST /api/favorites/entry should store favorite entry', async ({
     request,
   }) => {

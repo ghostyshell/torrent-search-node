@@ -172,21 +172,6 @@ class TursoClient {
         UNIQUE(favorite_entry_id, source)
       )`,
 
-      // Favorite screenshots table - store screenshots linked to favorite entries
-      `CREATE TABLE IF NOT EXISTS favorite_screenshots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        favorite_entry_id TEXT NOT NULL,
-        timestamp INTEGER NOT NULL,
-        filename TEXT,
-        base64_data TEXT,
-        size_kb INTEGER,
-        video_url TEXT,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        metadata TEXT,
-        FOREIGN KEY (favorite_entry_id) REFERENCES favorite_entries(id) ON DELETE CASCADE,
-        UNIQUE(favorite_entry_id, timestamp)
-      )`,
-
       // Users table - stores user information from Google OAuth
       `CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -226,8 +211,6 @@ class TursoClient {
       'CREATE INDEX IF NOT EXISTS idx_favorite_entries_created ON favorite_entries(created_at)',
       'CREATE INDEX IF NOT EXISTS idx_torrent_details_entry_id ON torrent_details(favorite_entry_id)',
       'CREATE INDEX IF NOT EXISTS idx_torrent_details_source ON torrent_details(source)',
-      'CREATE INDEX IF NOT EXISTS idx_favorite_screenshots_entry_id ON favorite_screenshots(favorite_entry_id)',
-      'CREATE INDEX IF NOT EXISTS idx_favorite_screenshots_timestamp ON favorite_screenshots(timestamp)',
       // Auth-related indexes
       'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
       'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
@@ -564,10 +547,6 @@ class TursoClient {
       {
         key: 'torrentDetails',
         sql: 'SELECT COUNT(*) as count FROM torrent_details',
-      },
-      {
-        key: 'favoriteScreenshots',
-        sql: 'SELECT COUNT(*) as count FROM favorite_screenshots',
       },
     ];
 

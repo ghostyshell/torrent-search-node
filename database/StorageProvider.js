@@ -399,41 +399,6 @@ class StorageProvider {
   }
 
   /**
-   * @deprecated Use torrentDetails.addScreenshot() instead
-   */
-  async addFavoriteScreenshot(favoriteId, screenshotData) {
-    return this.torrentDetails.addScreenshot(favoriteId, screenshotData);
-  }
-
-  /**
-   * @deprecated Use torrentDetails.getScreenshots() instead
-   */
-  async getFavoriteScreenshots(favoriteId) {
-    return this.torrentDetails.getScreenshots(favoriteId);
-  }
-
-  /**
-   * @deprecated Use torrentDetails.getScreenshot() instead
-   */
-  async getFavoriteScreenshot(favoriteId, timestamp) {
-    return this.torrentDetails.getScreenshot(favoriteId, timestamp);
-  }
-
-  /**
-   * @deprecated Use torrentDetails.removeScreenshot() instead
-   */
-  async removeFavoriteScreenshot(favoriteId, timestamp = null) {
-    return this.torrentDetails.removeScreenshot(favoriteId, timestamp);
-  }
-
-  /**
-   * @deprecated Use torrentDetails.hasScreenshots() instead
-   */
-  async hasFavoriteScreenshots(favoriteId) {
-    return this.torrentDetails.hasScreenshots(favoriteId);
-  }
-
-  /**
    * @deprecated Use favorites.getOrCreateFavoriteEntry() instead
    */
   async getOrCreateFavoriteEntry(torrent, userId = null) {

@@ -878,8 +878,16 @@ const triggerImageHostMigration = async (req, res) => {
             try {
               const sourceUrl = row.original_url || row.pixhost_url;
               const fallbacks = await multiHostService.uploadFromUrlToAllHosts(sourceUrl);
-              await storageProvider.images.updateFallbackUrls(row.torrent_key, fallbacks);
-              imageHostMigrationState.succeeded++;
+              if (fallbacks && fallbacks.length > 0) {
+                await storageProvider.images.updateFallbackUrls(row.torrent_key, fallbacks);
+                imageHostMigrationState.succeeded++;
+              } else {
+                // No backup host accepted the image — nothing gets written, so
+                // the row stays in the "needs migration" set. Count it as failed
+                // so the offset advances past it (otherwise it is refetched
+                // forever) and it can be retried on a future run.
+                imageHostMigrationState.failed++;
+              }
             } catch {
               imageHostMigrationState.failed++;
             } finally {
@@ -888,11 +896,11 @@ const triggerImageHostMigration = async (req, res) => {
           })
         );
 
-        // Succeeded rows get fallback_urls written and drop out of the
-        // "needs migration" filter, so only the failed rows remain behind the
-        // cursor (they're the oldest remaining by created_at). Advance the
-        // offset past exactly those to avoid both skipping unprocessed rows and
-        // looping forever on the failed ones.
+        // Only rows that got fallback_urls written drop out of the filtered set;
+        // every row left behind the cursor is a failed/empty one (oldest first
+        // by created_at). Advancing the offset to the failed count skips exactly
+        // those, so the run processes each row once and terminates instead of
+        // looping forever on rows that produced no backup.
         offset = imageHostMigrationState.failed;
       }
 

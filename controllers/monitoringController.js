@@ -5,17 +5,6 @@ const { config } = require('../config/environment');
 const { runWithJobFileLogging } = require('../services/backgroundJobFileLogger');
 
 // In-memory storage for background task stats
-const imageHostMigrationState = {
-  status: 'idle', // idle | running | completed | error
-  total: 0,
-  processed: 0,
-  succeeded: 0,
-  failed: 0,
-  startedAt: null,
-  completedAt: null,
-  lastError: null,
-};
-
 const backgroundTaskStats = {
   storageCleanup: {
     lastRun: null,
@@ -819,145 +808,6 @@ const triggerSearchResultsCache = async (req, res) => {
 };
 
 /**
- * GET /api/monitoring/image-host-migration-status
- * Returns the current state of the bulk fallback-URL migration job.
- */
-const getImageHostMigrationStatus = (req, res) => {
-  res.json({ success: true, ...imageHostMigrationState });
-};
-
-/**
- * POST /api/monitoring/image-host-migration-trigger
- * Kicks off the background job that uploads all existing covers to S3 object storage.
- * Idempotent — if a run is already in progress, returns its status.
- */
-const triggerImageHostMigration = async (req, res) => {
-  if (imageHostMigrationState.status === 'running') {
-    return res.json({ success: true, alreadyRunning: true, ...imageHostMigrationState });
-  }
-
-  const storageProvider = req.app.locals.storageProvider;
-  if (!storageProvider) {
-    return res.status(503).json({ success: false, error: 'Storage provider not available' });
-  }
-
-  // Respond immediately so the client isn't blocked
-  imageHostMigrationState.status = 'running';
-  imageHostMigrationState.startedAt = new Date().toISOString();
-  imageHostMigrationState.completedAt = null;
-  imageHostMigrationState.total = 0;
-  imageHostMigrationState.processed = 0;
-  imageHostMigrationState.succeeded = 0;
-  imageHostMigrationState.failed = 0;
-  imageHostMigrationState.lastError = null;
-
-  res.json({ success: true, started: true, ...imageHostMigrationState });
-
-  (async () => {
-    const objectStorage = require('../services/objectStorageService');
-    const logger = require('../middleware/logger');
-    const BATCH = 100; // DB page size
-    const CONCURRENCY = 2; // parallel uploads — keep low so /health stays responsive
-    const DELAY_MS = 300; // pause between concurrency chunks (yields the event loop)
-    // If uploads fail in a long unbroken streak (e.g. bad credentials or the
-    // bucket is unreachable), abort rather than churning every remaining row.
-    const MAX_CONSECUTIVE_FAILURES = 60;
-    let offset = 0;
-    let consecutiveFailures = 0;
-    let aborted = false;
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    try {
-      if (!objectStorage.isEnabled()) {
-        throw new Error(
-          'object storage not configured — set S3_ENDPOINT, S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY'
-        );
-      }
-
-      // Count cover rows not yet copied to object storage
-      const countRow = await storageProvider.tursoClient.execute(
-        `SELECT COUNT(*) as c FROM images WHERE image_type='cover' AND pixhost_url IS NOT NULL AND storage_key IS NULL`
-      );
-      imageHostMigrationState.total = countRow?.rows?.[0]?.c || 0;
-
-      logger.info(`[ImageHostMigration] Starting — ${imageHostMigrationState.total} covers to move to object storage`);
-
-      while (!aborted) {
-        const rows = await storageProvider.images.getImagesNeedingMigration(BATCH, offset);
-        if (!rows || rows.length === 0) break;
-
-        for (let i = 0; i < rows.length && !aborted; i += CONCURRENCY) {
-          const chunk = rows.slice(i, i + CONCURRENCY);
-          await Promise.all(
-            chunk.map(async (row) => {
-              try {
-                // Use original_url as source for upload (or pixhost_url as fallback)
-                const source = row.original_url || row.pixhost_url;
-                const { key, error } = await objectStorage.uploadCoverFromUrl({
-                  torrentKey: row.torrent_key,
-                  imageUrl: source,
-                  isFavorite: !!row.is_favorite,
-                });
-                if (key) {
-                  // Store a presigned URL + the key (for later refresh), drop fallbacks.
-                  const presigned = await objectStorage.getPresignedUrl(key);
-                  await storageProvider.images.updateCoverStorage(row.torrent_key, presigned, key);
-                  imageHostMigrationState.succeeded++;
-                  consecutiveFailures = 0;
-                } else {
-                  // Nothing stored → row still has storage_key NULL. Count it as
-                  // failed so the offset advances past it.
-                  imageHostMigrationState.failed++;
-                  consecutiveFailures++;
-                  if (error) imageHostMigrationState.lastError = error;
-                }
-              } catch (e) {
-                imageHostMigrationState.failed++;
-                consecutiveFailures++;
-                imageHostMigrationState.lastError = e.message;
-              } finally {
-                imageHostMigrationState.processed++;
-              }
-            })
-          );
-
-          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-            aborted = true;
-            logger.error(
-              `[ImageHostMigration] Aborting after ${consecutiveFailures} consecutive failures. Last error: ${imageHostMigrationState.lastError}`
-            );
-            break;
-          }
-          await sleep(DELAY_MS);
-        }
-
-        // Migrated rows get storage_key set and drop out of the set; every row
-        // left behind the cursor is a failed one (oldest first by created_at).
-        // Advancing the offset to the failed count skips exactly those, so the
-        // run processes each row once and terminates.
-        offset = imageHostMigrationState.failed;
-      }
-
-      if (aborted) {
-        imageHostMigrationState.status = 'error';
-        imageHostMigrationState.lastError =
-          `Aborted after consecutive upload failures: ${imageHostMigrationState.lastError}`;
-      } else {
-        imageHostMigrationState.status = 'completed';
-      }
-      imageHostMigrationState.completedAt = new Date().toISOString();
-      logger.info(`[ImageHostMigration] Done — ${imageHostMigrationState.succeeded} succeeded, ${imageHostMigrationState.failed} failed`);
-    } catch (err) {
-      imageHostMigrationState.status = 'error';
-      imageHostMigrationState.lastError = err.message;
-      imageHostMigrationState.completedAt = new Date().toISOString();
-      logger.error(`[ImageHostMigration] Fatal error: ${err.message}`);
-    }
-  })();
-};
-
-/**
  * POST /api/monitoring/cover-storage-maintenance-trigger
  * Manually triggers the cover storage maintenance job (refresh presigned URLs + cleanup expired temp).
  * Idempotent — safe to call even while scheduled maintenance is running.
@@ -1005,8 +855,5 @@ module.exports = {
   apiTrackingMiddleware,
   updateTaskStats,
   backgroundTaskStats,
-  getImageHostMigrationStatus,
-  triggerImageHostMigration,
-  isImageMigrationRunning: () => imageHostMigrationState.status === 'running',
   triggerCoverStorageMaintenance,
 };

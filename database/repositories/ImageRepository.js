@@ -102,38 +102,6 @@ class ImageRepository extends BaseRepository {
   }
 
   /**
-   * Return cover rows not yet copied to object storage (storage_key IS NULL),
-   * for the bulk migration. is_favorite marks rows whose torrent is favorited so
-   * the migration can store them permanently vs. under an expiring prefix.
-   */
-  async getImagesNeedingMigration(limit = 50, offset = 0) {
-    const sql = `
-      SELECT i.torrent_key, i.pixhost_url, i.original_url,
-        EXISTS(SELECT 1 FROM favorite_entries f WHERE f.torrent_key = i.torrent_key) AS is_favorite
-      FROM images i
-      WHERE i.image_type = 'cover'
-        AND i.pixhost_url IS NOT NULL
-        AND i.storage_key IS NULL
-      ORDER BY i.created_at ASC
-      LIMIT ? OFFSET ?
-    `;
-    return this.all(sql, [limit, offset]);
-  }
-
-  /**
-   * Point a cover row at its (presigned) object-storage URL, record the object
-   * key for later presign refreshes.
-   */
-  async updateCoverStorage(torrentKey, presignedUrl, storageKey) {
-    const sql = `
-      UPDATE images SET pixhost_url = ?, storage_key = ?
-      WHERE torrent_key = ? AND image_type = 'cover'
-    `;
-    const result = await this.run(sql, [presignedUrl, storageKey, torrentKey]);
-    return result.changes > 0;
-  }
-
-  /**
    * Cover rows backed by object storage, for the presigned-URL refresh job.
    */
   async getObjectStorageCovers(limit = 200, offset = 0) {

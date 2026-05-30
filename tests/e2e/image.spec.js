@@ -69,33 +69,6 @@ test.describe('Image API Endpoints', () => {
     expect(data).toHaveProperty('error', 'Query parameter "q" is required');
   });
 
-  test('GET /api/proxy/image should return error for missing URL', async ({
-    request,
-  }) => {
-    const response = await request.get('/api/proxy/image');
-
-    expect(response.status()).toBe(400);
-
-    const data = await response.json();
-    expect(data.success).toBe(false);
-    expect(data).toHaveProperty('error', 'Image URL is required');
-  });
-
-  test('GET /api/proxy/image should return error for invalid URL', async ({
-    request,
-  }) => {
-    const invalidUrl = 'not-a-valid-url';
-    const response = await request.get(
-      `/api/proxy/image?url=${encodeURIComponent(invalidUrl)}`
-    );
-
-    expect(response.status()).toBe(400);
-
-    const data = await response.json();
-    expect(data.success).toBe(false);
-    expect(data).toHaveProperty('error', 'Invalid URL provided');
-  });
-
   test('POST /api/pixhost/upload should handle missing image data/URL', async ({
     request,
   }) => {

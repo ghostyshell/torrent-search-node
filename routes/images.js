@@ -21,20 +21,11 @@ const setupImageRoutes = (storageProvider) => {
   router.post('/pixhost/upload', imageController.uploadToPixhost);
   router.post('/upload', imageController.uploadToPixhost);
 
-  // Pixhost accessibility check endpoint
-  // Route: GET /api/images/pixhost/check-accessibility
-  router.get('/pixhost/check-accessibility', imageController.checkPixhostAccessibility);
-
   // Pixhost fallback URLs endpoint
   // Route: GET /api/images/pixhost/fallbacks
+  // The client probes Pixhost accessibility itself and calls this when Pixhost
+  // is unreachable from its network, to obtain alternate host URLs.
   router.get('/pixhost/fallbacks', imageController.getPixhostFallbacks);
-
-  // Image proxy endpoint
-  // Route: GET /api/images/proxy
-  router.get('/proxy', imageController.proxyImage);
-
-  // Legacy route for /api/proxy/image
-  router.get('/image', imageController.proxyImage);
 
   // Batch image processing endpoint
   // Route: POST /api/images/batch-process

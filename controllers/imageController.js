@@ -172,78 +172,10 @@ const imageController = {
     }
   },
 
-  // Image proxy endpoint for bypassing CORS
-  proxyImage: async (req, res) => {
-    try {
-      const { url } = req.query;
-
-      if (!url) {
-        return res.status(400).json({
-          success: false,
-          error: 'Image URL is required',
-        });
-      }
-
-      const fetch = require('node-fetch');
-
-      // Validate URL
-      let imageUrl;
-      try {
-        imageUrl = new URL(url);
-      } catch {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid URL provided',
-        });
-      }
-
-      // Fetch the image
-      const response = await fetch(imageUrl.href, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          Accept: 'image/*',
-        },
-        timeout: 10000, // 10 second timeout
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch image: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const contentType = response.headers.get('content-type');
-
-      // Verify it's an image
-      if (!contentType || !contentType.startsWith('image/')) {
-        return res.status(400).json({
-          success: false,
-          error: 'URL does not point to a valid image',
-        });
-      }
-
-      // Set appropriate headers
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-      res.setHeader('Access-Control-Allow-Origin', '*');
-
-      // Stream the image
-      response.body.pipe(res);
-    } catch (error) {
-      console.error('Image proxy error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to proxy image',
-        message: error.message,
-      });
-    }
-  },
-
   // Batch image processing endpoint
   batchProcessImages: async (req, res) => {
     try {
-      const { images, operation = 'proxy' } = req.body;
+      const { images, operation = 'validate' } = req.body;
 
       if (!images || !Array.isArray(images)) {
         return res.status(400).json({
@@ -260,13 +192,11 @@ const imageController = {
           let result = { originalUrl: imageConfig.url };
 
           switch (operation) {
-            case 'proxy':
-              // Just validate the URL for proxy operation
+            case 'validate':
+              // Validate the URL and return it for direct client use
               try {
                 new URL(imageConfig.url);
-                result.proxyUrl = `/api/images/proxy?url=${encodeURIComponent(
-                  imageConfig.url
-                )}`;
+                result.url = imageConfig.url;
                 result.success = true;
               } catch {
                 result.success = false;
@@ -316,75 +246,6 @@ const imageController = {
         message: error.message,
       });
     }
-  },
-
-  // Pixhost accessibility check endpoint
-  checkPixhostAccessibility: async (req, res) => {
-    const fetch = require('node-fetch');
-
-    // Pixhost subdomains to test
-    const pixhostSubdomains = [
-      'img1.pixhost.to',
-      'img2.pixhost.to',
-      'img3.pixhost.to',
-      'img4.pixhost.to',
-      'img5.pixhost.to',
-    ];
-
-    // Fallback hosts (same as Go version)
-    const fallbackHosts = ['postimage', 'fastpic'];
-
-    const testResults = {};
-    let accessible = false;
-
-    // Test each Pixhost subdomain
-    await Promise.all(
-      pixhostSubdomains.map(async (subdomain) => {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-          const response = await fetch(`https://${subdomain}/`, {
-            method: 'HEAD',
-            signal: controller.signal,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          });
-
-          clearTimeout(timeoutId);
-
-          if (response.status < 400) {
-            testResults[subdomain] = true;
-            accessible = true;
-          } else {
-            testResults[subdomain] = false;
-          }
-        } catch (error) {
-          testResults[subdomain] = false;
-          console.debug('Pixhost subdomain unreachable:', subdomain, error.message);
-        }
-      })
-    );
-
-    // Get recommendation
-    const recommendation = accessible
-      ? {
-          usePixhost: true,
-          primaryHost: pixhostSubdomains.find((s) => testResults[s]) || 'img1.pixhost.to',
-          fallbackHosts,
-        }
-      : {
-          usePixhost: false,
-          fallbackHosts,
-        };
-
-    res.json({
-      success: true,
-      pixhostAccessible: accessible,
-      subdomainStatus: testResults,
-      recommendation,
-    });
   },
 
   // Get Pixhost fallback URLs (includes backup host URLs from database)
@@ -560,9 +421,7 @@ module.exports = {
   searchGoogleImages: imageController.searchGoogleImages,
   getGoogleImagesSuggestions: imageController.getGoogleImagesSuggestions,
   uploadToPixhost: imageController.uploadToPixhost,
-  proxyImage: imageController.proxyImage,
   batchProcessImages: imageController.batchProcessImages,
-  checkPixhostAccessibility: imageController.checkPixhostAccessibility,
   getPixhostFallbacks: imageController.getPixhostFallbacks,
   router: router,
 };

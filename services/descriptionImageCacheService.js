@@ -4,14 +4,18 @@ const logger = require('../middleware/logger');
 const fetch = require('node-fetch');
 const { STUDIOS } = require('./studioSearchTerms');
 
-const PIRATEBAY_CATEGORY = '507'; // Porn HD
-const PIRATEBAY_SORT = '7';       // Seeders desc (search)
-const BROWSE_SORT = '3';          // Date desc — /browse/507/{page}/3 (UI homepage)
+// Both quality tiers are processed each run.
+const CATEGORIES = [
+  { category: '507', label: '4K'    }, // UHD/4K-Movies
+  { category: '505', label: '1080p' }, // HD-Movies
+];
+const PIRATEBAY_SORT = '7';  // Seeders desc (search)
+const BROWSE_SORT = '3';     // Date desc — /browse/{category}/{page}/3
 const PAGES_BROWSE_HOME = 6;
 const HOME_QUERY = 'xxx';
 const PAGES_TO_CACHE = 5;
 const TRANS_QUERY = 'trans';
-const PAGES_TRANS_CACHE = 2; // matches UI common-search preset
+const PAGES_TRANS_CACHE = 2;
 const MAX_ERRORS = 30;
 
 class DescriptionImageCacheService {
@@ -40,31 +44,35 @@ class DescriptionImageCacheService {
 
     logger.info(`🖼️ [DescImageCache] Starting description/image cache job${this.forceRefresh ? ' (FORCE REFRESH)' : ''}`);
 
-    // 1. Browse homepage — same listing as UI when no search (thehiddenbay.com/browse/507/{page}/3)
-    logger.info(
-      `🔍 [DescImageCache] Processing browse homepage category ${PIRATEBAY_CATEGORY} sort ${BROWSE_SORT} (${PAGES_BROWSE_HOME} pages)`
-    );
-    for (let page = 1; page <= PAGES_BROWSE_HOME; page++) {
-      await this.processBrowsePage(page, results);
-    }
+    for (const { category, label } of CATEGORIES) {
+      logger.info(`🔍 [DescImageCache] === ${label} (category ${category}) ===`);
 
-    // 2. Home page "xxx" query — pages 1-5
-    logger.info(`🔍 [DescImageCache] Processing home query "${HOME_QUERY}" (${PAGES_TO_CACHE} pages)`);
-    for (let page = 1; page <= PAGES_TO_CACHE; page++) {
-      await this.processSearchPage(HOME_QUERY, page, results);
-    }
+      // 1. Browse homepage — same listing as UI when no search
+      logger.info(
+        `🔍 [DescImageCache] Browse homepage cat ${category} sort ${BROWSE_SORT} (${PAGES_BROWSE_HOME} pages)`
+      );
+      for (let page = 1; page <= PAGES_BROWSE_HOME; page++) {
+        await this.processBrowsePage(page, results, category);
+      }
 
-    // 2b. Common-search preset "trans" — first 2 pages only (Porn HD / 507)
-    logger.info(`🔍 [DescImageCache] Processing "${TRANS_QUERY}" (${PAGES_TRANS_CACHE} pages)`);
-    for (let page = 1; page <= PAGES_TRANS_CACHE; page++) {
-      await this.processSearchPage(TRANS_QUERY, page, results);
-    }
-
-    // 3. Each studio — pages 1-5 (Porn HD / 507, same as home query)
-    for (const studio of STUDIOS) {
-      logger.info(`🎬 [DescImageCache] Processing studio "${studio}" (${PAGES_TO_CACHE} pages)`);
+      // 2. Home page "xxx" query — pages 1-5
+      logger.info(`🔍 [DescImageCache] Home query "${HOME_QUERY}" cat ${category} (${PAGES_TO_CACHE} pages)`);
       for (let page = 1; page <= PAGES_TO_CACHE; page++) {
-        await this.processSearchPage(studio, page, results);
+        await this.processSearchPage(HOME_QUERY, page, results, category);
+      }
+
+      // 3. "trans" — first 2 pages
+      logger.info(`🔍 [DescImageCache] "${TRANS_QUERY}" cat ${category} (${PAGES_TRANS_CACHE} pages)`);
+      for (let page = 1; page <= PAGES_TRANS_CACHE; page++) {
+        await this.processSearchPage(TRANS_QUERY, page, results, category);
+      }
+
+      // 4. Each studio — pages 1-5
+      for (const studio of STUDIOS) {
+        logger.info(`🎬 [DescImageCache] Studio "${studio}" cat ${category} (${PAGES_TO_CACHE} pages)`);
+        for (let page = 1; page <= PAGES_TO_CACHE; page++) {
+          await this.processSearchPage(studio, page, results, category);
+        }
       }
     }
 
@@ -86,23 +94,23 @@ class DescriptionImageCacheService {
   /**
    * Fetch one browse page (homepage listing) and process each torrent
    */
-  async processBrowsePage(page, results) {
+  async processBrowsePage(page, results, category) {
     results.totalSearches++;
     try {
       const torrents = await pirateBay.browse(
-        PIRATEBAY_CATEGORY,
+        category,
         String(page),
         BROWSE_SORT,
         {}
       );
 
       if (!torrents || torrents.length === 0) {
-        logger.info(`[DescImageCache] No browse results page ${page}`);
+        logger.info(`[DescImageCache] No browse results page ${page} cat ${category}`);
         return;
       }
 
       logger.info(
-        `[DescImageCache] browse/${PIRATEBAY_CATEGORY}/${page}/${BROWSE_SORT}: ${torrents.length} torrents`
+        `[DescImageCache] browse/${category}/${page}/${BROWSE_SORT}: ${torrents.length} torrents`
       );
       results.totalTorrents += torrents.length;
 
@@ -122,20 +130,20 @@ class DescriptionImageCacheService {
   /**
    * Fetch one page of piratebay results and process each torrent
    */
-  async processSearchPage(query, page, results) {
+  async processSearchPage(query, page, results, category) {
     results.totalSearches++;
     try {
       const torrents = await pirateBay(query, page, {
         sort: PIRATEBAY_SORT,
-        category: PIRATEBAY_CATEGORY,
+        category,
       });
 
       if (!torrents || torrents.length === 0) {
-        logger.info(`[DescImageCache] No results for "${query}" page ${page}`);
+        logger.info(`[DescImageCache] No results for "${query}" page ${page} cat ${category}`);
         return;
       }
 
-      logger.info(`[DescImageCache] "${query}" page ${page}: ${torrents.length} torrents`);
+      logger.info(`[DescImageCache] "${query}" page ${page} cat ${category}: ${torrents.length} torrents`);
       results.totalTorrents += torrents.length;
 
       for (const torrent of torrents) {

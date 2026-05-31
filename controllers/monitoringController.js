@@ -34,6 +34,13 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
+  redisCatalogCache: {
+    lastRun: null,
+    nextRun: null,
+    intervalMs: 30 * 60 * 1000, // ~30 min with jitter — pre-populates Stremio addon Redis keys
+    results: [],
+    status: 'idle',
+  },
 };
 
 // In-memory API usage tracking

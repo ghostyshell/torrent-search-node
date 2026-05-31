@@ -475,6 +475,7 @@ async function startServer() {
     startPeriodicStreamUrlRefresh();
     startPeriodicDescriptionImageCache();
     startPeriodicSearchResultsCache();
+    startPeriodicRedisCatalogCache();
     startPeriodicJobLogMaintenance();
     startPeriodicCoverStorageMaintenance();
 
@@ -1070,6 +1071,58 @@ const startPeriodicJobLogMaintenance = () => {
   setInterval(() => {
     tick();
   }, intervalMs);
+};
+
+// Periodic Redis catalog cache job — pre-populates Stremio addon catalog keys
+// so the addon reads from Redis instead of hitting thehiddenbay.com on every load.
+// Interval has jitter (25–35 min) matching the Redis TTL written by each run.
+const startPeriodicRedisCatalogCache = () => {
+  if (!process.env.REDIS_URL) {
+    logger.info('[redisCatalog] REDIS_URL not set — catalog cache job disabled');
+    return;
+  }
+  if (!process.env.BASE_URL) {
+    logger.warn('[redisCatalog] BASE_URL not set — catalog cache job disabled (needed for Redis key prefix)');
+    return;
+  }
+
+  const RedisCatalogCacheService = require('./services/redisCatalogCacheService');
+  const cacheService = new RedisCatalogCacheService();
+
+  // Returns a random delay between 25 and 35 minutes in ms
+  const nextDelay = () => (25 + Math.floor(Math.random() * 10)) * 60 * 1000;
+
+  const runJob = async () => {
+    try {
+      monitoringController.backgroundTaskStats.redisCatalogCache.status = 'running';
+      const result = await cacheService.runJob();
+      monitoringController.updateTaskStats('redisCatalogCache', {
+        success: !result.skipped,
+        ...result,
+      });
+    } catch (err) {
+      logger.error('[redisCatalog] Job error', { error: err.message });
+      monitoringController.updateTaskStats('redisCatalogCache', { success: false, error: err.message });
+    }
+
+    // Schedule next run with fresh jitter
+    const delay = nextDelay();
+    monitoringController.backgroundTaskStats.redisCatalogCache.nextRun =
+      new Date(Date.now() + delay).toISOString();
+    setTimeout(runJob, delay);
+  };
+
+  // Initial run after 3 minutes to let the server warm up
+  const initialDelay = 3 * 60 * 1000;
+  monitoringController.backgroundTaskStats.redisCatalogCache.nextRun =
+    new Date(Date.now() + initialDelay).toISOString();
+
+  logger.info('[redisCatalog] Catalog cache job scheduled', {
+    initialDelayMinutes: 3,
+    intervalMinutes: '25–35 (jittered)',
+  });
+
+  setTimeout(runJob, initialDelay);
 };
 
 module.exports = app;

@@ -62,6 +62,13 @@ const torrentController = {
         results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
       }
 
+      // Record query for background cache warming (fire-and-forget)
+      if (req.app.locals.storage?.searchQueries && query && website !== 'all') {
+        req.app.locals.storage.searchQueries
+          .upsert(query, website, options.category || '')
+          .catch(() => {});
+      }
+
       res.json(results);
     } catch (error) {
       res.status(500).json({
@@ -147,6 +154,13 @@ const torrentController = {
       // Add cover images to results if requested
       if (options.includeCoverImages && req.app.locals.cache) {
         results = await enrichResultsWithCoverImages(results, req.app.locals.cache);
+      }
+
+      // Record query for background cache warming (fire-and-forget)
+      if (req.app.locals.storage?.searchQueries) {
+        req.app.locals.storage.searchQueries
+          .upsert(query, websiteLower, options.category || '')
+          .catch(() => {});
       }
 
       res.json({

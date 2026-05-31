@@ -41,6 +41,13 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
+  searchQueryCache: {
+    lastRun: null,
+    nextRun: null,
+    intervalMs: 2 * 60 * 60 * 1000, // 2 hours — refreshes Redis + covers for recent search queries
+    results: [],
+    status: 'idle',
+  },
 };
 
 // In-memory API usage tracking
@@ -938,6 +945,44 @@ const triggerCoverStorageMaintenance = async (req, res) => {
   }
 };
 
+const getSearchQueryCacheLogs = async (req, res) => {
+  const limit = parseInt(req.query.limit) || 10;
+  const logs  = backgroundTaskStats.searchQueryCache.results.slice(0, limit);
+  res.json({
+    status:  backgroundTaskStats.searchQueryCache.status,
+    lastRun: backgroundTaskStats.searchQueryCache.lastRun,
+    nextRun: backgroundTaskStats.searchQueryCache.nextRun,
+    logs,
+  });
+};
+
+const triggerSearchQueryCache = async (req, res) => {
+  const storageProvider = req.app.locals.storageProvider;
+  if (!storageProvider) {
+    return res.status(503).json({ success: false, error: 'Storage provider not available' });
+  }
+
+  const SearchQueryCacheService = require('../services/searchQueryCacheService');
+  const cacheService = new SearchQueryCacheService(storageProvider);
+
+  try {
+    backgroundTaskStats.searchQueryCache.status = 'running';
+    await runWithJobFileLogging('searchQueryCache', async () => {
+      try {
+        const result = await cacheService.runJob();
+        updateTaskStats('searchQueryCache', { success: true, manual: true, ...result });
+        res.json({ success: true, manual: true, result });
+      } catch (error) {
+        updateTaskStats('searchQueryCache', { success: false, manual: true, error: error.message });
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+  } catch (error) {
+    backgroundTaskStats.searchQueryCache.status = 'idle';
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 module.exports = {
   getLogs,
   getBackgroundTaskStats,
@@ -956,4 +1001,6 @@ module.exports = {
   triggerCoverStorageMaintenance,
   getRedisCatalogCacheLogs,
   triggerRedisCatalogCache,
+  getSearchQueryCacheLogs,
+  triggerSearchQueryCache,
 };

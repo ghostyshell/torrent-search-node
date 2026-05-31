@@ -5,6 +5,7 @@ const StreamUrlRepository = require('./repositories/StreamUrlRepository');
 const FavoriteRepository = require('./repositories/FavoriteRepository');
 const CachedLinkRepository = require('./repositories/CachedLinkRepository');
 const TorrentDetailsRepository = require('./repositories/TorrentDetailsRepository');
+const SearchQueryRepository = require('./repositories/SearchQueryRepository');
 
 /**
  * StorageProvider - Central coordinator for all data repositories
@@ -23,6 +24,7 @@ class StorageProvider {
     this.favorites = null;
     this.cachedLinks = null;
     this.torrentDetails = null;
+    this.searchQueries = null;
   }
 
   /**
@@ -39,6 +41,7 @@ class StorageProvider {
       this.favorites = new FavoriteRepository(this.tursoClient);
       this.cachedLinks = new CachedLinkRepository(this.tursoClient);
       this.torrentDetails = new TorrentDetailsRepository(this.tursoClient);
+      this.searchQueries = new SearchQueryRepository(this.tursoClient);
 
       this.isInitialized = true;
     }

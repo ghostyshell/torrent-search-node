@@ -197,6 +197,18 @@ class TursoClient {
         ip_address TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )`,
+
+      // Search queries table - tracks every distinct user search for cache warming
+      `CREATE TABLE IF NOT EXISTS search_queries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        query TEXT NOT NULL,
+        website TEXT NOT NULL DEFAULT 'piratebay',
+        category TEXT NOT NULL DEFAULT '',
+        query_count INTEGER NOT NULL DEFAULT 1,
+        last_queried_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        UNIQUE(query, website, category)
+      )`,
     ];
 
     const indexes = [
@@ -219,6 +231,8 @@ class TursoClient {
       'CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token)',
       'CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at)',
+      'CREATE INDEX IF NOT EXISTS idx_search_queries_last_queried ON search_queries(last_queried_at)',
+      'CREATE INDEX IF NOT EXISTS idx_search_queries_query ON search_queries(query)',
     ];
 
     // Execute schema creation
@@ -520,6 +534,10 @@ class TursoClient {
       {
         key: 'torrentDetails',
         sql: 'SELECT COUNT(*) as count FROM torrent_details',
+      },
+      {
+        key: 'searchQueries',
+        sql: 'SELECT COUNT(*) as count FROM search_queries',
       },
     ];
 

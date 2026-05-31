@@ -251,6 +251,8 @@ async function startServer() {
     app.get('/api/monitoring/redis-catalog-cache-logs', ipRestricted, monitoringController.getRedisCatalogCacheLogs);
     app.post('/api/monitoring/redis-catalog-cache-trigger', ipRestricted, monitoringController.triggerRedisCatalogCache);
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
+    app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
+    app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -480,6 +482,7 @@ async function startServer() {
     startPeriodicRedisCatalogCache();
     startPeriodicJobLogMaintenance();
     startPeriodicCoverStorageMaintenance();
+    startPeriodicSearchQueryCache();
 
     return server;
   } catch (error) {
@@ -514,6 +517,8 @@ async function startServer() {
     app.get('/api/monitoring/redis-catalog-cache-logs', ipRestricted, monitoringController.getRedisCatalogCacheLogs);
     app.post('/api/monitoring/redis-catalog-cache-trigger', ipRestricted, monitoringController.triggerRedisCatalogCache);
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
+    app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
+    app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -1127,6 +1132,63 @@ const startPeriodicRedisCatalogCache = () => {
   });
 
   setTimeout(runJob, initialDelay);
+};
+
+// Periodic search-query cache job — refreshes Redis results and cover images
+// for every distinct query recorded in the last 2 days. Also cleans up
+// search_queries rows older than 2 days at the end of each run.
+const startPeriodicSearchQueryCache = () => {
+  if (!storageProvider) {
+    logger.warn('[searchQueryCache] Storage not available — skipping search query cache job');
+    return;
+  }
+
+  const SearchQueryCacheService = require('./services/searchQueryCacheService');
+  const cacheService = new SearchQueryCacheService(storageProvider);
+
+  const intervalMs    = 2 * 60 * 60 * 1000; // 2 hours
+  const initialDelay  = 5 * 60 * 1000;       // 5 minutes after startup
+
+  logger.info('[searchQueryCache] Scheduled (initial delay: 5 min, interval: 2 h)');
+
+  monitoringController.backgroundTaskStats.searchQueryCache.nextRun =
+    new Date(Date.now() + initialDelay).toISOString();
+
+  const runJob = async (isInitial) => {
+    await runWithJobFileLogging('searchQueryCache', async () => {
+      try {
+        monitoringController.backgroundTaskStats.searchQueryCache.status = 'running';
+        logger.info(`[searchQueryCache] Running ${isInitial ? 'initial' : 'periodic'} job`);
+
+        const result = await cacheService.runJob();
+
+        logger.info('[searchQueryCache] Job completed', {
+          queriesProcessed: result.queriesProcessed,
+          totalTorrents:    result.totalTorrents,
+          coversCached:     result.coversCached,
+          redisEntries:     result.redisEntries,
+          cleanedUp:        result.cleanedUp,
+          errors:           result.errors.length,
+        });
+
+        monitoringController.updateTaskStats('searchQueryCache', {
+          success:          true,
+          queriesFound:     result.queriesFound,
+          queriesProcessed: result.queriesProcessed,
+          totalTorrents:    result.totalTorrents,
+          coversCached:     result.coversCached,
+          redisEntries:     result.redisEntries,
+          cleanedUp:        result.cleanedUp,
+        });
+      } catch (error) {
+        logger.error('[searchQueryCache] Job error', { error: error.message });
+        monitoringController.updateTaskStats('searchQueryCache', { success: false, error: error.message });
+      }
+    });
+  };
+
+  setTimeout(() => runJob(true),  initialDelay);
+  setInterval(() => runJob(false), intervalMs);
 };
 
 module.exports = app;

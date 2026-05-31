@@ -12,6 +12,7 @@ const ALLOWED_JOB_NAMES = new Set([
   'streamUrlRefresh',
   'descriptionImageCache',
   'searchResultsCache',
+  'searchQueryCache',
   'jobLogMaintenance',
   'coverStorageMaintenance',
 ]);

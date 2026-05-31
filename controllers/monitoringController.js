@@ -808,6 +808,104 @@ const triggerSearchResultsCache = async (req, res) => {
 };
 
 /**
+ * Get Redis catalog cache job logs
+ */
+const getRedisCatalogCacheLogs = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const includeAppLogs = req.query.includeAppLogs === 'true';
+
+    const logs = backgroundTaskStats.redisCatalogCache.results.slice(0, limit);
+
+    let recentAppLogs = [];
+    if (includeAppLogs) {
+      try {
+        const logFilePath = path.join(config.logging.logDir, 'all.log');
+        if (fs.existsSync(logFilePath)) {
+          const fileStream = fs.createReadStream(logFilePath);
+          const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+          const allLines = [];
+          for await (const line of rl) {
+            if (line.trim()) allLines.push(line);
+          }
+          const filteredLines = allLines.slice(-200).filter(line => line.includes('[redisCatalog]'));
+          recentAppLogs = filteredLines.slice(-50).reverse().map(line => {
+            try {
+              const parsed = JSON.parse(line);
+              return { timestamp: parsed.timestamp, level: parsed.level, message: parsed.message, ...parsed };
+            } catch {
+              const timestampMatch = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/);
+              const levelMatch = line.match(/\b(info|warn|error|debug)\b/i);
+              const messageMatch = line.match(/\[redisCatalog\](.*)/);
+              return {
+                timestamp: timestampMatch ? timestampMatch[1] : new Date().toISOString(),
+                level: levelMatch ? levelMatch[1].toLowerCase() : 'info',
+                message: messageMatch ? '[redisCatalog]' + messageMatch[1] : line,
+                raw: line,
+              };
+            }
+          });
+        }
+      } catch (logError) {
+        console.error('Failed to read app logs for redisCatalog:', logError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      logs,
+      recentAppLogs,
+      count: logs.length,
+      appLogsCount: recentAppLogs.length,
+      status: backgroundTaskStats.redisCatalogCache.status,
+      lastRun: backgroundTaskStats.redisCatalogCache.lastRun,
+      nextRun: backgroundTaskStats.redisCatalogCache.nextRun,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Manually trigger Redis catalog cache job
+ */
+const triggerRedisCatalogCache = async (req, res) => {
+  try {
+    if (!process.env.REDIS_URL) {
+      return res.status(503).json({ success: false, error: 'REDIS_URL not configured' });
+    }
+    if (!process.env.BASE_URL) {
+      return res.status(503).json({ success: false, error: 'BASE_URL not configured' });
+    }
+
+    backgroundTaskStats.redisCatalogCache.status = 'running';
+
+    res.json({ success: true, message: 'Redis catalog cache job started', status: 'running' });
+
+    const RedisCatalogCacheService = require('../services/redisCatalogCacheService');
+    const logger = require('../middleware/logger');
+    const cacheService = new RedisCatalogCacheService();
+
+    (async () => {
+      await runWithJobFileLogging('redisCatalogCache', async () => {
+        try {
+          logger.info('[redisCatalog] Manual cache job triggered');
+          const result = await cacheService.runJob();
+          logger.info('[redisCatalog] Manual cache job completed', result);
+          updateTaskStats('redisCatalogCache', { success: true, manual: true, ...result });
+        } catch (error) {
+          logger.error('[redisCatalog] Manual job error', { error: error.message });
+          updateTaskStats('redisCatalogCache', { success: false, manual: true, error: error.message });
+        }
+      });
+    })();
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
  * POST /api/monitoring/cover-storage-maintenance-trigger
  * Manually triggers the cover storage maintenance job (refresh presigned URLs + cleanup expired temp).
  * Idempotent — safe to call even while scheduled maintenance is running.
@@ -856,4 +954,6 @@ module.exports = {
   updateTaskStats,
   backgroundTaskStats,
   triggerCoverStorageMaintenance,
+  getRedisCatalogCacheLogs,
+  triggerRedisCatalogCache,
 };

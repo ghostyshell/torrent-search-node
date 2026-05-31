@@ -504,6 +504,24 @@
             </div>
         </div>
 
+        <!-- Redis Catalog Cache -->
+        <div class="card full-width">
+            <div class="card-title">
+                Redis Catalog Cache Job
+                <button class="refresh-btn" onclick="triggerRedisCatalogCache()" id="triggerRedisCatalogBtn" style="margin-left: 16px;">
+                    Trigger Cache Now
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
+                Pre-warms the Stremio addon's Redis catalog keys (XXX + Trans + all studios × 4K + 1080p × Top + Recent).
+                Runs every 25–35 min with jitter. Requires <code>REDIS_URL</code> and <code>BASE_URL</code>.
+            </p>
+            <div id="redisCatalogStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px;"></div>
+            <div class="logs-container" id="redisCatalogLogs" style="max-height: 300px;">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
         <!-- Cover Storage Maintenance -->
         <div class="card full-width">
             <div class="card-title">
@@ -539,6 +557,7 @@
                     <option value="streamUrlRefresh">streamUrlRefresh</option>
                     <option value="descriptionImageCache">descriptionImageCache</option>
                     <option value="searchResultsCache">searchResultsCache</option>
+                    <option value="redisCatalogCache">redisCatalogCache</option>
                     <option value="coverStorageMaintenance">coverStorageMaintenance</option>
                     <option value="jobLogMaintenance">jobLogMaintenance</option>
                 </select>
@@ -809,6 +828,7 @@
                 streamUrlRefresh: 'Stream URL Refresh',
                 descriptionImageCache: 'Description & Image Cache',
                 searchResultsCache: 'Filter stream URL cache',
+                redisCatalogCache: 'Redis Catalog Cache',
                 jobLogMaintenance: 'Job log maintenance'
             };
             return names[name] || name;
@@ -1410,6 +1430,111 @@
             }
         }
 
+        async function fetchRedisCatalogCacheLogs() {
+            try {
+                const response = await fetch('/api/monitoring/redis-catalog-cache-logs?limit=20&includeAppLogs=true');
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+
+                const statusEl = document.getElementById('redisCatalogStatus');
+                const statusMap = {
+                    'idle':      { bg: '#1e3a5f', color: '#60a5fa', text: 'Idle' },
+                    'running':   { bg: '#78350f', color: '#fbbf24', text: 'Running...' },
+                    'completed': { bg: '#14532d', color: '#4ade80', text: 'Completed' },
+                    'error':     { bg: '#7f1d1d', color: '#fca5a5', text: 'Error' },
+                };
+                const status = statusMap[data.status] || statusMap['idle'];
+                statusEl.style.backgroundColor = status.bg;
+                statusEl.style.color = status.color;
+
+                let nextRunText = '';
+                if (data.nextRun) {
+                    const diffMs = new Date(data.nextRun) - new Date();
+                    if (diffMs > 0) {
+                        const mins = Math.floor(diffMs / 60000);
+                        nextRunText = mins > 0 ? `in ${mins}m` : 'soon';
+                    } else {
+                        nextRunText = 'soon';
+                    }
+                }
+                statusEl.innerHTML = `
+                    <strong>Status:</strong> ${status.text}
+                    ${data.lastRun ? ` | <strong>Last Run:</strong> ${formatTime(data.lastRun)}` : ''}
+                    ${data.nextRun ? ` | <strong>Next Run:</strong> ${nextRunText}` : ''}
+                `;
+
+                const logsContainer = document.getElementById('redisCatalogLogs');
+                let logsHtml = '';
+
+                if (data.recentAppLogs && data.recentAppLogs.length > 0) {
+                    const header = data.status === 'running'
+                        ? '<div style="margin-bottom: 12px; font-weight: bold; color: #fbbf24;">📋 Live Progress:</div>'
+                        : '<div style="margin-bottom: 12px; font-weight: bold; color: #60a5fa;">📋 Recent Activity:</div>';
+                    logsHtml += header + data.recentAppLogs.slice(0, 30).map(log => {
+                        const msg = log.message || log.raw || '';
+                        const level = log.level || 'info';
+                        const levelClass = level === 'error' ? 'log-level-error' : level === 'warn' ? 'log-level-warn' : 'log-level-info';
+                        return `
+                            <div class="log-entry" style="font-size: 12px; padding: 4px 8px;">
+                                <span class="log-time" style="font-size: 11px;">${log.timestamp ? formatTime(log.timestamp) : ''}</span>
+                                <span class="log-level ${levelClass}" style="font-size: 11px; padding: 2px 6px;">${level.toUpperCase()}</span>
+                                <span class="log-message" style="font-size: 11px;">${msg.replace('[redisCatalog]', '').trim()}</span>
+                            </div>`;
+                    }).join('');
+                    if (data.logs.length > 0) logsHtml += '<div style="margin: 16px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>';
+                }
+
+                if (data.logs.length > 0) {
+                    logsHtml += '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
+                        data.logs.map(log => `
+                            <div class="log-entry">
+                                <span class="log-time">${formatTime(log.timestamp)}</span>
+                                <span class="log-level ${log.success ? 'log-level-info' : 'log-level-error'}">
+                                    ${log.success ? 'SUCCESS' : log.skipped ? 'SKIPPED' : 'FAILED'}
+                                </span>
+                                <span class="log-message">
+                                    ${log.manual ? '[MANUAL] ' : '[SCHEDULED] '}
+                                    ${log.cached != null ? `${log.cached} torrents cached` : ''}
+                                    ${log.errors != null ? ` | ${log.errors} errors` : ''}
+                                    ${log.duration != null ? ` | ${log.duration}s` : ''}
+                                    ${log.error ? ` | Error: ${log.error}` : ''}
+                                    ${log.skipped ? ' (Redis/BASE_URL not configured)' : ''}
+                                </span>
+                            </div>`
+                        ).join('');
+                }
+
+                if (!logsHtml) logsHtml = '<div class="loading">No logs available yet. Trigger a cache run to see logs.</div>';
+                logsContainer.innerHTML = logsHtml;
+
+                if (data.status === 'running') setTimeout(fetchRedisCatalogCacheLogs, 2000);
+            } catch (error) {
+                console.error('Failed to fetch redis catalog cache logs:', error);
+                document.getElementById('redisCatalogLogs').innerHTML =
+                    `<div class="loading">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        async function triggerRedisCatalogCache() {
+            const btn = document.getElementById('triggerRedisCatalogBtn');
+            const originalText = btn.textContent;
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting...';
+                const response = await fetch('/api/monitoring/redis-catalog-cache-trigger', { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+                btn.textContent = 'Job Started!';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                await fetchRedisCatalogCacheLogs();
+                showTemporaryMessage('Redis catalog cache job started. Live progress shown below.', 'success');
+            } catch (error) {
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                showError('Failed to trigger Redis catalog cache: ' + error.message);
+            }
+        }
+
         async function triggerCoverStorageMaintenance() {
             const btn = document.getElementById('triggerCoverMaintenanceBtn');
             try {
@@ -1435,6 +1560,7 @@
                 fetchLogs(currentLogLevel),
                 fetchStreamRefreshLogs(),
                 fetchDescCacheLogs(),
+                fetchRedisCatalogCacheLogs(),
                 fetchCoverStorageMaintenanceStatus(),
             ]);
         }

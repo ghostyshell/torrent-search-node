@@ -248,6 +248,8 @@ async function startServer() {
     app.post('/api/monitoring/description-image-cache-force-refresh', ipRestricted, monitoringController.triggerDescriptionImageCacheForceRefresh);
     app.get('/api/monitoring/search-results-cache-logs', ipRestricted, monitoringController.getSearchResultsCacheLogs);
     app.post('/api/monitoring/search-results-cache-trigger', ipRestricted, monitoringController.triggerSearchResultsCache);
+    app.get('/api/monitoring/redis-catalog-cache-logs', ipRestricted, monitoringController.getRedisCatalogCacheLogs);
+    app.post('/api/monitoring/redis-catalog-cache-trigger', ipRestricted, monitoringController.triggerRedisCatalogCache);
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);

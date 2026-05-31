@@ -127,6 +127,9 @@ async function cacheEntry(redis, selfUrl, catalogId, rawTorrents, sort) {
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+// 1–2 s jitter between every individual scrape request to stay well under
+// thehiddenbay.com rate limits regardless of how many catalogs are cached.
+function sleepJitter() { return sleep(1000 + Math.floor(Math.random() * 1000)); }
 
 // ── Main job ──────────────────────────────────────────────────────────────────
 
@@ -146,14 +149,17 @@ class RedisCatalogCacheService {
       return { skipped: true };
     }
 
-    const start   = Date.now();
-    let cached    = 0;
-    let errors    = 0;
+    const start = Date.now();
+    let cached  = 0;
+    let errors  = 0;
 
     logger.info('[redisCatalog] Starting catalog cache job');
 
-    for (const { marker, label, category } of CATEGORIES) {
+    for (let ci = 0; ci < CATEGORIES.length; ci++) {
+      const { marker, label, category } = CATEGORIES[ci];
       const qSuffix = marker ? `_${marker}` : '';
+
+      logger.info(`[redisCatalog] === ${label} (category ${category}) ===`);
 
       // ── Browse (XXX) ──────────────────────────────────────────────────────
       for (const { suffix, sort } of SORT_VARIANTS) {
@@ -165,7 +171,7 @@ class RedisCatalogCacheService {
           errors++;
           logger.warn(`[redisCatalog] browse ${catalogId}: ${e.message}`);
         }
-        await sleep(500);
+        await sleepJitter();
       }
 
       // ── Trans search ──────────────────────────────────────────────────────
@@ -178,7 +184,7 @@ class RedisCatalogCacheService {
           errors++;
           logger.warn(`[redisCatalog] trans ${catalogId}: ${e.message}`);
         }
-        await sleep(500);
+        await sleepJitter();
       }
 
       // ── Studios ───────────────────────────────────────────────────────────
@@ -192,9 +198,12 @@ class RedisCatalogCacheService {
           } catch (e) {
             errors++;
           }
-          await sleep(400);
+          await sleepJitter();
         }
       }
+
+      // Extra pause between categories to give the site time to breathe
+      if (ci < CATEGORIES.length - 1) await sleep(3000);
     }
 
     const duration = ((Date.now() - start) / 1000).toFixed(1);

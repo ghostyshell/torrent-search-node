@@ -522,6 +522,26 @@
             </div>
         </div>
 
+        <!-- Search Query Cache Job -->
+        <div class="card full-width">
+            <div class="card-title">
+                Search Query Cache Job
+                <button class="refresh-btn" onclick="triggerSearchQueryCache()" id="triggerSearchQueryCacheBtn" style="margin-left: 16px;">
+                    Trigger Now
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
+                Re-runs every search query seen in the last 2 days. For each query, scrapes fresh results,
+                caches cover images to S3, and writes results to Redis (2 h TTL) under both the
+                <code>sqc:v1:</code> key and the Stremio addon's <code>cat:v1:</code> key.
+                Cleans up queries older than 2 days. Runs every 2 h (initial delay 5 min).
+            </p>
+            <div id="searchQueryCacheStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px;"></div>
+            <div class="logs-container" id="searchQueryCacheLogs" style="max-height: 300px;">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
         <!-- Cover Storage Maintenance -->
         <div class="card full-width">
             <div class="card-title">
@@ -558,6 +578,7 @@
                     <option value="descriptionImageCache">descriptionImageCache</option>
                     <option value="searchResultsCache">searchResultsCache</option>
                     <option value="redisCatalogCache">redisCatalogCache</option>
+                    <option value="searchQueryCache">searchQueryCache</option>
                     <option value="coverStorageMaintenance">coverStorageMaintenance</option>
                     <option value="jobLogMaintenance">jobLogMaintenance</option>
                 </select>
@@ -829,6 +850,7 @@
                 descriptionImageCache: 'Description & Image Cache',
                 searchResultsCache: 'Filter stream URL cache',
                 redisCatalogCache: 'Redis Catalog Cache',
+                searchQueryCache:  'Search Query Cache',
                 jobLogMaintenance: 'Job log maintenance'
             };
             return names[name] || name;
@@ -1535,6 +1557,90 @@
             }
         }
 
+        async function fetchSearchQueryCacheLogs() {
+            try {
+                const response = await fetch('/api/monitoring/search-query-cache-logs?limit=20');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('searchQueryCacheStatus');
+                const statusMap = {
+                    'idle':      { bg: '#1e3a5f', color: '#60a5fa', text: 'Idle' },
+                    'running':   { bg: '#78350f', color: '#fbbf24', text: 'Running...' },
+                    'completed': { bg: '#14532d', color: '#4ade80', text: 'Completed' },
+                    'error':     { bg: '#7f1d1d', color: '#fca5a5', text: 'Error' },
+                };
+                const status = statusMap[data.status] || statusMap['idle'];
+                statusEl.style.backgroundColor = status.bg;
+                statusEl.style.color = status.color;
+
+                let nextRunText = '';
+                if (data.nextRun) {
+                    const diffMs = new Date(data.nextRun) - new Date();
+                    nextRunText = diffMs > 0
+                        ? (Math.floor(diffMs / 60000) > 0 ? `in ${Math.floor(diffMs / 60000)}m` : 'soon')
+                        : 'soon';
+                }
+                statusEl.innerHTML = `
+                    <strong>Status:</strong> ${status.text}
+                    ${data.lastRun ? ` | <strong>Last Run:</strong> ${formatTime(data.lastRun)}` : ''}
+                    ${data.nextRun ? ` | <strong>Next Run:</strong> ${nextRunText}` : ''}
+                `;
+
+                const logsContainer = document.getElementById('searchQueryCacheLogs');
+                let logsHtml = '';
+
+                if (data.logs && data.logs.length > 0) {
+                    logsHtml = '<div style="margin-bottom: 12px; font-weight: bold;">📊 Job History:</div>' +
+                        data.logs.map(log => `
+                            <div class="log-entry">
+                                <span class="log-time">${formatTime(log.timestamp)}</span>
+                                <span class="log-level ${log.success ? 'log-level-info' : 'log-level-error'}">
+                                    ${log.success ? 'SUCCESS' : 'FAILED'}
+                                </span>
+                                <span class="log-message">
+                                    ${log.manual ? '[MANUAL] ' : '[SCHEDULED] '}
+                                    ${log.queriesProcessed != null ? `${log.queriesProcessed} queries` : ''}
+                                    ${log.totalTorrents   != null ? ` | ${log.totalTorrents} torrents` : ''}
+                                    ${log.coversCached    != null ? ` | ${log.coversCached} covers` : ''}
+                                    ${log.redisEntries    != null ? ` | ${log.redisEntries} Redis entries` : ''}
+                                    ${log.cleanedUp       != null ? ` | ${log.cleanedUp} cleaned up` : ''}
+                                    ${log.error ? ` | Error: ${log.error}` : ''}
+                                </span>
+                            </div>`
+                        ).join('');
+                }
+
+                if (!logsHtml) logsHtml = '<div class="loading">No runs yet. Trigger the job or wait for the scheduled run.</div>';
+                logsContainer.innerHTML = logsHtml;
+
+                if (data.status === 'running') setTimeout(fetchSearchQueryCacheLogs, 3000);
+            } catch (error) {
+                console.error('Failed to fetch search query cache logs:', error);
+                document.getElementById('searchQueryCacheLogs').innerHTML =
+                    `<div class="loading">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        async function triggerSearchQueryCache() {
+            const btn = document.getElementById('triggerSearchQueryCacheBtn');
+            const originalText = btn.textContent;
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting...';
+                const response = await fetch('/api/monitoring/search-query-cache-trigger', { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+                btn.textContent = 'Job Started!';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                await fetchSearchQueryCacheLogs();
+                showTemporaryMessage('Search query cache job started.', 'success');
+            } catch (error) {
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                showError('Failed to trigger search query cache: ' + error.message);
+            }
+        }
+
         async function triggerCoverStorageMaintenance() {
             const btn = document.getElementById('triggerCoverMaintenanceBtn');
             try {
@@ -1561,6 +1667,7 @@
                 fetchStreamRefreshLogs(),
                 fetchDescCacheLogs(),
                 fetchRedisCatalogCacheLogs(),
+                fetchSearchQueryCacheLogs(),
                 fetchCoverStorageMaintenanceStatus(),
             ]);
         }

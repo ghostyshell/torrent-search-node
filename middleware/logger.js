@@ -9,6 +9,11 @@ class Logger {
     this.enableConsole = config.logging.enableConsole;
     this.enableFile = config.logging.enableFile;
     this.logDirectory = config.logging.logDir;
+    // Rotate each primary log file once it passes this size (default 10MB).
+    this.maxLogFileBytes = Math.max(
+      1024 * 1024,
+      parseInt(process.env.LOG_MAX_FILE_BYTES || String(10 * 1024 * 1024), 10) || 10 * 1024 * 1024
+    );
 
     // Create logs directory if file logging is enabled
     if (this.enableFile && !fs.existsSync(this.logDirectory)) {
@@ -72,9 +77,26 @@ class Logger {
       const logFile = path.join(this.logDirectory, `${level}.log`);
       const allLogsFile = path.join(this.logDirectory, 'all.log');
 
-      fs.appendFileSync(logFile, formattedMessage + '\n');
-      fs.appendFileSync(allLogsFile, formattedMessage + '\n');
+      this.appendWithRotation(logFile, formattedMessage + '\n');
+      this.appendWithRotation(allLogsFile, formattedMessage + '\n');
     }
+  }
+
+  /**
+   * Append to a log file, rotating it once it exceeds the size cap so the
+   * primary log files never grow without bound. Keeps a single `.1` backup.
+   */
+  appendWithRotation(filePath, line) {
+    try {
+      const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+      if (stat && stat.size >= this.maxLogFileBytes) {
+        // Overwrite the previous backup with the now-full current file.
+        fs.renameSync(filePath, `${filePath}.1`);
+      }
+    } catch {
+      // If rotation fails, fall through and keep logging to the existing file.
+    }
+    fs.appendFileSync(filePath, line);
   }
 
   /**

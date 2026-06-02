@@ -52,8 +52,8 @@
   },
   "scripts": {
     "start": "nodemon app.js",
-    "start-server": "node --max-old-space-size=4096 app.js",
-    "start:prod": "NODE_ENV=production node --max-old-space-size=4096 app.js",
+    "start-server": "node --max-old-space-size=3072 app.js",
+    "start:prod": "NODE_ENV=production node --max-old-space-size=3072 app.js",
     "validate-config": "node scripts/validate-config.js",
     "test": "playwright test",
     "test:headed": "playwright test --headed",

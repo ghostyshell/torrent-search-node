@@ -1675,14 +1675,17 @@
         // Auto-refresh setup
         function setupAutoRefresh() {
             const checkbox = document.getElementById('autoRefresh');
+            // Poll interval (ms). Each cycle hits several log endpoints, so keep
+            // this conservative to limit load and memory churn on the server.
+            const AUTO_REFRESH_MS = 30000;
 
             if (checkbox.checked) {
-                refreshInterval = setInterval(refreshAll, 10000);
+                refreshInterval = setInterval(refreshAll, AUTO_REFRESH_MS);
             }
 
             checkbox.addEventListener('change', () => {
                 if (checkbox.checked) {
-                    refreshInterval = setInterval(refreshAll, 10000);
+                    refreshInterval = setInterval(refreshAll, AUTO_REFRESH_MS);
                 } else {
                     clearInterval(refreshInterval);
                 }

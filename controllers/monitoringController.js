@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 const { config } = require('../config/environment');
 const { runWithJobFileLogging } = require('../services/backgroundJobFileLogger');
 
@@ -142,6 +141,45 @@ const apiTrackingMiddleware = () => {
 };
 
 /**
+ * Read approximately the last `maxLines` lines of a file WITHOUT loading the
+ * whole file into memory.
+ *
+ * The monitoring dashboard polls several log endpoints every 10s. The previous
+ * implementations streamed the entire `all.log` (which grows unbounded — it had
+ * reached 20MB+) into a JS array on every request, allocating tens of MB of
+ * string objects per call. Under steady polling the garbage collector couldn't
+ * keep up and the heap climbed to the 4GB limit → "JavaScript heap out of
+ * memory". Reading only a bounded tail keeps memory flat regardless of file size.
+ */
+const tailLines = async (filePath, maxLines = 200, maxBytes = 1024 * 1024) => {
+  let fh;
+  try {
+    const { size } = await fs.promises.stat(filePath);
+    const start = Math.max(0, size - maxBytes);
+    const length = size - start;
+    if (length <= 0) return [];
+
+    fh = await fs.promises.open(filePath, 'r');
+    const buf = Buffer.alloc(length);
+    await fh.read(buf, 0, length, start);
+
+    let text = buf.toString('utf8');
+    // If we started mid-file, drop the (likely partial) first line.
+    if (start > 0) {
+      const nl = text.indexOf('\n');
+      text = nl === -1 ? '' : text.slice(nl + 1);
+    }
+
+    const lines = text.split('\n').filter((l) => l.trim());
+    return lines.slice(-maxLines);
+  } catch {
+    return [];
+  } finally {
+    if (fh) await fh.close().catch(() => {});
+  }
+};
+
+/**
  * Read recent log entries from a log file
  */
 const readRecentLogs = async (logFile, limit = 100) => {
@@ -151,32 +189,18 @@ const readRecentLogs = async (logFile, limit = 100) => {
     return [];
   }
 
-  return new Promise((resolve) => {
-    const logs = [];
-    const fileStream = fs.createReadStream(logPath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity,
-    });
-
-    rl.on('line', (line) => {
-      try {
-        const parsed = JSON.parse(line);
-        logs.push(parsed);
-      } catch {
-        // Skip malformed lines
-      }
-    });
-
-    rl.on('close', () => {
-      // Return last N entries
-      resolve(logs.slice(-limit).reverse());
-    });
-
-    rl.on('error', () => {
-      resolve([]);
-    });
-  });
+  // Pull a tail generous enough to contain `limit` JSON lines without buffering
+  // the whole file (log lines are typically a few hundred bytes each).
+  const rawLines = await tailLines(logPath, limit, Math.max(1024 * 1024, limit * 2048));
+  const logs = [];
+  for (const line of rawLines) {
+    try {
+      logs.push(JSON.parse(line));
+    } catch {
+      // Skip malformed lines
+    }
+  }
+  return logs.slice(-limit).reverse();
 };
 
 /**
@@ -325,23 +349,9 @@ const getStreamUrlRefreshLogs = async (req, res) => {
         const logFilePath = path.join(config.logging.logDir, 'all.log');
 
         if (fs.existsSync(logFilePath)) {
-          // Read the last 1000 lines of the file for performance
-          const fileStream = fs.createReadStream(logFilePath);
-          const rl = readline.createInterface({
-            input: fileStream,
-            crlfDelay: Infinity
-          });
-
-          const allLines = [];
-          for await (const line of rl) {
-            if (line.trim()) {
-              allLines.push(line);
-            }
-          }
-
-          // Get last 200 lines and filter for stream refresh logs
-          const streamRefreshLines = allLines
-            .slice(-200)
+          // Read only the last 200 lines (bounded tail) to avoid buffering the
+          // entire all.log into memory on every dashboard poll.
+          const streamRefreshLines = (await tailLines(logFilePath, 200))
             .filter(line => line.includes('[Stream Refresh]'));
 
           // Parse logs and extract relevant information
@@ -491,21 +501,7 @@ const getDescriptionImageCacheLogs = async (req, res) => {
         const logFilePath = path.join(config.logging.logDir, 'all.log');
 
         if (fs.existsSync(logFilePath)) {
-          const fileStream = fs.createReadStream(logFilePath);
-          const rl = readline.createInterface({
-            input: fileStream,
-            crlfDelay: Infinity
-          });
-
-          const allLines = [];
-          for await (const line of rl) {
-            if (line.trim()) {
-              allLines.push(line);
-            }
-          }
-
-          const filteredLines = allLines
-            .slice(-200)
+          const filteredLines = (await tailLines(logFilePath, 200))
             .filter(line => line.includes('[DescImageCache]'));
 
           recentAppLogs = filteredLines.slice(-50).reverse().map(line => {
@@ -829,13 +825,7 @@ const getRedisCatalogCacheLogs = async (req, res) => {
       try {
         const logFilePath = path.join(config.logging.logDir, 'all.log');
         if (fs.existsSync(logFilePath)) {
-          const fileStream = fs.createReadStream(logFilePath);
-          const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-          const allLines = [];
-          for await (const line of rl) {
-            if (line.trim()) allLines.push(line);
-          }
-          const filteredLines = allLines.slice(-200).filter(line => line.includes('[redisCatalog]'));
+          const filteredLines = (await tailLines(logFilePath, 200)).filter(line => line.includes('[redisCatalog]'));
           recentAppLogs = filteredLines.slice(-50).reverse().map(line => {
             try {
               const parsed = JSON.parse(line);

@@ -15,6 +15,7 @@ const ALLOWED_JOB_NAMES = new Set([
   'searchQueryCache',
   'jobLogMaintenance',
   'coverStorageMaintenance',
+  'mongoMigration',
 ]);
 
 function assertJobName(jobName) {

@@ -44,11 +44,26 @@ const config = {
     ],
   },
 
-  // Database configuration - Always use Turso cloud database
+  // Database configuration - Turso cloud (primary) + optional MongoDB experiment
   database: {
     turso: {
       url: process.env.TURSO_DATABASE_URL,
       authToken: process.env.TURSO_AUTH_TOKEN,
+    },
+    mongo: {
+      // Connection string for the Sliplane MongoDB instance. Accepts either
+      // MONGODB_URI or MONGO_URL — a full connection string (credentials may be
+      // embedded). If the URL has no credentials and MONGO_USERNAME/MONGO_PASSWORD
+      // are provided separately, they're injected (URL-encoded). When unset,
+      // Mongo features are disabled.
+      uri: buildMongoUri(),
+      dbName: process.env.MONGODB_DB || 'torrent_search',
+      // Experiment flag: when true (and a uri is set) reads come from MongoDB and
+      // writes are mirrored to BOTH MongoDB and Turso (Turso stays a hot standby
+      // for instant rollback). When false, everything uses Turso unchanged.
+      experiment:
+        (process.env.EXPERIMENT_MONGODB || '').toLowerCase() === 'true' &&
+        !!buildMongoUri(),
     },
   },
 
@@ -144,6 +159,28 @@ const config = {
 /**
  * Get IP allowlist for monitoring/debug endpoints
  */
+/**
+ * Build the MongoDB connection URI.
+ * Base comes from MONGODB_URI or MONGO_URL. If that URL carries no credentials
+ * and MONGO_USERNAME/MONGO_PASSWORD (or MONGO_USER/MONGO_PASS) are set, inject
+ * them URL-encoded. Returns '' when no base URL is configured.
+ */
+function buildMongoUri() {
+  const base = process.env.MONGODB_URI || process.env.MONGO_URL || '';
+  if (!base) return '';
+
+  const user = process.env.MONGO_USERNAME || process.env.MONGO_USER || '';
+  const pass = process.env.MONGO_PASSWORD || process.env.MONGO_PASS || '';
+  if (!user || !pass) return base;
+
+  // Only inject into a standard mongodb:// or mongodb+srv:// URL that doesn't
+  // already include "user:pass@". Otherwise return the base untouched.
+  const m = base.match(/^(mongodb(?:\+srv)?:\/\/)([^/].*)$/i);
+  if (!m || m[2].includes('@')) return base;
+
+  return `${m[1]}${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${m[2]}`;
+}
+
 function getMonitoringIpAllowlist() {
   const allowlistStr = process.env.MONITORING_IP_ALLOWLIST || '';
   if (!allowlistStr.trim()) {

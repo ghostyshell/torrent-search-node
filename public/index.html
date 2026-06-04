@@ -542,6 +542,25 @@
             </div>
         </div>
 
+        <!-- MongoDB Migration -->
+        <div class="card full-width">
+            <div class="card-title">
+                MongoDB Migration
+                <button class="refresh-btn" onclick="triggerMongoMigration()" id="triggerMongoMigrationBtn" style="margin-left: 16px;">
+                    Migrate Turso → Mongo
+                </button>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">
+                One-shot copy of all Turso tables (cache, images, stream_urls, cached_links, favorite_entries,
+                torrent_details, users, user_sessions, search_queries) into MongoDB. Read-only on Turso and
+                idempotent — re-run any time to refresh Mongo with the latest data. Manual only; no schedule.
+            </p>
+            <div id="mongoMigrationStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 6px; font-size: 13px;"></div>
+            <div class="logs-container" id="mongoMigrationLogs" style="max-height: 300px;">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+
         <!-- Cover Storage Maintenance -->
         <div class="card full-width">
             <div class="card-title">
@@ -579,6 +598,7 @@
                     <option value="searchResultsCache">searchResultsCache</option>
                     <option value="redisCatalogCache">redisCatalogCache</option>
                     <option value="searchQueryCache">searchQueryCache</option>
+                    <option value="mongoMigration">mongoMigration</option>
                     <option value="coverStorageMaintenance">coverStorageMaintenance</option>
                     <option value="jobLogMaintenance">jobLogMaintenance</option>
                 </select>
@@ -851,6 +871,7 @@
                 searchResultsCache: 'Filter stream URL cache',
                 redisCatalogCache: 'Redis Catalog Cache',
                 searchQueryCache:  'Search Query Cache',
+                mongoMigration:    'MongoDB Migration',
                 jobLogMaintenance: 'Job log maintenance'
             };
             return names[name] || name;
@@ -1641,6 +1662,90 @@
             }
         }
 
+        async function fetchMongoMigrationLogs() {
+            try {
+                const response = await fetch('/api/monitoring/mongo-migration-logs?limit=20');
+                const data = await response.json();
+
+                const statusEl = document.getElementById('mongoMigrationStatus');
+                const statusMap = {
+                    'idle':      { bg: '#1e3a5f', color: '#60a5fa', text: 'Idle' },
+                    'running':   { bg: '#78350f', color: '#fbbf24', text: 'Running...' },
+                    'completed': { bg: '#14532d', color: '#4ade80', text: 'Completed' },
+                    'error':     { bg: '#7f1d1d', color: '#fca5a5', text: 'Error' },
+                };
+                const status = statusMap[data.status] || statusMap['idle'];
+                statusEl.style.backgroundColor = status.bg;
+                statusEl.style.color = status.color;
+
+                const conn = data.mongoConnected
+                    ? '🟢 Mongo connected'
+                    : (data.mongoConfigured ? '🔴 Mongo configured but NOT connected' : '⚪ Mongo not configured (set MONGODB_URI)');
+                statusEl.innerHTML = `
+                    <strong>Status:</strong> ${status.text}
+                    | ${conn}
+                    ${data.lastRun ? ` | <strong>Last Run:</strong> ${formatTime(data.lastRun)}` : ''}
+                `;
+
+                const btn = document.getElementById('triggerMongoMigrationBtn');
+                if (btn) btn.disabled = !data.mongoConnected || data.status === 'running';
+
+                const logsContainer = document.getElementById('mongoMigrationLogs');
+                let logsHtml = '';
+                if (data.logs && data.logs.length > 0) {
+                    logsHtml = '<div style="margin-bottom: 12px; font-weight: bold;">📊 Migration History:</div>' +
+                        data.logs.map(log => {
+                            const tableSummary = log.tables
+                                ? Object.entries(log.tables).map(([t, n]) => `${t}:${n}`).join(', ')
+                                : '';
+                            return `
+                            <div class="log-entry">
+                                <span class="log-time">${formatTime(log.timestamp)}</span>
+                                <span class="log-level ${log.success ? 'log-level-info' : 'log-level-error'}">
+                                    ${log.success ? 'SUCCESS' : 'FAILED'}
+                                </span>
+                                <span class="log-message">
+                                    ${log.totalCopied != null ? `${log.totalCopied} docs copied` : ''}
+                                    ${log.durationSeconds != null ? ` in ${log.durationSeconds}s` : ''}
+                                    ${tableSummary ? ` | ${tableSummary}` : ''}
+                                    ${log.errors && log.errors.length ? ` | ${log.errors.length} table error(s)` : ''}
+                                    ${log.error ? ` | Error: ${log.error}` : ''}
+                                </span>
+                            </div>`;
+                        }).join('');
+                }
+                if (!logsHtml) logsHtml = '<div class="loading">No migrations yet. Click "Migrate Turso → Mongo" to start.</div>';
+                logsContainer.innerHTML = logsHtml;
+
+                if (data.status === 'running') setTimeout(fetchMongoMigrationLogs, 3000);
+            } catch (error) {
+                console.error('Failed to fetch mongo migration logs:', error);
+                document.getElementById('mongoMigrationLogs').innerHTML =
+                    `<div class="loading">Error loading logs: ${error.message}</div>`;
+            }
+        }
+
+        async function triggerMongoMigration() {
+            const btn = document.getElementById('triggerMongoMigrationBtn');
+            const originalText = btn.textContent;
+            if (!confirm('Copy all Turso data into MongoDB now? This is read-only on Turso and safe to re-run.')) return;
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Starting...';
+                const response = await fetch('/api/monitoring/mongo-migration-trigger', { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+                btn.textContent = 'Migration Started!';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                await fetchMongoMigrationLogs();
+                showTemporaryMessage('MongoDB migration started.', 'success');
+            } catch (error) {
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+                showError('Failed to trigger MongoDB migration: ' + error.message);
+            }
+        }
+
         async function triggerCoverStorageMaintenance() {
             const btn = document.getElementById('triggerCoverMaintenanceBtn');
             try {
@@ -1668,6 +1773,7 @@
                 fetchDescCacheLogs(),
                 fetchRedisCatalogCacheLogs(),
                 fetchSearchQueryCacheLogs(),
+                fetchMongoMigrationLogs(),
                 fetchCoverStorageMaintenanceStatus(),
             ]);
         }

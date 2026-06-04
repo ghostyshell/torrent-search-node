@@ -28,6 +28,7 @@ const express = require('express');
 const path = require('path');
 const passport = require('passport');
 const StorageProvider = require('./database/StorageProvider');
+const MongoClient = require('./database/MongoClient');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
 const setupTorrentRoutes = require('./routes/torrents');
@@ -229,6 +230,30 @@ async function startServer() {
     app.locals.storage = storageProvider;
     app.locals.cache = storageProvider;
 
+    // Optional MongoDB connection (migration target / experiment backend).
+    // Non-fatal: if it can't connect, the app keeps running on Turso and the
+    // dashboard migration panel reports it as not connected.
+    if (config.database.mongo.uri) {
+      const mongoClient = new MongoClient({
+        uri: config.database.mongo.uri,
+        dbName: config.database.mongo.dbName,
+      });
+      try {
+        await mongoClient.initializeConnection();
+        app.locals.mongoClient = mongoClient;
+        storageProvider.mongoClient = mongoClient;
+        logger.info('MongoDB connected', {
+          db: config.database.mongo.dbName,
+          experiment: config.database.mongo.experiment,
+        });
+      } catch (mongoErr) {
+        app.locals.mongoClient = mongoClient; // configured but not connected
+        logger.error('MongoDB connection failed (continuing on Turso)', { error: mongoErr.message });
+      }
+    } else {
+      logger.info('MongoDB not configured (MONGODB_URI unset) — Turso only');
+    }
+
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(storageProvider);
 
@@ -253,6 +278,8 @@ async function startServer() {
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
     app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
+    app.get('/api/monitoring/mongo-migration-logs', ipRestricted, monitoringController.getMongoMigrationLogs);
+    app.post('/api/monitoring/mongo-migration-trigger', ipRestricted, monitoringController.triggerMongoMigration);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -519,6 +546,8 @@ async function startServer() {
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
     app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
+    app.get('/api/monitoring/mongo-migration-logs', ipRestricted, monitoringController.getMongoMigrationLogs);
+    app.post('/api/monitoring/mongo-migration-trigger', ipRestricted, monitoringController.triggerMongoMigration);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);

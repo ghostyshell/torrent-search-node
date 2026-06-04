@@ -170,6 +170,7 @@ class AuthService {
   }
 
   async createUser(userData) {
+    if (this.cache.authStore) return this.cache.authStore.createUser(userData);
     try {
       const sql = `
         INSERT INTO users (id, email, name, picture, google_id, created_at, updated_at, last_login_at, is_active)
@@ -196,6 +197,7 @@ class AuthService {
   }
 
   async getUserById(userId) {
+    if (this.cache.authStore) return this.cache.authStore.getUserById(userId);
     // Check if database is properly initialized
     if (
       !this.cache ||
@@ -219,6 +221,7 @@ class AuthService {
   }
 
   async getUserByEmail(email) {
+    if (this.cache.authStore) return this.cache.authStore.getUserByEmail(email);
     // Check if database is properly initialized
     if (
       !this.cache ||
@@ -243,6 +246,7 @@ class AuthService {
   }
 
   async getUserByGoogleId(googleId) {
+    if (this.cache.authStore) return this.cache.authStore.getUserByGoogleId(googleId);
     try {
       const sql = 'SELECT * FROM users WHERE google_id = ? AND is_active = 1';
       const user = await this.cache.tursoClient.get(sql, [googleId]);
@@ -259,6 +263,7 @@ class AuthService {
   async updateUser(userId, updateData) {
     try {
       updateData.updated_at = Math.floor(Date.now() / 1000);
+      if (this.cache.authStore) return this.cache.authStore.updateUser(userId, updateData);
 
       const fields = Object.keys(updateData);
       const values = Object.values(updateData);
@@ -295,6 +300,7 @@ class AuthService {
    * @returns {Promise<Array<{id: string, real_debrid_api_key: string}>>}
    */
   async getUsersWithRealDebridKeys() {
+    if (this.cache.authStore) return this.cache.authStore.getUsersWithRealDebridKeys();
     try {
       const sql = `
         SELECT id, real_debrid_api_key FROM users
@@ -309,6 +315,7 @@ class AuthService {
   }
 
   async createSession(userId, sessionData) {
+    if (this.cache.authStore) return this.cache.authStore.createSession(userId, sessionData);
     try {
       const sessionId = uuidv4();
       const sessionToken = uuidv4();
@@ -345,6 +352,7 @@ class AuthService {
   }
 
   async validateSession(sessionToken) {
+    if (this.cache.authStore) return this.cache.authStore.validateSession(sessionToken);
     // Check if database is properly initialized
     if (
       !this.cache ||
@@ -388,6 +396,7 @@ class AuthService {
   }
 
   async updateSessionAccess(sessionId) {
+    if (this.cache.authStore) return this.cache.authStore.updateSessionAccess(sessionId);
     try {
       const sql = 'UPDATE user_sessions SET last_accessed_at = ? WHERE id = ?';
       const currentTime = Math.floor(Date.now() / 1000);
@@ -401,6 +410,7 @@ class AuthService {
   }
 
   async deleteSession(sessionToken) {
+    if (this.cache.authStore) return this.cache.authStore.deleteSession(sessionToken);
     try {
       const sql = 'DELETE FROM user_sessions WHERE session_token = ?';
       const result = await this.cache.tursoClient.run(sql, [sessionToken]);
@@ -412,6 +422,7 @@ class AuthService {
   }
 
   async cleanupExpiredSessions() {
+    if (this.cache.authStore) return this.cache.authStore.cleanupExpiredSessions();
     try {
       const sql = 'DELETE FROM user_sessions WHERE expires_at <= ?';
       const currentTime = Math.floor(Date.now() / 1000);

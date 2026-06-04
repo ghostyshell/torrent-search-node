@@ -6,6 +6,23 @@
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
 
+// Sample a few favorite_entries for the debug endpoints, reading from whichever
+// backend is active (Mongo when EXPERIMENT_MONGODB is on, else Turso).
+async function debugSampleFavorites(storage) {
+  if (storage.activeBackend === 'mongo' && storage.mongoClient) {
+    return storage.mongoClient
+      .collection('favorite_entries')
+      .find({})
+      .project({ _id: 0, id: 1, torrent_key: 1, magnet_link: 1, torrent_name: 1 })
+      .limit(3)
+      .toArray();
+  }
+  const r = await storage.tursoClient.client.execute(
+    'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
+  );
+  return r.rows;
+}
+
 // Capture otherwise-fatal async errors so a single bad upload/request can't take
 // the whole process down (and so the cause is logged instead of vanishing).
 process.on('unhandledRejection', (reason) => {
@@ -28,7 +45,6 @@ const express = require('express');
 const path = require('path');
 const passport = require('passport');
 const StorageProvider = require('./database/StorageProvider');
-const MongoClient = require('./database/MongoClient');
 const healthRoutes = require('./routes/health');
 const setupAuthRoutes = require('./routes/auth');
 const setupTorrentRoutes = require('./routes/torrents');
@@ -140,15 +156,13 @@ app.get('/api/monitoring/debug-favorites', async (req, res) => {
 
     const stats = await storage.favorites.getStats();
 
-    const sampleEntries = await storage.tursoClient.client.execute(
-      'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
-    );
+    const sampleEntries = await debugSampleFavorites(storage);
 
     const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
 
     res.json({
       stats,
-      sampleFavoriteEntries: sampleEntries.rows,
+      sampleFavoriteEntries: sampleEntries,
       refreshQueryResult: refreshData
     });
   } catch (error) {
@@ -230,29 +244,11 @@ async function startServer() {
     app.locals.storage = storageProvider;
     app.locals.cache = storageProvider;
 
-    // Optional MongoDB connection (migration target / experiment backend).
-    // Non-fatal: if it can't connect, the app keeps running on Turso and the
-    // dashboard migration panel reports it as not connected.
-    if (config.database.mongo.uri) {
-      const mongoClient = new MongoClient({
-        uri: config.database.mongo.uri,
-        dbName: config.database.mongo.dbName,
-      });
-      try {
-        await mongoClient.initializeConnection();
-        app.locals.mongoClient = mongoClient;
-        storageProvider.mongoClient = mongoClient;
-        logger.info('MongoDB connected', {
-          db: config.database.mongo.dbName,
-          experiment: config.database.mongo.experiment,
-        });
-      } catch (mongoErr) {
-        app.locals.mongoClient = mongoClient; // configured but not connected
-        logger.error('MongoDB connection failed (continuing on Turso)', { error: mongoErr.message });
-      }
-    } else {
-      logger.info('MongoDB not configured (MONGODB_URI unset) — Turso only');
-    }
+    // StorageProvider owns the Mongo connection (when MONGODB_URI is set) and
+    // chooses the active backend from EXPERIMENT_MONGODB. Expose the client for
+    // the dashboard migration panel.
+    app.locals.mongoClient = storageProvider.mongoClient;
+    logger.info('Active storage backend', { backend: storageProvider.activeBackend });
 
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(storageProvider);
@@ -291,11 +287,9 @@ async function startServer() {
           return res.json({ error: 'No storage provider' });
         }
         const stats = await storage.favorites.getStats();
-        const sampleEntries = await storage.tursoClient.client.execute(
-          'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
-        );
+        const sampleEntries = await debugSampleFavorites(storage);
         const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
-        res.json({ stats, sampleFavoriteEntries: sampleEntries.rows, refreshQueryResult: refreshData });
+        res.json({ stats, sampleFavoriteEntries: sampleEntries, refreshQueryResult: refreshData });
       } catch (error) {
         res.json({ error: error.message, stack: error.stack });
       }
@@ -442,10 +436,7 @@ async function startServer() {
         const storageProvider = req.app.locals.storageProvider;
         const { favoriteEntryId } = req.params;
 
-        const sql = 'SELECT * FROM favorite_entries WHERE id = ?';
-        const row = await storageProvider.tursoClient.get(sql, [
-          favoriteEntryId,
-        ]);
+        const row = await storageProvider.favorites.getFavoriteEntryById(favoriteEntryId);
 
         res.json({
           success: true,
@@ -559,11 +550,9 @@ async function startServer() {
           return res.json({ error: 'No storage provider' });
         }
         const stats = await storage.favorites.getStats();
-        const sampleEntries = await storage.tursoClient.client.execute(
-          'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
-        );
+        const sampleEntries = await debugSampleFavorites(storage);
         const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
-        res.json({ stats, sampleFavoriteEntries: sampleEntries.rows, refreshQueryResult: refreshData });
+        res.json({ stats, sampleFavoriteEntries: sampleEntries, refreshQueryResult: refreshData });
       } catch (error) {
         res.json({ error: error.message, stack: error.stack });
       }

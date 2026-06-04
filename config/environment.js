@@ -44,26 +44,14 @@ const config = {
     ],
   },
 
-  // Database configuration - Turso cloud (primary) + optional MongoDB experiment
+  // Database configuration - MongoDB
   database: {
-    turso: {
-      url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    },
     mongo: {
-      // Connection string for the Sliplane MongoDB instance. Accepts either
-      // MONGODB_URI or MONGO_URL — a full connection string (credentials may be
-      // embedded). If the URL has no credentials and MONGO_USERNAME/MONGO_PASSWORD
-      // are provided separately, they're injected (URL-encoded). When unset,
-      // Mongo features are disabled.
+      // Connection string (MONGODB_URI or MONGO_URL). Credentials may be embedded;
+      // if absent and MONGO_USERNAME/MONGO_PASSWORD are set, they're injected
+      // (URL-encoded).
       uri: buildMongoUri(),
       dbName: process.env.MONGODB_DB || 'torrent_search',
-      // Experiment flag: when true (and a uri is set) reads come from MongoDB and
-      // writes are mirrored to BOTH MongoDB and Turso (Turso stays a hot standby
-      // for instant rollback). When false, everything uses Turso unchanged.
-      experiment:
-        (process.env.EXPERIMENT_MONGODB || '').toLowerCase() === 'true' &&
-        !!buildMongoUri(),
     },
   },
 
@@ -233,11 +221,8 @@ function validateEnvironment() {
   const errors = [];
 
   // Check database configuration
-  if (!config.database.turso.url) {
-    errors.push('TURSO_DATABASE_URL is required');
-  }
-  if (!config.database.turso.authToken) {
-    errors.push('TURSO_AUTH_TOKEN is required');
+  if (!config.database.mongo.uri) {
+    errors.push('MONGODB_URI (or MONGO_URL) is required');
   }
 
   // Check Google API configuration

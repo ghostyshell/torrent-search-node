@@ -1,11 +1,10 @@
 'use strict';
 
 /**
- * MongoAuthStore — users + user_sessions backed by MongoDB, with Turso mirror.
+ * MongoAuthStore — users + user_sessions backed by MongoDB.
  *
- * Used by config/passport.js when EXPERIMENT_MONGODB is on. Method names and
- * return shapes match the raw-SQL paths they replace so the auth middleware and
- * routes are unaffected:
+ * Used by config/passport.js for all auth. Method names and return shapes match
+ * what the auth middleware/routes expect:
  *   - getUser* return the raw user document (snake_case fields).
  *   - validateSession returns the session merged with its user (so consumers can
  *     read user_id, email, name, picture, and id — the session id).
@@ -16,9 +15,8 @@ const { v4: uuidv4 } = require('uuid');
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 class MongoAuthStore {
-  constructor(mongoClient, mirror) {
+  constructor(mongoClient) {
     this.mongo = mongoClient;
-    this.mirror = mirror;
   }
 
   users() { return this.mongo.collection('users'); }
@@ -41,7 +39,6 @@ class MongoAuthStore {
       is_active: userData.is_active ? 1 : 0,
     };
     await this.users().replaceOne({ _id: doc._id }, doc, { upsert: true });
-    await this.mirror.upsert('users', doc);
     return true;
   }
 
@@ -61,8 +58,6 @@ class MongoAuthStore {
     const set = { ...updateData };
     if (set.is_active !== undefined) set.is_active = set.is_active ? 1 : 0;
     const res = await this.users().updateOne({ _id: userId }, { $set: set });
-    const doc = await this.users().findOne({ _id: userId });
-    if (doc) await this.mirror.upsert('users', doc);
     return res.modifiedCount > 0;
   }
 
@@ -91,7 +86,6 @@ class MongoAuthStore {
       last_accessed_at: nowSec(),
     };
     await this.sessions().insertOne(doc);
-    await this.mirror.upsert('user_sessions', doc);
     return { id: sessionId, token: sessionToken, expiresAt };
   }
 
@@ -113,21 +107,16 @@ class MongoAuthStore {
   }
 
   async updateSessionAccess(sessionId) {
-    const accessed = nowSec();
-    await this.sessions().updateOne({ _id: sessionId }, { $set: { last_accessed_at: accessed } });
-    await this.mirror.run('UPDATE user_sessions SET last_accessed_at = ? WHERE id = ?', [accessed, sessionId]);
+    await this.sessions().updateOne({ _id: sessionId }, { $set: { last_accessed_at: nowSec() } });
   }
 
   async deleteSession(sessionToken) {
     const res = await this.sessions().deleteOne({ session_token: sessionToken });
-    await this.mirror.delete('user_sessions', { session_token: sessionToken });
     return res.deletedCount > 0;
   }
 
   async cleanupExpiredSessions() {
-    const now = nowSec();
-    const res = await this.sessions().deleteMany({ expires_at: { $lte: now } });
-    await this.mirror.run('DELETE FROM user_sessions WHERE expires_at <= ?', [now]);
+    const res = await this.sessions().deleteMany({ expires_at: { $lte: nowSec() } });
     return res.deletedCount || 0;
   }
 }

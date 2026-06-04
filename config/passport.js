@@ -170,113 +170,24 @@ class AuthService {
   }
 
   async createUser(userData) {
-    if (this.cache.authStore) return this.cache.authStore.createUser(userData);
-    try {
-      const sql = `
-        INSERT INTO users (id, email, name, picture, google_id, created_at, updated_at, last_login_at, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      const result = await this.cache.tursoClient.run(sql, [
-        userData.id,
-        userData.email,
-        userData.name,
-        userData.picture,
-        userData.google_id,
-        userData.created_at,
-        userData.updated_at,
-        userData.last_login_at,
-        userData.is_active ? 1 : 0,
-      ]);
-
-      return result.changes > 0;
-    } catch (error) {
-      console.warn('createUser error (gracefully handled):', error.message);
-      return false;
-    }
+    return this.cache.authStore.createUser(userData);
   }
 
   async getUserById(userId) {
-    if (this.cache.authStore) return this.cache.authStore.getUserById(userId);
-    // Check if database is properly initialized
-    if (
-      !this.cache ||
-      !this.cache.tursoClient ||
-      !this.cache.tursoClient.client ||
-      !this.cache.isInitialized
-    ) {
-      return null;
-    }
-
-    try {
-      const sql = 'SELECT * FROM users WHERE id = ? AND is_active = 1';
-      const user = await this.cache.tursoClient.get(sql, [userId]);
-      return user;
-    } catch (error) {
-      if (error.message.includes('Database client not initialized')) {
-        return null;
-      }
-      throw error;
-    }
+    return this.cache.authStore.getUserById(userId);
   }
 
   async getUserByEmail(email) {
-    if (this.cache.authStore) return this.cache.authStore.getUserByEmail(email);
-    // Check if database is properly initialized
-    if (
-      !this.cache ||
-      !this.cache.tursoClient ||
-      !this.cache.tursoClient.client ||
-      !this.cache.isInitialized
-    ) {
-      return null;
-    }
-
-    try {
-      const sql = 'SELECT * FROM users WHERE email = ? AND is_active = 1';
-      const user = await this.cache.tursoClient.get(sql, [email]);
-      return user;
-    } catch (error) {
-      if (error.message.includes('Database client not initialized')) {
-        return null;
-      }
-      console.warn('getUserByEmail error (gracefully handled):', error.message);
-      return null; // Gracefully handle any database errors
-    }
+    return this.cache.authStore.getUserByEmail(email);
   }
 
   async getUserByGoogleId(googleId) {
-    if (this.cache.authStore) return this.cache.authStore.getUserByGoogleId(googleId);
-    try {
-      const sql = 'SELECT * FROM users WHERE google_id = ? AND is_active = 1';
-      const user = await this.cache.tursoClient.get(sql, [googleId]);
-      return user;
-    } catch (error) {
-      console.warn(
-        'getUserByGoogleId error (gracefully handled):',
-        error.message
-      );
-      return null;
-    }
+    return this.cache.authStore.getUserByGoogleId(googleId);
   }
 
   async updateUser(userId, updateData) {
-    try {
-      updateData.updated_at = Math.floor(Date.now() / 1000);
-      if (this.cache.authStore) return this.cache.authStore.updateUser(userId, updateData);
-
-      const fields = Object.keys(updateData);
-      const values = Object.values(updateData);
-      const setClause = fields.map((field) => `${field} = ?`).join(', ');
-
-      const sql = `UPDATE users SET ${setClause} WHERE id = ?`;
-      const result = await this.cache.tursoClient.run(sql, [...values, userId]);
-
-      return result.changes > 0;
-    } catch (error) {
-      console.warn('updateUser error (gracefully handled):', error.message);
-      return false;
-    }
+    updateData.updated_at = Math.floor(Date.now() / 1000);
+    return this.cache.authStore.updateUser(userId, updateData);
   }
 
   async setRealDebridApiKey(userId, apiKey) {
@@ -300,141 +211,27 @@ class AuthService {
    * @returns {Promise<Array<{id: string, real_debrid_api_key: string}>>}
    */
   async getUsersWithRealDebridKeys() {
-    if (this.cache.authStore) return this.cache.authStore.getUsersWithRealDebridKeys();
-    try {
-      const sql = `
-        SELECT id, real_debrid_api_key FROM users
-        WHERE real_debrid_api_key IS NOT NULL AND real_debrid_api_key != '' AND is_active = 1
-      `;
-      const users = await this.cache.tursoClient.all(sql, []);
-      return users || [];
-    } catch (error) {
-      console.warn('getUsersWithRealDebridKeys error:', error.message);
-      return [];
-    }
+    return this.cache.authStore.getUsersWithRealDebridKeys();
   }
 
   async createSession(userId, sessionData) {
-    if (this.cache.authStore) return this.cache.authStore.createSession(userId, sessionData);
-    try {
-      const sessionId = uuidv4();
-      const sessionToken = uuidv4();
-      // Session never expires (100 years) - user must manually log out
-      const expiresAt = Math.floor(Date.now() / 1000) + 100 * 365 * 24 * 60 * 60; // 100 years
-
-      const sql = `
-        INSERT INTO user_sessions (id, user_id, session_token, expires_at, user_agent, ip_address)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
-
-      const result = await this.cache.tursoClient.run(sql, [
-        sessionId,
-        userId,
-        sessionToken,
-        expiresAt,
-        sessionData.userAgent || null,
-        sessionData.ipAddress || null,
-      ]);
-
-      if (result.changes > 0) {
-        return {
-          id: sessionId,
-          token: sessionToken,
-          expiresAt,
-        };
-      }
-
-      return null;
-    } catch (error) {
-      console.warn('createSession error (gracefully handled):', error.message);
-      return null;
-    }
+    return this.cache.authStore.createSession(userId, sessionData);
   }
 
   async validateSession(sessionToken) {
-    if (this.cache.authStore) return this.cache.authStore.validateSession(sessionToken);
-    // Check if database is properly initialized
-    if (
-      !this.cache ||
-      !this.cache.tursoClient ||
-      !this.cache.tursoClient.client ||
-      !this.cache.isInitialized
-    ) {
-      return null;
-    }
-
-    const sql = `
-      SELECT s.*, u.* FROM user_sessions s
-      JOIN users u ON s.user_id = u.id
-      WHERE s.session_token = ? AND s.expires_at > ? AND u.is_active = 1
-    `;
-
-    const currentTime = Math.floor(Date.now() / 1000);
-
-    try {
-      const session = await this.cache.tursoClient.get(sql, [
-        sessionToken,
-        currentTime,
-      ]);
-
-      if (session) {
-        await this.updateSessionAccess(session.id);
-      }
-
-      return session;
-    } catch (error) {
-      // Handle database unavailability gracefully
-      if (error.message.includes('Database client not initialized')) {
-        return null; // No session found (graceful degradation)
-      }
-      console.warn(
-        'Session validation error (gracefully handled):',
-        error.message
-      );
-      return null; // Gracefully handle any database errors
-    }
+    return this.cache.authStore.validateSession(sessionToken);
   }
 
   async updateSessionAccess(sessionId) {
-    if (this.cache.authStore) return this.cache.authStore.updateSessionAccess(sessionId);
-    try {
-      const sql = 'UPDATE user_sessions SET last_accessed_at = ? WHERE id = ?';
-      const currentTime = Math.floor(Date.now() / 1000);
-      await this.cache.tursoClient.run(sql, [currentTime, sessionId]);
-    } catch (error) {
-      console.warn(
-        'Session access update failed (gracefully handled):',
-        error.message
-      );
-    }
+    return this.cache.authStore.updateSessionAccess(sessionId);
   }
 
   async deleteSession(sessionToken) {
-    if (this.cache.authStore) return this.cache.authStore.deleteSession(sessionToken);
-    try {
-      const sql = 'DELETE FROM user_sessions WHERE session_token = ?';
-      const result = await this.cache.tursoClient.run(sql, [sessionToken]);
-      return result.changes > 0;
-    } catch (error) {
-      console.warn('deleteSession error (gracefully handled):', error.message);
-      return false;
-    }
+    return this.cache.authStore.deleteSession(sessionToken);
   }
 
   async cleanupExpiredSessions() {
-    if (this.cache.authStore) return this.cache.authStore.cleanupExpiredSessions();
-    try {
-      const sql = 'DELETE FROM user_sessions WHERE expires_at <= ?';
-      const currentTime = Math.floor(Date.now() / 1000);
-      const result = await this.cache.tursoClient.run(sql, [currentTime]);
-      return result.changes;
-    } catch (error) {
-      console.warn(
-        'cleanupExpiredSessions error (gracefully handled):',
-        error.message
-      );
-      return 0;
-    }
+    return this.cache.authStore.cleanupExpiredSessions();
   }
 
 }

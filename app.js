@@ -6,21 +6,14 @@
 const { config, validateEnvironment } = require('./config/environment');
 const logger = require('./middleware/logger');
 
-// Sample a few favorite_entries for the debug endpoints, reading from whichever
-// backend is active (Mongo when EXPERIMENT_MONGODB is on, else Turso).
+// Sample a few favorite_entries for the debug endpoints.
 async function debugSampleFavorites(storage) {
-  if (storage.activeBackend === 'mongo' && storage.mongoClient) {
-    return storage.mongoClient
-      .collection('favorite_entries')
-      .find({})
-      .project({ _id: 0, id: 1, torrent_key: 1, magnet_link: 1, torrent_name: 1 })
-      .limit(3)
-      .toArray();
-  }
-  const r = await storage.tursoClient.client.execute(
-    'SELECT id, torrent_key, magnet_link, torrent_name, substr(torrent_data, 1, 500) as torrent_data_preview FROM favorite_entries LIMIT 3'
-  );
-  return r.rows;
+  return storage.mongoClient
+    .collection('favorite_entries')
+    .find({})
+    .project({ _id: 0, id: 1, torrent_key: 1, magnet_link: 1, torrent_name: 1 })
+    .limit(3)
+    .toArray();
 }
 
 // Capture otherwise-fatal async errors so a single bad upload/request can't take
@@ -244,11 +237,7 @@ async function startServer() {
     app.locals.storage = storageProvider;
     app.locals.cache = storageProvider;
 
-    // StorageProvider owns the Mongo connection (when MONGODB_URI is set) and
-    // chooses the active backend from EXPERIMENT_MONGODB. Expose the client for
-    // the dashboard migration panel.
     app.locals.mongoClient = storageProvider.mongoClient;
-    logger.info('Active storage backend', { backend: storageProvider.activeBackend });
 
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(storageProvider);
@@ -274,8 +263,6 @@ async function startServer() {
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
     app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
-    app.get('/api/monitoring/mongo-migration-logs', ipRestricted, monitoringController.getMongoMigrationLogs);
-    app.post('/api/monitoring/mongo-migration-trigger', ipRestricted, monitoringController.triggerMongoMigration);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);
@@ -537,8 +524,6 @@ async function startServer() {
     app.post('/api/monitoring/cover-storage-maintenance-trigger', ipRestricted, monitoringController.triggerCoverStorageMaintenance);
     app.get('/api/monitoring/search-query-cache-logs', ipRestricted, monitoringController.getSearchQueryCacheLogs);
     app.post('/api/monitoring/search-query-cache-trigger', ipRestricted, monitoringController.triggerSearchQueryCache);
-    app.get('/api/monitoring/mongo-migration-logs', ipRestricted, monitoringController.getMongoMigrationLogs);
-    app.post('/api/monitoring/mongo-migration-trigger', ipRestricted, monitoringController.triggerMongoMigration);
     app.get('/api/monitoring/job-logs/list', ipRestricted, jobLogsController.listJobLogs);
     app.get('/api/monitoring/job-logs/search', ipRestricted, jobLogsController.searchJobLogs);
     app.get('/api/monitoring/job-logs/file', ipRestricted, jobLogsController.serveJobLogFile);

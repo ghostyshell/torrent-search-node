@@ -1,20 +1,15 @@
 /**
  * MongoClient — connection wrapper for the MongoDB backend.
  *
- * Parallels TursoClient: owns the driver connection, exposes collection
- * accessors, ensures indexes that mirror the SQLite UNIQUE constraints, and
- * reports stats/health. Collections are named after the Turso tables so the
- * migration and the Mongo repositories line up 1:1.
- *
- * Documents keep the SAME snake_case field names as the SQLite columns so the
- * Mongo repositories can reuse the existing row-mapping logic. A deterministic
- * `_id` is derived from each table's natural/unique key (see deriveId()).
+ * Owns the driver connection, exposes collection accessors, ensures the unique
+ * + lookup indexes, and reports stats/health. Documents use snake_case field
+ * names and a deterministic `_id` per collection (set by the repositories).
  */
 'use strict';
 
 const { MongoClient: Driver } = require('mongodb');
 
-// Turso table → Mongo collection (1:1, same names).
+// All collections used by the app.
 const COLLECTIONS = [
   'cache',
   'images',
@@ -26,26 +21,6 @@ const COLLECTIONS = [
   'user_sessions',
   'search_queries',
 ];
-
-/**
- * Derive a deterministic _id for a row of `table`, mirroring the SQLite
- * primary/unique key. Keeps migration idempotent (re-runs upsert in place) and
- * lets repositories address documents the same way the SQL code addresses rows.
- */
-function deriveId(table, row) {
-  switch (table) {
-    case 'cache':            return String(row.key);
-    case 'stream_urls':      return String(row.magnet_hash);
-    case 'cached_links':     return String(row.id);
-    case 'favorite_entries': return String(row.id);
-    case 'users':            return String(row.id);
-    case 'user_sessions':    return String(row.id);
-    case 'images':           return `${row.torrent_key}::${row.image_type}`;
-    case 'torrent_details':  return `${row.favorite_entry_id}::${row.source}`;
-    case 'search_queries':   return `${row.query}::${row.website}::${row.category}`;
-    default:                 return undefined;
-  }
-}
 
 class MongoClient {
   constructor(config = {}) {
@@ -125,7 +100,7 @@ class MongoClient {
     }
   }
 
-  /** Per-collection document counts, plus type/env (mirrors TursoClient.getStats). */
+  /** Per-collection document counts, plus type. */
   async getStats() {
     const stats = {};
     const keyMap = {
@@ -171,4 +146,3 @@ class MongoClient {
 
 module.exports = MongoClient;
 module.exports.COLLECTIONS = COLLECTIONS;
-module.exports.deriveId = deriveId;

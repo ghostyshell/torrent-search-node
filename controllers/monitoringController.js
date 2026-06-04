@@ -47,13 +47,6 @@ const backgroundTaskStats = {
     results: [],
     status: 'idle',
   },
-  mongoMigration: {
-    lastRun: null,
-    nextRun: null,           // manual-only job (no schedule)
-    intervalMs: 0,
-    results: [],
-    status: 'idle',
-  },
 };
 
 // In-memory API usage tracking
@@ -980,55 +973,6 @@ const triggerSearchQueryCache = async (req, res) => {
   }
 };
 
-// ── MongoDB migration (manual one-shot Turso → Mongo data copy) ───────────────
-
-const getMongoMigrationLogs = async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
-  const task = backgroundTaskStats.mongoMigration;
-  res.json({
-    success: true,
-    status:  task.status,
-    lastRun: task.lastRun,
-    logs:    task.results.slice(0, limit),
-    mongoConfigured: !!(req.app.locals.mongoClient && req.app.locals.mongoClient.isConfigured()),
-    mongoConnected:  !!(req.app.locals.mongoClient && req.app.locals.mongoClient.isConnected),
-  });
-};
-
-const triggerMongoMigration = async (req, res) => {
-  const storageProvider = req.app.locals.storageProvider;
-  const mongoClient = req.app.locals.mongoClient;
-
-  if (!storageProvider) {
-    return res.status(503).json({ success: false, error: 'Storage provider not available' });
-  }
-  if (!mongoClient || !mongoClient.isConnected) {
-    return res.status(503).json({ success: false, error: 'MongoDB not connected — set MONGODB_URI and restart the server' });
-  }
-  if (backgroundTaskStats.mongoMigration.status === 'running') {
-    return res.status(409).json({ success: false, error: 'Migration already running' });
-  }
-
-  const MongoMigrationService = require('../services/mongoMigrationService');
-  const migrationService = new MongoMigrationService(storageProvider, mongoClient);
-
-  try {
-    backgroundTaskStats.mongoMigration.status = 'running';
-    await runWithJobFileLogging('mongoMigration', async () => {
-      try {
-        const result = await migrationService.runJob();
-        updateTaskStats('mongoMigration', { success: true, manual: true, ...result });
-        res.json({ success: true, manual: true, result });
-      } catch (error) {
-        updateTaskStats('mongoMigration', { success: false, manual: true, error: error.message });
-        res.status(500).json({ success: false, error: error.message });
-      }
-    });
-  } catch (error) {
-    backgroundTaskStats.mongoMigration.status = 'idle';
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
 
 module.exports = {
   getLogs,
@@ -1050,6 +994,4 @@ module.exports = {
   triggerRedisCatalogCache,
   getSearchQueryCacheLogs,
   triggerSearchQueryCache,
-  getMongoMigrationLogs,
-  triggerMongoMigration,
 };

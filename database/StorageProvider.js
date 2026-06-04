@@ -1,28 +1,17 @@
-const TursoClient = require('./TursoClient');
 const MongoClient = require('./MongoClient');
 const MongoAuthStore = require('./MongoAuthStore');
 const { config } = require('../config/environment');
-const CacheRepository = require('./repositories/CacheRepository');
-const ImageRepository = require('./repositories/ImageRepository');
-const StreamUrlRepository = require('./repositories/StreamUrlRepository');
-const FavoriteRepository = require('./repositories/FavoriteRepository');
-const CachedLinkRepository = require('./repositories/CachedLinkRepository');
-const TorrentDetailsRepository = require('./repositories/TorrentDetailsRepository');
-const SearchQueryRepository = require('./repositories/SearchQueryRepository');
 const mongoRepos = require('./repositories/mongoRepositories');
 const logger = require('../middleware/logger');
 
 /**
- * StorageProvider - Central coordinator for all data repositories
- * Provides a clean interface for application data operations
- * Uses Turso as the persistent storage backend
+ * StorageProvider - Central coordinator for all data repositories.
+ * MongoDB is the persistent storage backend.
  */
 class StorageProvider {
-  constructor(cfg = {}) {
-    this.tursoClient = new TursoClient(cfg);
-    this.mongoClient = null;     // set when a Mongo URI is configured
-    this.authStore = null;       // MongoAuthStore when routing auth to Mongo, else null (passport uses Turso SQL)
-    this.activeBackend = 'turso';
+  constructor() {
+    this.mongoClient = null;
+    this.authStore = null;       // MongoAuthStore (used by passport)
     this.isInitialized = false;
 
     // Initialize repositories
@@ -36,74 +25,30 @@ class StorageProvider {
   }
 
   /**
-   * Initialize the storage system and all repositories.
-   *
-   * Always connects Turso. If a Mongo URI is configured, also connects Mongo
-   * (non-fatal) so the migration task works. When EXPERIMENT_MONGODB is on AND
-   * Mongo connected, reads/writes route to the Mongo repositories (which mirror
-   * every write back into Turso); otherwise the Turso repositories are used.
+   * Connect to MongoDB and wire up all repositories.
    */
   async initialize() {
     if (this.isInitialized) return this;
 
-    // Connect Mongo first when a URI is configured (also needed for the
-    // migration task even while still on Turso).
-    if (config.database.mongo.uri) {
-      this.mongoClient = new MongoClient({
-        uri: config.database.mongo.uri,
-        dbName: config.database.mongo.dbName,
-      });
-      try {
-        await this.mongoClient.initializeConnection();
-        logger.info('[storage] MongoDB connected', { db: config.database.mongo.dbName });
-      } catch (err) {
-        logger.error('[storage] MongoDB connection failed', { error: err.message });
-        // keep the (unconnected) client so the dashboard can report status
-      }
+    if (!config.database.mongo.uri) {
+      throw new Error('MONGODB_URI is not set — a MongoDB connection is required');
     }
 
-    const useMongo =
-      config.database.mongo.experiment && this.mongoClient && this.mongoClient.isConnected;
+    this.mongoClient = new MongoClient({
+      uri: config.database.mongo.uri,
+      dbName: config.database.mongo.dbName,
+    });
+    await this.mongoClient.initializeConnection();
+    logger.info('[storage] MongoDB connected', { db: config.database.mongo.dbName });
 
-    if (useMongo) {
-      // ── MONGO-ONLY MODE ──────────────────────────────────────────────────
-      // Turso is intentionally NOT connected and writes are NOT mirrored — this
-      // is the dry-run for removing Turso entirely. To restore Turso (with the
-      // dual-write mirror), flip EXPERIMENT_MONGODB off and restart.
-      //
-      // NOTE: while in this mode Turso is no longer kept in sync, so it will be
-      // stale if you roll back. We're validating before deleting Turso for good.
-      const noopMirror = {
-        upsert: async () => {},
-        delete: async () => {},
-        run: async () => {},
-      };
-      this.cache = new mongoRepos.MongoCacheRepository(this.mongoClient, noopMirror);
-      this.images = new mongoRepos.MongoImageRepository(this.mongoClient, noopMirror);
-      this.streamUrls = new mongoRepos.MongoStreamUrlRepository(this.mongoClient, noopMirror);
-      this.favorites = new mongoRepos.MongoFavoriteRepository(this.mongoClient, noopMirror);
-      this.cachedLinks = new mongoRepos.MongoCachedLinkRepository(this.mongoClient, noopMirror);
-      this.torrentDetails = new mongoRepos.MongoTorrentDetailsRepository(this.mongoClient, noopMirror);
-      this.searchQueries = new mongoRepos.MongoSearchQueryRepository(this.mongoClient, noopMirror);
-      this.authStore = new MongoAuthStore(this.mongoClient, noopMirror);
-      this.activeBackend = 'mongo';
-      logger.info('[storage] MONGO-ONLY mode active — Turso is disabled (not connected, no dual-write)');
-    } else {
-      if (config.database.mongo.experiment) {
-        logger.warn('[storage] EXPERIMENT_MONGODB set but MongoDB unavailable — using Turso');
-      }
-      // ── TURSO MODE (legacy path; only connect Turso here) ─────────────────
-      await this.tursoClient.initializeConnection();
-      this.cache = new CacheRepository(this.tursoClient);
-      this.images = new ImageRepository(this.tursoClient);
-      this.streamUrls = new StreamUrlRepository(this.tursoClient);
-      this.favorites = new FavoriteRepository(this.tursoClient);
-      this.cachedLinks = new CachedLinkRepository(this.tursoClient);
-      this.torrentDetails = new TorrentDetailsRepository(this.tursoClient);
-      this.searchQueries = new SearchQueryRepository(this.tursoClient);
-      this.authStore = null;
-      this.activeBackend = 'turso';
-    }
+    this.cache = new mongoRepos.MongoCacheRepository(this.mongoClient);
+    this.images = new mongoRepos.MongoImageRepository(this.mongoClient);
+    this.streamUrls = new mongoRepos.MongoStreamUrlRepository(this.mongoClient);
+    this.favorites = new mongoRepos.MongoFavoriteRepository(this.mongoClient);
+    this.cachedLinks = new mongoRepos.MongoCachedLinkRepository(this.mongoClient);
+    this.torrentDetails = new mongoRepos.MongoTorrentDetailsRepository(this.mongoClient);
+    this.searchQueries = new mongoRepos.MongoSearchQueryRepository(this.mongoClient);
+    this.authStore = new MongoAuthStore(this.mongoClient);
 
     this.isInitialized = true;
     return this;
@@ -261,15 +206,11 @@ class StorageProvider {
    * Get comprehensive statistics across all repositories
    */
   async getStats() {
-    const stats = this.activeBackend === 'mongo' && this.mongoClient
-      ? await this.mongoClient.getStats()
-      : await this.tursoClient.getStats();
-
+    const stats = await this.mongoClient.getStats();
     return {
       ...stats,
-      databaseType: this.activeBackend === 'mongo' ? 'MongoDB' : 'Turso Cloud',
-      activeBackend: this.activeBackend,
-      environment: this.tursoClient.config.environment,
+      databaseType: 'MongoDB',
+      environment: config.environment,
     };
   }
 
@@ -277,20 +218,14 @@ class StorageProvider {
    * Health check for the storage system
    */
   async healthCheck() {
-    if (this.activeBackend === 'mongo' && this.mongoClient) {
-      return this.mongoClient.healthCheck();
-    }
-    return this.tursoClient.healthCheck();
+    return this.mongoClient.healthCheck();
   }
 
   /**
    * Close all database connections
    */
   async close() {
-    if (this.mongoClient) {
-      try { await this.mongoClient.close(); } catch (_) { /* ignore */ }
-    }
-    return this.tursoClient.close();
+    if (this.mongoClient) return this.mongoClient.close();
   }
 
   // Legacy compatibility methods - these forward to the appropriate repositories

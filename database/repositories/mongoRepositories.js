@@ -3,14 +3,9 @@
 /**
  * mongoRepositories.js
  *
- * MongoDB-backed implementations of the seven storage repositories, with the
- * SAME public interface and return shapes as their Turso counterparts. Used
- * only when EXPERIMENT_MONGODB is on: reads come from Mongo, and every write
- * also mirrors into Turso (via TursoMirror) so Turso stays a rollback standby.
- *
- * Documents use the same snake_case field names as the SQLite columns (that's
- * how the migration wrote them), so mapping back to the app's expected shapes
- * matches the Turso repositories exactly.
+ * MongoDB-backed implementations of the seven storage repositories. These are
+ * the only storage backend — documents use snake_case field names matching the
+ * shapes the rest of the app expects.
  */
 
 const { v4: uuidv4 } = require('uuid');
@@ -19,26 +14,17 @@ const objectStorageService = require('../../services/objectStorageService');
 
 const nowSec = () => Math.floor(Date.now() / 1000);
 
-// ── Shared base: connection + pure helpers (mirrors BaseRepository) ───────────
+// ── Shared base: connection + pure key/hash helpers ───────────────────────────
 
 class MongoBase {
-  constructor(mongoClient, mirror, table) {
+  constructor(mongoClient, table) {
     this.mongo = mongoClient;
-    this.mirror = mirror;
     this.table = table;
   }
 
   coll() {
     return this.mongo.collection(this.table);
   }
-
-  /** Re-read a doc by _id and mirror it into Turso (used after partial updates). */
-  async _mirrorById(id) {
-    const doc = await this.coll().findOne({ _id: id });
-    if (doc) await this.mirror.upsert(this.table, doc);
-  }
-
-  // --- pure helpers copied from BaseRepository (no DB access) ---
 
   generateTorrentKey(torrent) {
     if (typeof torrent === 'string') return torrent;
@@ -88,22 +74,20 @@ class MongoBase {
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 class MongoCacheRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'cache'); }
+  constructor(mongo) { super(mongo, 'cache'); }
 
   async set(key, value, ttlSeconds = null, type = 'json', metadata = null) {
-    const expiresAt = ttlSeconds ? nowSec() + ttlSeconds : null;
     const doc = {
       _id: key,
       key,
       value: type === 'json' ? JSON.stringify(value) : value,
       type,
-      expires_at: expiresAt,
+      expires_at: ttlSeconds ? nowSec() + ttlSeconds : null,
       metadata: metadata ? JSON.stringify(metadata) : null,
       created_at: nowSec(),
       updated_at: nowSec(),
     };
     await this.coll().replaceOne({ _id: key }, doc, { upsert: true });
-    await this.mirror.upsert('cache', doc);
     return true;
   }
 
@@ -123,14 +107,11 @@ class MongoCacheRepository extends MongoBase {
 
   async delete(key) {
     const res = await this.coll().deleteOne({ _id: key });
-    await this.mirror.delete('cache', { key });
     return res.deletedCount > 0;
   }
 
   async cleanupExpired() {
-    const now = nowSec();
-    const res = await this.coll().deleteMany({ expires_at: { $ne: null, $lte: now } });
-    await this.mirror.run(`DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at <= ?`, [now]);
+    const res = await this.coll().deleteMany({ expires_at: { $ne: null, $lte: nowSec() } });
     return res.deletedCount || 0;
   }
 
@@ -143,7 +124,6 @@ class MongoCacheRepository extends MongoBase {
 
   async clear() {
     const res = await this.coll().deleteMany({});
-    await this.mirror.run('DELETE FROM cache', []);
     return res.deletedCount || 0;
   }
 }
@@ -151,8 +131,8 @@ class MongoCacheRepository extends MongoBase {
 // ── Images ──────────────────────────────────────────────────────────────────
 
 class MongoImageRepository extends MongoBase {
-  constructor(mongo, mirror) {
-    super(mongo, mirror, 'images');
+  constructor(mongo) {
+    super(mongo, 'images');
     this.objectStorageService = objectStorageService;
   }
 
@@ -182,7 +162,6 @@ class MongoImageRepository extends MongoBase {
         created_at: nowSec(),
       };
       await this.coll().replaceOne({ _id: doc._id }, doc, { upsert: true });
-      await this.mirror.upsert('images', doc);
       return true;
     } catch (error) {
       console.error(`❌ [MongoImageRepository] setCoverImage ${torrent.Name}:`, error.message);
@@ -226,10 +205,7 @@ class MongoImageRepository extends MongoBase {
 
   async hasCoverImage(torrent) {
     const torrentKey = this.generateTorrentKey(torrent);
-    const row = await this.coll().findOne({
-      _id: this._idFor(torrentKey),
-      pixhost_url: { $ne: null },
-    });
+    const row = await this.coll().findOne({ _id: this._idFor(torrentKey), pixhost_url: { $ne: null } });
     return !!row;
   }
 
@@ -238,7 +214,6 @@ class MongoImageRepository extends MongoBase {
       { _id: this._idFor(torrentKey) },
       { $set: { pixhost_url: imageUrl } }
     );
-    await this._mirrorById(this._idFor(torrentKey));
     return res.modifiedCount > 0;
   }
 
@@ -258,24 +233,17 @@ class MongoImageRepository extends MongoBase {
 
   async deleteCoverByStorageKey(storageKey) {
     const res = await this.coll().deleteOne({ image_type: 'cover', storage_key: storageKey });
-    await this.mirror.delete('images', { image_type: 'cover', storage_key: storageKey });
     return res.deletedCount > 0;
   }
 
   async deleteCoverImage(torrent) {
     const torrentKey = typeof torrent === 'string' ? torrent : this.generateTorrentKey(torrent);
     const res = await this.coll().deleteOne({ _id: this._idFor(torrentKey) });
-    await this.mirror.delete('images', { torrent_key: torrentKey, image_type: 'cover' });
     return res.deletedCount > 0;
   }
 
   async getAllCoverImages(limit = 50, offset = 0) {
-    return this.coll()
-      .find({ image_type: 'cover' })
-      .sort({ created_at: -1 })
-      .skip(offset)
-      .limit(limit)
-      .toArray();
+    return this.coll().find({ image_type: 'cover' }).sort({ created_at: -1 }).skip(offset).limit(limit).toArray();
   }
 
   async getStats() {
@@ -288,7 +256,7 @@ class MongoImageRepository extends MongoBase {
 // ── Stream URLs ───────────────────────────────────────────────────────────────
 
 class MongoStreamUrlRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'stream_urls'); }
+  constructor(mongo) { super(mongo, 'stream_urls'); }
 
   async setStreamUrl(magnetLink, streamData) {
     const magnetHash = this.extractMagnetHash(magnetLink);
@@ -304,7 +272,6 @@ class MongoStreamUrlRepository extends MongoBase {
       last_accessed_at: nowSec(),
     };
     await this.coll().replaceOne({ _id: magnetHash }, doc, { upsert: true });
-    await this.mirror.upsert('stream_urls', doc);
     return true;
   }
 
@@ -322,11 +289,8 @@ class MongoStreamUrlRepository extends MongoBase {
   async getStreamUrlByHash(magnetHash) {
     const row = await this.coll().findOne(this._ttlFilter(magnetHash));
     if (!row) return null;
-
     const accessed = nowSec();
     await this.coll().updateOne({ _id: magnetHash }, { $set: { last_accessed_at: accessed } });
-    await this.mirror.run('UPDATE stream_urls SET last_accessed_at = ? WHERE magnet_hash = ?', [accessed, magnetHash]);
-
     return {
       streamUrl: row.stream_url,
       filename: row.filename,
@@ -338,15 +302,12 @@ class MongoStreamUrlRepository extends MongoBase {
   }
 
   async hasStreamUrl(magnetLink) {
-    const magnetHash = this.extractMagnetHash(magnetLink);
-    const row = await this.coll().findOne(this._ttlFilter(magnetHash));
+    const row = await this.coll().findOne(this._ttlFilter(this.extractMagnetHash(magnetLink)));
     return !!row;
   }
 
   async deleteStreamUrl(magnetLink) {
-    const magnetHash = this.extractMagnetHash(magnetLink);
-    const res = await this.coll().deleteOne({ _id: magnetHash });
-    await this.mirror.delete('stream_urls', { magnet_hash: magnetHash });
+    const res = await this.coll().deleteOne({ _id: this.extractMagnetHash(magnetLink) });
     return res.deletedCount > 0;
   }
 
@@ -363,8 +324,6 @@ class MongoStreamUrlRepository extends MongoBase {
     const ids = victims.map((v) => v._id);
     if (ids.length === 0) return 0;
     const res = await this.coll().deleteMany({ _id: { $in: ids } });
-    const placeholders = ids.map(() => '?').join(',');
-    await this.mirror.run(`DELETE FROM stream_urls WHERE magnet_hash IN (${placeholders})`, ids);
     return res.deletedCount || 0;
   }
 
@@ -380,7 +339,7 @@ class MongoStreamUrlRepository extends MongoBase {
 // ── Cached links ──────────────────────────────────────────────────────────────
 
 class MongoCachedLinkRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'cached_links'); }
+  constructor(mongo) { super(mongo, 'cached_links'); }
 
   _map(row) {
     return {
@@ -416,7 +375,6 @@ class MongoCachedLinkRepository extends MongoBase {
       user_id: userId,
     };
     await this.coll().replaceOne({ _id: doc._id }, doc, { upsert: true });
-    await this.mirror.upsert('cached_links', doc);
     return true;
   }
 
@@ -431,12 +389,7 @@ class MongoCachedLinkRepository extends MongoBase {
     const filter = userId ? { user_id: userId } : { user_id: null };
     const totalCount = await this.coll().countDocuments(filter);
     const totalPages = Math.ceil(totalCount / limit);
-    const rows = await this.coll()
-      .find(filter)
-      .sort({ date_added: -1 })
-      .skip(offset)
-      .limit(limit)
-      .toArray();
+    const rows = await this.coll().find(filter).sort({ date_added: -1 }).skip(offset).limit(limit).toArray();
     return {
       cachedLinks: rows.map((r) => this._map(r)),
       pagination: {
@@ -461,23 +414,19 @@ class MongoCachedLinkRepository extends MongoBase {
     if (updates.filename !== undefined) set.filename = updates.filename;
     if (updates.coverImageUrl !== undefined) set.cover_image_url = updates.coverImageUrl;
     if (Object.keys(set).length === 0) return false;
-
     const filter = userId ? { _id: id, user_id: userId } : { _id: id, user_id: null };
     const res = await this.coll().updateOne(filter, { $set: set });
-    await this._mirrorById(id);
     return res.modifiedCount > 0;
   }
 
   async updateCoverImage(cachedLinkId, coverImageUrl) {
     const res = await this.coll().updateOne({ _id: cachedLinkId }, { $set: { cover_image_url: coverImageUrl } });
-    await this._mirrorById(cachedLinkId);
     return res.modifiedCount > 0;
   }
 
   async removeCachedLink(id, userId = null) {
     const filter = userId ? { _id: id, user_id: userId } : { _id: id, user_id: null };
     const res = await this.coll().deleteOne(filter);
-    await this.mirror.delete('cached_links', userId ? { id, user_id: userId } : { id, user_id: null });
     return res.deletedCount > 0;
   }
 
@@ -489,7 +438,7 @@ class MongoCachedLinkRepository extends MongoBase {
 // ── Favorites ─────────────────────────────────────────────────────────────────
 
 class MongoFavoriteRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'favorite_entries'); }
+  constructor(mongo) { super(mongo, 'favorite_entries'); }
 
   _map(row) {
     return {
@@ -519,17 +468,14 @@ class MongoFavoriteRepository extends MongoBase {
       created_at: nowSec(),
       updated_at: nowSec(),
     };
-    // Mirror SQLite's "INSERT OR REPLACE" against the UNIQUE(torrent_key,user_id):
-    // remove any existing entry for this pair, then insert the new id.
+    // Upsert by the unique (torrent_key, user_id): replace any existing entry.
     await this.coll().deleteOne({ torrent_key: torrentKey, user_id: userId });
     await this.coll().insertOne(doc);
-    await this.mirror.upsert('favorite_entries', doc);
     return favoriteId;
   }
 
   async getFavoriteEntry(torrent, userId = null) {
-    const torrentKey = this.generateTorrentKey(torrent);
-    const row = await this.coll().findOne({ torrent_key: torrentKey, user_id: userId });
+    const row = await this.coll().findOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
     return row ? this._map(row) : null;
   }
 
@@ -582,25 +528,21 @@ class MongoFavoriteRepository extends MongoBase {
   async getMergedFavoritesCount(userId = null) {
     const filter = userId ? { user_id: userId } : { user_id: null };
     const rows = await this.coll().find(filter).project({ magnet_link: 1, id: 1 }).toArray();
-    const keys = new Set(rows.map((r) => r.magnet_link || r.id));
-    return keys.size;
+    return new Set(rows.map((r) => r.magnet_link || r.id)).size;
   }
 
   async isFavorite(torrent, userId = null) {
-    const torrentKey = this.generateTorrentKey(torrent);
-    const row = await this.coll().findOne({ torrent_key: torrentKey, user_id: userId });
+    const row = await this.coll().findOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
     return !!row;
   }
 
   async removeFavoriteEntry(favoriteId) {
     const res = await this.coll().deleteOne({ _id: favoriteId });
-    await this.mirror.delete('favorite_entries', { id: favoriteId });
     return res.deletedCount > 0;
   }
 
   async updateCoverImage(favoriteId, coverImageUrl) {
     const res = await this.coll().updateOne({ _id: favoriteId }, { $set: { cover_image_url: coverImageUrl } });
-    await this._mirrorById(favoriteId);
     return res.modifiedCount > 0;
   }
 
@@ -609,7 +551,6 @@ class MongoFavoriteRepository extends MongoBase {
       { _id: favoriteId },
       { $set: { magnet_link: magnetLink, updated_at: nowSec() } }
     );
-    await this._mirrorById(favoriteId);
     return res.modifiedCount > 0;
   }
 
@@ -621,7 +562,6 @@ class MongoFavoriteRepository extends MongoBase {
       { _id: favoriteId },
       { $set: { magnet_link: magnetLink, torrent_data: JSON.stringify(updatedTorrentData), updated_at: nowSec() } }
     );
-    await this._mirrorById(favoriteId);
     return res.modifiedCount > 0;
   }
 
@@ -672,14 +612,11 @@ class MongoFavoriteRepository extends MongoBase {
   }
 
   async addFavorite(torrent, userId = null) {
-    const entry = await this.getOrCreateFavoriteEntry(torrent, userId);
-    return !!entry;
+    return !!(await this.getOrCreateFavoriteEntry(torrent, userId));
   }
 
   async removeFavorite(torrent, userId = null) {
-    const torrentKey = this.generateTorrentKey(torrent);
-    const res = await this.coll().deleteOne({ torrent_key: torrentKey, user_id: userId });
-    await this.mirror.delete('favorite_entries', { torrent_key: torrentKey, user_id: userId });
+    const res = await this.coll().deleteOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
     return res.deletedCount > 0;
   }
 }
@@ -687,7 +624,7 @@ class MongoFavoriteRepository extends MongoBase {
 // ── Torrent details ───────────────────────────────────────────────────────────
 
 class MongoTorrentDetailsRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'torrent_details'); }
+  constructor(mongo) { super(mongo, 'torrent_details'); }
 
   _idFor(favoriteId, source) { return `${favoriteId}::${source}`; }
 
@@ -724,7 +661,6 @@ class MongoTorrentDetailsRepository extends MongoBase {
       created_at: nowSec(),
     };
     await this.coll().replaceOne({ _id: doc._id }, doc, { upsert: true });
-    await this.mirror.upsert('torrent_details', doc);
     return true;
   }
 
@@ -733,28 +669,24 @@ class MongoTorrentDetailsRepository extends MongoBase {
       const row = await this.coll().findOne({ _id: this._idFor(favoriteId, source) });
       return row ? this._map(row) : null;
     }
-    const rows = await this.coll()
-      .find({ favorite_entry_id: favoriteId })
-      .sort({ updated_at: -1 })
-      .toArray();
+    const rows = await this.coll().find({ favorite_entry_id: favoriteId }).sort({ updated_at: -1 }).toArray();
     return rows.map((r) => this._map(r));
   }
 
   async updateCoverImage(favoriteId, source, coverImageUrl) {
-    const id = this._idFor(favoriteId, source);
-    const res = await this.coll().updateOne({ _id: id }, { $set: { cover_image_url: coverImageUrl } });
-    await this._mirrorById(id);
+    const res = await this.coll().updateOne(
+      { _id: this._idFor(favoriteId, source) },
+      { $set: { cover_image_url: coverImageUrl } }
+    );
     return res.modifiedCount > 0;
   }
 
   async removeTorrentDetails(favoriteId, source = null) {
     if (source) {
       const res = await this.coll().deleteOne({ _id: this._idFor(favoriteId, source) });
-      await this.mirror.delete('torrent_details', { favorite_entry_id: favoriteId, source });
       return res.deletedCount > 0;
     }
     const res = await this.coll().deleteMany({ favorite_entry_id: favoriteId });
-    await this.mirror.delete('torrent_details', { favorite_entry_id: favoriteId });
     return res.deletedCount > 0;
   }
 
@@ -766,7 +698,7 @@ class MongoTorrentDetailsRepository extends MongoBase {
 // ── Search queries ────────────────────────────────────────────────────────────
 
 class MongoSearchQueryRepository extends MongoBase {
-  constructor(mongo, mirror) { super(mongo, mirror, 'search_queries'); }
+  constructor(mongo) { super(mongo, 'search_queries'); }
 
   _idFor(query, website, category) { return `${query}::${website}::${category}`; }
 
@@ -775,10 +707,9 @@ class MongoSearchQueryRepository extends MongoBase {
     if (!normalized) return;
     const w = website || 'piratebay';
     const c = category || '';
-    const id = this._idFor(normalized, w, c);
     const now = nowSec();
     await this.coll().updateOne(
-      { _id: id },
+      { _id: this._idFor(normalized, w, c) },
       {
         $set: { query: normalized, website: w, category: c, last_queried_at: now },
         $inc: { query_count: 1 },
@@ -786,7 +717,6 @@ class MongoSearchQueryRepository extends MongoBase {
       },
       { upsert: true }
     );
-    await this._mirrorById(id);
   }
 
   async getRecentQueries(days = 2) {
@@ -800,7 +730,6 @@ class MongoSearchQueryRepository extends MongoBase {
   async deleteOldQueries(days = 2) {
     const cutoff = nowSec() - days * 24 * 60 * 60;
     const res = await this.coll().deleteMany({ last_queried_at: { $lt: cutoff } });
-    await this.mirror.run('DELETE FROM search_queries WHERE last_queried_at < ?', [cutoff]);
     return res.deletedCount || 0;
   }
 

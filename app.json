@@ -1,7 +1,7 @@
 {
-    "name": "Torrent-Search-API",
+    "name": "torrent-search-node",
     "description": "A torrent Scraping API",
-    "repository": "https://github.com/akshatsinghkaushik/stream-backend",
+    "repository": "https://github.com/akshatsinghkaushik/torrent-search-node",
     "logo": "https://node-js-sample.herokuapp.com/node.png",
     "keywords": ["node", "express", "static","cheerio","axios"]
   }

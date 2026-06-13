@@ -71,16 +71,16 @@
     "health:check": "curl -f http://localhost:3001/health || exit 1",
     "health:detailed": "curl -f http://localhost:3001/health/detailed || exit 1",
     "pm2:start": "pm2 start ecosystem.config.js --env production",
-    "pm2:stop": "pm2 stop torrent-search-api",
-    "pm2:restart": "pm2 restart torrent-search-api",
-    "pm2:reload": "pm2 reload torrent-search-api",
-    "pm2:logs": "pm2 logs torrent-search-api",
+    "pm2:stop": "pm2 stop torrent-search-node",
+    "pm2:restart": "pm2 restart torrent-search-node",
+    "pm2:reload": "pm2 reload torrent-search-node",
+    "pm2:logs": "pm2 logs torrent-search-node",
     "pm2:monit": "pm2 monit",
     "pm2:status": "pm2 status",
-    "pm2:delete": "pm2 delete torrent-search-api",
+    "pm2:delete": "pm2 delete torrent-search-node",
     "deploy:runcloud": "npm install --production && npm run pm2:restart",
     "setup:runcloud": "cp env.production.runcloud.example .env.production && npm install && npm run pm2:start",
-    "logs:runcloud": "pm2 logs torrent-search-api --lines 100"
+    "logs:runcloud": "pm2 logs torrent-search-node --lines 100"
   },
   "description": ""
 }

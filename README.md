@@ -35,8 +35,8 @@ Optional:
 ## Quick Start
 
 ```bash
-git clone https://github.com/akshatsinghkaushik/stream-backend.git
-cd stream-backend
+git clone https://github.com/akshatsinghkaushik/torrent-search-node.git
+cd torrent-search-node
 npm install
 cp .env.example .env
 # Fill in MONGODB_URI, GOOGLE_*, SESSION_SECRET, FRONTEND_URL in .env
@@ -133,7 +133,7 @@ npm run health:check   # Curl /health and exit non-zero on failure
 - [Configuration](docs/configuration.md) — every environment variable with defaults and descriptions
 - [Development](docs/development.md) — install, run, test, Docker, PM2, adding a new scraper
 
-Landing page: [akshatsinghkaushik.github.io/stream-backend](https://akshatsinghkaushik.github.io/stream-backend/)
+Landing page: [akshatsinghkaushik.github.io/torrent-search-node](https://akshatsinghkaushik.github.io/torrent-search-node/)
 
 ---
 

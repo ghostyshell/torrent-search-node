@@ -1,49 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/api-reference.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/api-reference.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/architecture.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/architecture.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/development.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/development.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/configuration.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/configuration.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/scrapers.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/scrapers.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/caching-and-storage.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/caching-and-storage.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://akshatsinghkaushik.github.io/stream-backend/code-structure.md</loc>
+    <loc>https://akshatsinghkaushik.github.io/torrent-search-node/code-structure.md</loc>
     <lastmod>2026-06-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

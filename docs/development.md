@@ -16,8 +16,8 @@ Instructions for setting up a local development environment, running the server,
 ## Install
 
 ```bash
-git clone https://github.com/akshatsinghkaushik/stream-backend.git
-cd stream-backend
+git clone https://github.com/akshatsinghkaushik/torrent-search-node.git
+cd torrent-search-node
 npm install
 ```
 

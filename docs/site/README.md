@@ -1,6 +1,6 @@
 # Torrent Search API — Marketing Site
 
-This directory contains the static assets for the GitHub Pages landing page served at `https://akshatsinghkaushik.github.io/stream-backend/`.
+This directory contains the static assets for the GitHub Pages landing page served at `https://akshatsinghkaushik.github.io/torrent-search-node/`.
 
 ## Files
 

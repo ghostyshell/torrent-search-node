@@ -7,7 +7,7 @@ A module-by-module tour of every significant directory and file in the repositor
 ## Repository Layout
 
 ```
-Torrent-Search-API/
+torrent-search-node/
 ├── app.js                       # Application entry point & server setup
 ├── index.js                     # Thin wrapper (re-exports app.js)
 ├── package.json

@@ -3,7 +3,7 @@ description: Node.js API context. Use for Express routes, Cheerio scrapers, Mong
 mode: subagent
 ---
 
-You are working in **Torrent-Search-API** — a Node.js backend for torrent search and streaming.
+You are working in **torrent-search-node** — a Node.js backend for torrent search and streaming.
 
 ## Stack
 
@@ -66,4 +66,4 @@ npm run health:check         # curl localhost:3001/health
 - Never commit `.env` or credentials
 - CORS is configured for `FRONTEND_URL` (default `http://localhost:3000`)
 
-When invoked, scope changes to `Torrent-Search-API/`.
+When invoked, scope changes to `torrent-search-node/`.

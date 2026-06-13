@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://akshatsinghkaushik.github.io/stream-backend/site/sitemap.xml
+Sitemap: https://akshatsinghkaushik.github.io/torrent-search-node/site/sitemap.xml

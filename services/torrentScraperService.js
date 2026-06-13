@@ -13,6 +13,7 @@ const torrentProject = require('./scrapers/torrentProject');
 const yts           = require('./scrapers/yts');
 const x1337         = require('./scrapers/1337x');
 const hiddenBay     = require('./scrapers/hiddenbay');
+const pornRips      = require('./scrapers/pornrips');
 
 /**
  * Available torrent scrapers mapped by website identifier
@@ -25,6 +26,7 @@ const scrapers = {
   yts:           yts,
   '1337x':       x1337,
   hiddenbay:     hiddenBay,
+  pornrips:      pornRips,
 };
 
 /**

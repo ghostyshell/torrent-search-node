@@ -36,7 +36,19 @@ function createRateLimiters() {
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many requests, please try again later.' },
-    skip: (req) => req.path === '/health' || req.path.startsWith('/health/'),
+    skip: (req) => {
+      if (req.path === '/health' || req.path.startsWith('/health/')) return true;
+      // Trust authenticated addon traffic. ADDON_API_TOKEN, when set, is the
+      // shared secret the addon sends in X-Addon-Token. If it matches, skip
+      // the limiter — the addon is bounded by its own internal throttles and
+      // is not the threat model (the IP-based limiter is). Without this, the
+      // addon's pod-to-pod calls all share one IP, which exhausts the bucket
+      // fast (the public URL gets fresh IPs per Stremio client, the internal
+      // URL does not).
+      const expected = process.env.ADDON_API_TOKEN;
+      if (expected && req.get('X-Addon-Token') === expected) return true;
+      return false;
+    },
   });
 
   return { apiLimiter, authLimiter };

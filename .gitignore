@@ -28,3 +28,5 @@ pm2.json
 playwright-report/
 
 test-results/
+# Local agent instructions
+.claude/agents/

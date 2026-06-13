@@ -3,13 +3,10 @@ const passport = require('passport');
 const router = express.Router();
 const AuthService = require('../config/passport');
 const AuthMiddleware = require('../middleware/auth');
-const bcrypt = require('bcryptjs');
+const { setSessionCookie, clearSessionCookie } = require('../utils/sessionCookie');
 
 const setupAuthRoutes = (cache) => {
-
   const authService = new AuthService(cache);
-
-  // Pass the authService instance to AuthMiddleware instead of creating a new one
   const authMiddleware = new AuthMiddleware(cache, authService);
 
   router.get(
@@ -28,46 +25,31 @@ const setupAuthRoutes = (cache) => {
     }),
     async (req, res) => {
       try {
-        // Check email allowlist
-        const allowedEmails = process.env.ALLOWED_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+        const allowedEmails =
+          process.env.ALLOWED_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) ||
+          [];
         const userEmail = req.user.email.toLowerCase();
 
         if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail)) {
-          console.warn('Email not in allowlist:', req.user.email);
           return res.redirect(process.env.FRONTEND_URL + '/login?email_not_allowed=1');
         }
 
-        // Temporary: Skip database session creation and just redirect with user data
-        // TODO: Re-enable session creation once database is properly initialized
-        const redirectUrl = new URL(
-          process.env.FRONTEND_URL || 'http://localhost:3000'
-        );
+        const user = await authService.findOrCreateUser({
+          id: req.user.id,
+          google_id: req.user.google_id || req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          picture: req.user.picture,
+          last_login_at: Math.floor(Date.now() / 1000),
+        });
 
-        // Create a temporary token (in production, this should be a proper JWT or session token)
-        const tempToken = Buffer.from(
-          JSON.stringify({
-            id: req.user.id,
-            email: req.user.email,
-            name: req.user.name,
-            picture: req.user.picture,
-            timestamp: Date.now(),
-            isEmailAllowed: true,
-          })
-        ).toString('base64');
+        const session = await authService.createSession(user.id, {
+          userAgent: req.get('user-agent'),
+          ipAddress: req.ip,
+        });
 
-        redirectUrl.searchParams.append('token', tempToken);
-        redirectUrl.searchParams.append(
-          'user',
-          JSON.stringify({
-            id: req.user.id,
-            name: req.user.name,
-            email: req.user.email,
-            picture: req.user.picture,
-            isEmailAllowed: true,
-          })
-        );
-
-        res.redirect(redirectUrl.toString());
+        setSessionCookie(res, session.token);
+        res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
       } catch (error) {
         console.error('Google callback error:', error);
         res.redirect(process.env.FRONTEND_URL + '/login?error=callback_failed');
@@ -79,14 +61,13 @@ const setupAuthRoutes = (cache) => {
     try {
       const sessionToken =
         req.headers.authorization?.replace('Bearer ', '') ||
-        req.cookies?.sessionToken ||
-        req.session?.sessionToken;
+        req.cookies?.sessionToken;
 
       if (sessionToken) {
         await authService.deleteSession(sessionToken);
       }
 
-      res.clearCookie('sessionToken');
+      clearSessionCookie(res);
 
       res.json({
         success: true,
@@ -151,14 +132,13 @@ const setupAuthRoutes = (cache) => {
 
         res.json({
           success: true,
-          apiKey: user.real_debrid_api_key || null,
           hasApiKey: !!user.real_debrid_api_key,
         });
       } catch (error) {
         console.error('Get Real Debrid API key error:', error);
         res.status(500).json({
           success: false,
-          error: 'Error fetching API key',
+          error: 'Error fetching API key status',
           code: 'FETCH_ERROR',
         });
       }
@@ -180,9 +160,7 @@ const setupAuthRoutes = (cache) => {
           });
         }
 
-        const success = await authService.updateUser(req.userId, {
-          real_debrid_api_key: apiKey,
-        });
+        const success = await authService.setRealDebridApiKey(req.userId, apiKey);
 
         if (!success) {
           return res.status(500).json({
@@ -212,9 +190,7 @@ const setupAuthRoutes = (cache) => {
     authMiddleware.requireAuth(),
     async (req, res) => {
       try {
-        const success = await authService.updateUser(req.userId, {
-          real_debrid_api_key: null,
-        });
+        const success = await authService.setRealDebridApiKey(req.userId, null);
 
         if (!success) {
           return res.status(500).json({
@@ -241,86 +217,49 @@ const setupAuthRoutes = (cache) => {
 
   router.post('/validate', async (req, res) => {
     try {
-      const { token } = req.body;
+      const token =
+        req.body?.token ||
+        req.cookies?.sessionToken ||
+        req.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
-        return res.status(400).json({
+        return res.status(401).json({
           success: false,
-          error: 'Token is required',
+          error: 'Authentication required',
           code: 'MISSING_TOKEN',
         });
       }
 
-      // Check email allowlist
-      const allowedEmails = process.env.ALLOWED_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+      const allowedEmails =
+        process.env.ALLOWED_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) ||
+        [];
 
-      // First try database session validation
       const userSession = await authService.validateSession(token);
-      if (userSession) {
-        const isEmailAllowed = allowedEmails.length === 0 || allowedEmails.includes(userSession.email.toLowerCase());
-
-        res.json({
-          success: true,
-          user: {
-            id: userSession.user_id,
-            email: userSession.email,
-            name: userSession.name,
-            picture: userSession.picture,
-            hasRealDebridKey: !!userSession.real_debrid_api_key,
-            createdAt: userSession.created_at,
-            lastLoginAt: userSession.last_login_at,
-            isEmailAllowed: isEmailAllowed,
-          },
-        });
-        return;
-      }
-
-      // Fallback: Validate base64 temporary token and lookup user in database
-      try {
-        const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
-
-        // Basic validation - check if token has required fields and isn't too old
-        if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
-          throw new Error('Invalid token format');
-        }
-
-        // Check if token is less than 24 hours old
-        const tokenAge = Date.now() - tokenData.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-
-        if (tokenAge > maxAge) {
-          throw new Error('Token expired');
-        }
-
-        // Check email allowlist
-        const userEmail = tokenData.email.toLowerCase();
-        const isEmailAllowed = allowedEmails.length === 0 || allowedEmails.includes(userEmail);
-
-        // Get user data from database to check Real Debrid key status
-        const user = await authService.getUserByEmail(tokenData.email);
-
-        // Return user session format expected by frontend
-        res.json({
-          success: true,
-          user: {
-            id: tokenData.id,
-            email: tokenData.email,
-            name: tokenData.name || 'Unknown User',
-            picture: tokenData.picture || null,
-            hasRealDebridKey: user ? !!user.real_debrid_api_key : false,
-            createdAt: user?.created_at || null,
-            lastLoginAt: user?.last_login_at || null,
-            isEmailAllowed: isEmailAllowed,
-          },
-        });
-      } catch (tokenError) {
-        console.error('Token parsing/validation error:', tokenError.message);
+      if (!userSession) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid or expired token',
+          error: 'Invalid or expired session',
           code: 'INVALID_TOKEN',
         });
       }
+
+      const isEmailAllowed =
+        allowedEmails.length === 0 ||
+        allowedEmails.includes(userSession.email.toLowerCase());
+
+      res.json({
+        success: true,
+        user: {
+          id: userSession.user_id,
+          email: userSession.email,
+          name: userSession.name,
+          picture: userSession.picture,
+          hasRealDebridKey: !!userSession.real_debrid_api_key,
+          createdAt: userSession.created_at,
+          lastLoginAt: userSession.last_login_at,
+          isEmailAllowed,
+        },
+      });
     } catch (error) {
       console.error('Token validation endpoint error:', error);
       res.status(500).json({
@@ -333,27 +272,29 @@ const setupAuthRoutes = (cache) => {
 
   router.get('/sessions', authMiddleware.requireAuth(), async (req, res) => {
     try {
-      const sql = `
-        SELECT id, session_token, created_at, last_accessed_at, user_agent, ip_address
-        FROM user_sessions
-        WHERE user_id = ? AND expires_at > ?
-        ORDER BY last_accessed_at DESC
-      `;
-
       const currentTime = Math.floor(Date.now() / 1000);
-      const sessions = await cache.dbManager.all(sql, [
-        req.userId,
-        currentTime,
-      ]);
+      const sessions = await cache.authStore.sessions()
+        .find({ user_id: req.userId, expires_at: { $gt: currentTime } })
+        .sort({ last_accessed_at: -1 })
+        .project({
+          _id: 0,
+          id: 1,
+          session_token: 1,
+          created_at: 1,
+          last_accessed_at: 1,
+          user_agent: 1,
+          ip_address: 1,
+        })
+        .toArray();
+
+      const currentToken =
+        req.headers.authorization?.replace('Bearer ', '') || req.cookies?.sessionToken;
 
       res.json({
         success: true,
         sessions: sessions.map((session) => ({
           id: session.id,
-          isCurrentSession:
-            session.session_token ===
-            (req.headers.authorization?.replace('Bearer ', '') ||
-              req.cookies?.sessionToken),
+          isCurrentSession: session.session_token === currentToken,
           createdAt: session.created_at,
           lastAccessedAt: session.last_accessed_at,
           userAgent: session.user_agent,

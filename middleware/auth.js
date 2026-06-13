@@ -2,7 +2,6 @@ const AuthService = require('../config/passport');
 
 class AuthMiddleware {
   constructor(cache, authService = null) {
-    // Reuse existing authService instance if provided, otherwise create new one
     this.authService = authService || new AuthService(cache);
   }
 
@@ -11,8 +10,7 @@ class AuthMiddleware {
       try {
         const sessionToken =
           req.headers.authorization?.replace('Bearer ', '') ||
-          req.cookies?.sessionToken ||
-          req.session?.sessionToken;
+          req.cookies?.sessionToken;
 
         if (!sessionToken) {
           return res.status(401).json({
@@ -22,108 +20,24 @@ class AuthMiddleware {
           });
         }
 
-        // First try database session validation
-        const userSession = await this.authService.validateSession(
-          sessionToken
-        );
-        if (userSession) {
-          req.user = {
-            id: userSession.user_id,
-            email: userSession.email,
-            name: userSession.name,
-            picture: userSession.picture,
-            sessionId: userSession.id,
-          };
-          req.userId = userSession.user_id;
-          next();
-          return;
+        const userSession = await this.authService.validateSession(sessionToken);
+        if (!userSession) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid or expired session',
+            code: 'INVALID_SESSION',
+          });
         }
 
-        // Fallback: Try to validate as base64 temporary token
-        try {
-          // Validate that the token looks like valid base64 before attempting to decode
-          if (!sessionToken.match(/^[A-Za-z0-9+/]+=*$/)) {
-            throw new Error('Invalid base64 format');
-          }
-
-          const decodedString = Buffer.from(sessionToken, 'base64').toString('utf8');
-
-          // Check if decoded string looks like JSON before parsing
-          if (!decodedString.startsWith('{') || !decodedString.endsWith('}')) {
-            throw new Error('Decoded token is not JSON');
-          }
-
-          const tokenData = JSON.parse(decodedString);
-
-          // Basic validation - check if token has required fields and isn't too old
-          if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
-            throw new Error('Invalid token format');
-          }
-
-          // Check if token is less than 24 hours old
-          const tokenAge = Date.now() - tokenData.timestamp;
-          const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-
-          if (tokenAge > maxAge) {
-            throw new Error('Token expired');
-          }
-
-          // Create or get user from database using token data
-          const userData = {
-            id: tokenData.id,
-            google_id: tokenData.id,
-            email: tokenData.email,
-            name: tokenData.name || 'Unknown User',
-            picture: tokenData.picture || null,
-            last_login_at: Math.floor(Date.now() / 1000),
-          };
-
-          // Try to find or create user in database
-
-          let user = await this.authService.getUserByEmail(tokenData.email);
-
-          if (!user) {
-            // Create new user
-
-            const newUser = await this.authService.findOrCreateUser(userData);
-
-            user = newUser;
-          }
-
-          if (user) {
-
-            req.user = {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              picture: user.picture,
-              sessionId: null, // No session ID for temporary tokens
-            };
-            req.userId = user.id;
-          } else {
-
-            req.userId = null;
-          }
-
-          next();
-          return;
-        } catch (tokenError) {
-          // Only log meaningful errors, not validation failures from corrupted tokens
-          if (!tokenError.message.includes('Invalid base64') &&
-              !tokenError.message.includes('Decoded token is not JSON') &&
-              !tokenError.message.includes('Unexpected token')) {
-            console.warn(
-              'Session and token validation failed:',
-              tokenError.message
-            );
-          }
-        }
-
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid or expired session',
-          code: 'INVALID_SESSION',
-        });
+        req.user = {
+          id: userSession.user_id,
+          email: userSession.email,
+          name: userSession.name,
+          picture: userSession.picture,
+          sessionId: userSession.id,
+        };
+        req.userId = userSession.user_id;
+        next();
       } catch (error) {
         console.error('Auth middleware error:', error);
         return res.status(500).json({
@@ -138,98 +52,25 @@ class AuthMiddleware {
   optionalAuth() {
     return async (req, res, next) => {
       try {
-
         const sessionToken =
           req.headers.authorization?.replace('Bearer ', '') ||
-          req.cookies?.sessionToken ||
-          req.session?.sessionToken;
+          req.cookies?.sessionToken;
 
-        if (sessionToken) {
-          // First try database session validation
+        if (!sessionToken) {
+          next();
+          return;
+        }
 
-          const userSession = await this.authService.validateSession(
-            sessionToken
-          );
-          if (userSession) {
-
-            req.user = {
-              id: userSession.user_id,
-              email: userSession.email,
-              name: userSession.name,
-              picture: userSession.picture,
-              sessionId: userSession.id,
-            };
-            req.userId = userSession.user_id;
-
-            next();
-            return;
-          }
-
-          // Fallback: Try to validate as base64 temporary token
-
-          try {
-            // Validate that the token looks like valid base64 before attempting to decode
-            if (!sessionToken.match(/^[A-Za-z0-9+/]+=*$/)) {
-              throw new Error('Invalid base64 format');
-            }
-
-            const decodedString = Buffer.from(sessionToken, 'base64').toString('utf8');
-
-            // Check if decoded string looks like JSON before parsing
-            if (!decodedString.startsWith('{') || !decodedString.endsWith('}')) {
-              throw new Error('Decoded token is not JSON');
-            }
-
-            const tokenData = JSON.parse(decodedString);
-
-            // Basic validation - check if token has required fields and isn't too old
-            if (!tokenData.id || !tokenData.email || !tokenData.timestamp) {
-              throw new Error('Invalid token format');
-            }
-
-            // Check if token is not older than 24 hours
-            const tokenAge = Date.now() - tokenData.timestamp;
-            const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-            if (tokenAge > maxAge) {
-              throw new Error('Token expired');
-            }
-
-            // Create or get user from database using token data
-            const userData = {
-              google_id: tokenData.id,
-              email: tokenData.email,
-              name: tokenData.name,
-              picture: tokenData.picture,
-            };
-
-            let user = await this.authService.getUserByEmail(tokenData.email);
-
-            if (!user) {
-              // Create new user
-
-              const newUser = await this.authService.findOrCreateUser(userData);
-
-              user = newUser;
-            }
-
-            if (user) {
-              req.user = {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                picture: user.picture,
-              };
-
-              req.userId = user.id;
-            } else {
-
-              req.userId = null;
-            }
-
-          } catch (tempTokenError) {
-            // For optional auth, we silently continue without setting user
-            // Don't log validation failures from corrupted tokens
-          }
+        const userSession = await this.authService.validateSession(sessionToken);
+        if (userSession) {
+          req.user = {
+            id: userSession.user_id,
+            email: userSession.email,
+            name: userSession.name,
+            picture: userSession.picture,
+            sessionId: userSession.id,
+          };
+          req.userId = userSession.user_id;
         }
 
         next();

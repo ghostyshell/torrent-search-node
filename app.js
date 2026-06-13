@@ -35,6 +35,7 @@ const {
 
 // Core dependencies
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const passport = require('passport');
 const StorageProvider = require('./database/StorageProvider');
@@ -55,6 +56,7 @@ const proxyController = require('./controllers/proxyController');
 const monitoringController = require('./controllers/monitoringController');
 const jobLogsController = require('./controllers/jobLogsController');
 const { runWithJobFileLogging } = require('./services/backgroundJobFileLogger');
+const registerProtectedCacheAndProxyRoutes = require('./routes/protectedCache');
 
 // ===========================
 // ENVIRONMENT VALIDATION
@@ -121,6 +123,7 @@ app.use(monitoringController.apiTrackingMiddleware());
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cookieParser());
 
 // CORS middleware with environment-specific configuration
 app.use(corsMiddleware());
@@ -143,31 +146,12 @@ app.use('/', healthRoutes);
 // Note: Server startup will happen after async initialization completes
 
 // --- CACHE ROUTES ---
+// Registered in startServer() with authentication
 
-app.get('/api/cache/stats', cacheController.getStats);
-
-// Password-gate all monitoring/dashboard endpoints. Registered here (before the
-// routes themselves, which are added in startServer) so it runs first for any
-// /api/monitoring/* request.
+// Password-gate all monitoring/dashboard endpoints.
 app.use('/api/monitoring', dashboardAuth());
 
 // Note: Monitoring routes are registered in startServer() after ipAllowlistMiddleware is initialized
-
-app.post('/api/cache/cover-image', cacheController.storeCoverImage);
-app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
-app.post(
-  '/api/cache/cover-image/torrent',
-  cacheController.getCoverImageForTorrent
-);
-app.post('/api/cache/stream-url', cacheController.storeStreamUrl);
-app.get('/api/cache/stream-url/:magnetHash', cacheController.getStreamUrl);
-app.post('/api/cache/stream-url/refresh', cacheController.refreshStreamUrl);
-app.post('/api/cache/magnet', cacheController.storeMagnetLink);
-app.get('/api/cache/magnet', cacheController.getMagnetLink);
-// Note: Cached links routes moved to startServer() for proper auth middleware
-app.post('/api/cache/set', cacheController.setCacheValue);
-app.get('/api/cache/get/:key', cacheController.getCacheValue);
-app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 
 // --- FAVORITES ROUTES ---
 // Note: These will be registered after authMiddleware is initialized in startServer()
@@ -179,9 +163,7 @@ app.delete('/api/cache/delete/:key', cacheController.deleteCacheValue);
 // Note: These will be registered in startServer() using setupTorrentRoutes()
 
 // --- PROXY ROUTES ---
-// Note: MUST be before the catch-all torrent search route
-app.options('/api/proxy/*', proxyController.handleCorsOptions);
-app.all('/api/proxy/real-debrid/*', proxyController.realDebridProxy);
+// Registered in startServer() with authentication
 
 // --- MAIN SEARCH ROUTE ---
 // Note: This will be registered after auth routes to avoid conflicts
@@ -231,6 +213,7 @@ async function startServer() {
 
     // Initialize auth middleware
     authMiddleware = new AuthMiddleware(storageProvider);
+    registerProtectedCacheAndProxyRoutes(app, authMiddleware);
 
     // Initialize IP allowlist middleware for monitoring endpoints
     const ipAllowlistMiddleware = new IpAllowlistMiddleware();
@@ -347,64 +330,31 @@ async function startServer() {
       favoritesController.removeFavorite
     );
 
-    // --- STORAGE ROUTES FOR CACHED LINKS ---
-
-    const optionalAuthFn = authMiddleware?.optionalAuth();
-
     app.post(
       '/api/storage/stored-links',
-      (req, res, next) => {
-        next();
-      },
-      (req, res, next) => {
-        next();
-      },
-      optionalAuthFn,
-      (req, res, next) => {
-        next();
-      },
+      authMiddleware.requireAuth(),
       cacheController.addCachedLink
     );
     app.get(
       '/api/storage/stored-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.getCachedLinks
     );
     app.delete(
       '/api/storage/stored-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.removeCachedLink
     );
     app.put(
       '/api/storage/stored-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateCachedLink
-    );
-
-    // --- OTHER STORAGE ROUTES ---
-    app.post('/api/storage/stream-url', cacheController.storeStreamUrl);
-    app.get(
-      '/api/storage/stream-url/:magnetHash',
-      cacheController.getStreamUrl
-    );
-    app.post(
-      '/api/storage/stream-url/refresh',
-      cacheController.refreshStreamUrl
-    );
-    app.post('/api/storage/cover-image', cacheController.storeCoverImage);
-    app.get(
-      '/api/storage/cover-image/:torrentKey',
-      cacheController.getCoverImage
-    );
-    app.post(
-      '/api/storage/cover-image/torrent',
-      cacheController.getCoverImageForTorrent
     );
 
     // Update favorite entry magnet link
     app.put(
       '/api/storage/favorites/:favoriteId/magnet',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateFavoriteEntryMagnetLink
     );
 
@@ -429,29 +379,27 @@ async function startServer() {
         });
       }
     });
-    app.post('/api/storage/set', cacheController.setCacheValue);
-    app.get('/api/storage/get/:key', cacheController.getCacheValue);
-    app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
+    // Protected cache/storage/proxy routes registered above via registerProtectedCacheAndProxyRoutes
 
-    // --- CACHED LINKS ROUTES WITH OPTIONAL AUTH ---
+    // --- CACHED LINKS ROUTES WITH AUTH ---
     app.post(
       '/api/cache/cached-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.addCachedLink
     );
     app.get(
       '/api/cache/cached-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.getCachedLinks
     );
     app.delete(
       '/api/cache/cached-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.removeCachedLink
     );
     app.put(
       '/api/cache/cached-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateCachedLink
     );
 
@@ -493,6 +441,7 @@ async function startServer() {
 
     // Initialize auth middleware (will handle database unavailability gracefully)
     authMiddleware = new AuthMiddleware(storageProvider);
+    registerProtectedCacheAndProxyRoutes(app, authMiddleware);
 
     // Initialize IP allowlist middleware for monitoring endpoints
     const ipAllowlistMiddleware = new IpAllowlistMiddleware();
@@ -609,75 +558,53 @@ async function startServer() {
     // --- STORAGE ROUTES FOR CACHED LINKS (FALLBACK) ---
     app.post(
       '/api/storage/stored-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.addCachedLink
     );
     app.get(
       '/api/storage/stored-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.getCachedLinks
     );
     app.delete(
       '/api/storage/stored-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.removeCachedLink
     );
     app.put(
       '/api/storage/stored-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateCachedLink
-    );
-
-    // --- OTHER STORAGE ROUTES (FALLBACK) ---
-    app.post('/api/storage/stream-url', cacheController.storeStreamUrl);
-    app.get(
-      '/api/storage/stream-url/:magnetHash',
-      cacheController.getStreamUrl
-    );
-    app.post(
-      '/api/storage/stream-url/refresh',
-      cacheController.refreshStreamUrl
-    );
-    app.post('/api/storage/cover-image', cacheController.storeCoverImage);
-    app.get(
-      '/api/storage/cover-image/:torrentKey',
-      cacheController.getCoverImage
-    );
-    app.post(
-      '/api/storage/cover-image/torrent',
-      cacheController.getCoverImageForTorrent
     );
 
     // Update favorite entry magnet link (fallback)
     app.put(
       '/api/storage/favorites/:favoriteId/magnet',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateFavoriteEntryMagnetLink
     );
 
-    app.post('/api/storage/set', cacheController.setCacheValue);
-    app.get('/api/storage/get/:key', cacheController.getCacheValue);
-    app.delete('/api/storage/delete/:key', cacheController.deleteCacheValue);
+    // Protected cache/storage/proxy routes registered via registerProtectedCacheAndProxyRoutes
 
-    // --- CACHED LINKS ROUTES WITH OPTIONAL AUTH (FALLBACK) ---
+    // --- CACHED LINKS ROUTES WITH AUTH (FALLBACK) ---
     app.post(
       '/api/cache/cached-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.addCachedLink
     );
     app.get(
       '/api/cache/cached-links',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.getCachedLinks
     );
     app.delete(
       '/api/cache/cached-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.removeCachedLink
     );
     app.put(
       '/api/cache/cached-links/:id',
-      authMiddleware.optionalAuth(),
+      authMiddleware.requireAuth(),
       cacheController.updateCachedLink
     );
 

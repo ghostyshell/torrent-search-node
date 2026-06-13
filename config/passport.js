@@ -1,7 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { v4: uuidv4 } = require('uuid');
-const bcrypt = require('bcryptjs');
+const { encryptSecret, decryptSecret } = require('../utils/secretCrypto');
 
 // Helper function to extract Google OAuth credentials from service account JSON
 function getGoogleOAuthCredentials() {
@@ -73,9 +73,8 @@ class AuthService {
                 last_login_at: Math.floor(Date.now() / 1000),
               };
 
-              // Temporary: Skip database operations and return user data directly
-              // TODO: Re-enable database operations once database is properly initialized
-              return done(null, userData);
+              const user = await this.findOrCreateUser(userData);
+              return done(null, user);
             } catch (error) {
               console.error('Google OAuth strategy error:', error);
               return done(error, null);
@@ -191,18 +190,21 @@ class AuthService {
   }
 
   async setRealDebridApiKey(userId, apiKey) {
-    const encryptedKey = apiKey ? await bcrypt.hash(apiKey, 12) : null;
+    const encryptedKey = apiKey ? encryptSecret(apiKey) : null;
 
-    const result = await this.updateUser(userId, {
+    return this.updateUser(userId, {
       real_debrid_api_key: encryptedKey,
     });
-
-    return result;
   }
 
   async getRealDebridApiKey(userId) {
     const user = await this.getUserById(userId);
-    return user?.real_debrid_api_key || null;
+    if (!user?.real_debrid_api_key) return null;
+    return decryptSecret(user.real_debrid_api_key);
+  }
+
+  decryptApiKey(storedKey) {
+    return decryptSecret(storedKey);
   }
 
   /**

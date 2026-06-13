@@ -73,7 +73,7 @@ class MongoAuthStore {
   async createSession(userId, sessionData) {
     const sessionId = uuidv4();
     const sessionToken = uuidv4();
-    const expiresAt = nowSec() + 100 * 365 * 24 * 60 * 60; // 100 years
+    const expiresAt = nowSec() + 30 * 24 * 60 * 60; // 30 days
     const doc = {
       _id: sessionId,
       id: sessionId,

@@ -9,27 +9,22 @@ const fetch = require('node-fetch');
 // Custom Real-Debrid proxy handler
 const realDebridProxy = async (req, res) => {
   try {
-    // Extract the path after /api/proxy/real-debrid
     const realDebridPath = req.originalUrl.replace('/api/proxy/real-debrid', '');
     const targetUrl = `https://api.real-debrid.com/rest/1.0${realDebridPath}`;
 
     logger.info('Proxying request to Real-Debrid', {
       method: req.method,
       originalUrl: req.originalUrl,
-      targetUrl: targetUrl,
-      headers: req.headers,
+      targetUrl,
+      userId: req.userId,
     });
 
-    // Prepare headers
     const headers = {
-      'Content-Type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
+      'Content-Type':
+        req.headers['content-type'] || 'application/x-www-form-urlencoded',
       'User-Agent': req.headers['user-agent'] || 'TorrentSearch-Proxy/1.0',
+      Authorization: `Bearer ${req.realDebridApiKey}`,
     };
-
-    // Forward authorization header
-    if (req.headers.authorization) {
-      headers.Authorization = req.headers.authorization;
-    }
 
     // Prepare request options
     const fetchOptions = {
@@ -55,8 +50,8 @@ const realDebridProxy = async (req, res) => {
     logger.info('Making request to Real-Debrid', {
       targetUrl,
       method: req.method,
-      headers: headers,
       bodyLength: fetchOptions.body ? fetchOptions.body.length : 0,
+      userId: req.userId,
     });
 
     // Make the request to Real-Debrid

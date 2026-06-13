@@ -236,6 +236,14 @@ class AuthService {
     return this.cache.authStore.cleanupExpiredSessions();
   }
 
+  async createExchangeCode(sessionToken) {
+    return this.cache.authStore.createExchangeCode(sessionToken);
+  }
+
+  async consumeExchangeCode(code) {
+    return this.cache.authStore.consumeExchangeCode(code);
+  }
+
 }
 
 module.exports = AuthService;

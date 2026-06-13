@@ -49,7 +49,12 @@ const setupAuthRoutes = (cache) => {
         });
 
         setSessionCookie(res, session.token);
-        res.redirect(process.env.FRONTEND_URL || 'http://localhost:3000');
+
+        const exchangeCode = await authService.createExchangeCode(session.token);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const redirectUrl = new URL(frontendUrl);
+        redirectUrl.searchParams.set('auth_exchange', exchangeCode);
+        res.redirect(redirectUrl.toString());
       } catch (error) {
         console.error('Google callback error:', error);
         res.redirect(process.env.FRONTEND_URL + '/login?error=callback_failed');
@@ -214,6 +219,77 @@ const setupAuthRoutes = (cache) => {
       }
     }
   );
+
+  router.post('/exchange', async (req, res) => {
+    try {
+      const { code } = req.body;
+
+      if (!code || typeof code !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Exchange code is required',
+          code: 'MISSING_CODE',
+        });
+      }
+
+      const sessionToken = await authService.consumeExchangeCode(code);
+      if (!sessionToken) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid or expired exchange code',
+          code: 'INVALID_CODE',
+        });
+      }
+
+      const userSession = await authService.validateSession(sessionToken);
+      if (!userSession) {
+        return res.status(401).json({
+          success: false,
+          error: 'Session could not be established',
+          code: 'SESSION_ERROR',
+        });
+      }
+
+      const allowedEmails =
+        process.env.ALLOWED_EMAILS?.split(',').map((e) => e.trim().toLowerCase()) ||
+        [];
+      const isEmailAllowed =
+        allowedEmails.length === 0 ||
+        allowedEmails.includes(userSession.email.toLowerCase());
+
+      if (!isEmailAllowed) {
+        return res.status(403).json({
+          success: false,
+          error: 'Email not authorized',
+          code: 'EMAIL_NOT_ALLOWED',
+        });
+      }
+
+      setSessionCookie(res, sessionToken);
+
+      res.json({
+        success: true,
+        token: sessionToken,
+        user: {
+          id: userSession.user_id,
+          email: userSession.email,
+          name: userSession.name,
+          picture: userSession.picture,
+          hasRealDebridKey: !!userSession.real_debrid_api_key,
+          createdAt: userSession.created_at,
+          lastLoginAt: userSession.last_login_at,
+          isEmailAllowed,
+        },
+      });
+    } catch (error) {
+      console.error('Auth exchange error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Auth exchange failed',
+        code: 'EXCHANGE_ERROR',
+      });
+    }
+  });
 
   router.post('/validate', async (req, res) => {
     try {

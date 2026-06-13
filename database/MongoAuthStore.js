@@ -21,6 +21,7 @@ class MongoAuthStore {
 
   users() { return this.mongo.collection('users'); }
   sessions() { return this.mongo.collection('user_sessions'); }
+  exchangeCodes() { return this.mongo.collection('auth_exchange_codes'); }
 
   // ── Users ───────────────────────────────────────────────────────────────
 
@@ -117,6 +118,41 @@ class MongoAuthStore {
 
   async cleanupExpiredSessions() {
     const res = await this.sessions().deleteMany({ expires_at: { $lte: nowSec() } });
+    return res.deletedCount || 0;
+  }
+
+  async createExchangeCode(sessionToken) {
+    const code = uuidv4();
+    await this.exchangeCodes().insertOne({
+      _id: code,
+      session_token: sessionToken,
+      expires_at: nowSec() + 120,
+      used: false,
+      created_at: nowSec(),
+    });
+    return code;
+  }
+
+  async consumeExchangeCode(code) {
+    if (!code || typeof code !== 'string') return null;
+
+    const result = await this.exchangeCodes().findOneAndUpdate(
+      {
+        _id: code,
+        used: false,
+        expires_at: { $gt: nowSec() },
+      },
+      { $set: { used: true } },
+      { returnDocument: 'after' }
+    );
+
+    return result?.session_token || null;
+  }
+
+  async cleanupExpiredExchangeCodes() {
+    const res = await this.exchangeCodes().deleteMany({
+      $or: [{ expires_at: { $lte: nowSec() } }, { used: true }],
+    });
     return res.deletedCount || 0;
   }
 }

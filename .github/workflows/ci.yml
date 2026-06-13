@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run validate-config
+        env:
+          NODE_ENV: development
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DB: torrent_search_test
+          GOOGLE_SERVICE_ACCOUNT_JSON: '{"type":"service_account","oauth_client_id":"test","oauth_client_secret":"test"}'
+          GOOGLE_CUSTOM_SEARCH_ENGINE_ID: test
+          SESSION_SECRET: test-secret
+          FRONTEND_URL: http://localhost:3000

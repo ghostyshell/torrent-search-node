@@ -179,11 +179,19 @@ const tailLines = async (filePath, maxLines = 200, maxBytes = 1024 * 1024) => {
   }
 };
 
+const ALLOWED_LOG_LEVELS = new Set(['all', 'info', 'warn', 'error', 'debug']);
+const ALLOWED_LOG_FILES = new Set(['all.log', 'info.log', 'warn.log', 'error.log', 'debug.log']);
+
 /**
  * Read recent log entries from a log file
  */
 const readRecentLogs = async (logFile, limit = 100) => {
-  const logPath = path.join(config.logging.logDir, logFile);
+  const safeName = path.basename(logFile);
+  if (!ALLOWED_LOG_FILES.has(safeName)) {
+    return [];
+  }
+
+  const logPath = path.join(config.logging.logDir, safeName);
 
   if (!fs.existsSync(logPath)) {
     return [];
@@ -209,6 +217,13 @@ const readRecentLogs = async (logFile, limit = 100) => {
 const getLogs = async (req, res) => {
   try {
     const level = req.query.level || 'all';
+    if (!ALLOWED_LOG_LEVELS.has(level)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid log level',
+      });
+    }
+
     const limit = Math.min(parseInt(req.query.limit) || 100, 500);
 
     const logFile = level === 'all' ? 'all.log' : `${level}.log`;

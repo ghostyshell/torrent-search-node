@@ -45,6 +45,8 @@ const setupImageRoutes = require('./routes/images');
 const AuthMiddleware = require('./middleware/auth');
 const IpAllowlistMiddleware = require('./middleware/ipAllowlist');
 const dashboardAuth = require('./middleware/dashboardAuth');
+const { requestIdMiddleware } = require('./middleware/requestId');
+const { securityHeaders, createRateLimiters } = require('./middleware/security');
 
 // Controllers
 const cacheController = require('./controllers/storageController');
@@ -88,7 +90,7 @@ if (config.security.trustProxy) {
 // DATABASE INITIALIZATION
 // ===========================
 
-// Initialize storage provider (uses Turso cloud database)
+// Initialize storage provider (uses MongoDB via StorageProvider)
 let storageProvider = null;
 let authMiddleware = null;
 
@@ -97,6 +99,18 @@ let authMiddleware = null;
 // ===========================
 // MIDDLEWARE SETUP
 // ===========================
+
+// Request ID and security middleware
+app.use(requestIdMiddleware());
+app.use(securityHeaders());
+
+const { apiLimiter, authLimiter } = createRateLimiters();
+if (authLimiter) {
+  app.use('/api/auth/', authLimiter);
+}
+if (apiLimiter) {
+  app.use('/api/', apiLimiter);
+}
 
 // Request logging middleware
 app.use(logger.requestMiddleware());
@@ -138,30 +152,6 @@ app.get('/api/cache/stats', cacheController.getStats);
 app.use('/api/monitoring', dashboardAuth());
 
 // Note: Monitoring routes are registered in startServer() after ipAllowlistMiddleware is initialized
-
-// Debug endpoint to check favorites data - Note: registered in startServer()
-app.get('/api/monitoring/debug-favorites', async (req, res) => {
-  try {
-    const storage = req.app.locals.storageProvider;
-    if (!storage) {
-      return res.json({ error: 'No storage provider' });
-    }
-
-    const stats = await storage.favorites.getStats();
-
-    const sampleEntries = await debugSampleFavorites(storage);
-
-    const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
-
-    res.json({
-      stats,
-      sampleFavoriteEntries: sampleEntries,
-      refreshQueryResult: refreshData
-    });
-  } catch (error) {
-    res.json({ error: error.message, stack: error.stack });
-  }
-});
 
 app.post('/api/cache/cover-image', cacheController.storeCoverImage);
 app.get('/api/cache/cover-image/:torrentKey', cacheController.getCoverImage);
@@ -278,7 +268,8 @@ async function startServer() {
         const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
         res.json({ stats, sampleFavoriteEntries: sampleEntries, refreshQueryResult: refreshData });
       } catch (error) {
-        res.json({ error: error.message, stack: error.stack });
+        logger.error('debug-favorites failed', { error: error.message, requestId: req.id });
+        res.status(500).json({ error: error.message });
       }
     });
 
@@ -417,8 +408,8 @@ async function startServer() {
       cacheController.updateFavoriteEntryMagnetLink
     );
 
-    // Debug endpoint for troubleshooting favorite entries
-    app.get('/api/debug/favorite-entry/:favoriteEntryId', async (req, res) => {
+    // Debug endpoint for troubleshooting favorite entries (IP allowlist when configured)
+    app.get('/api/debug/favorite-entry/:favoriteEntryId', ipRestricted, async (req, res) => {
       try {
         const storageProvider = req.app.locals.storageProvider;
         const { favoriteEntryId } = req.params;
@@ -539,7 +530,8 @@ async function startServer() {
         const refreshData = await storage.favorites.getAllFavoritesForStreamRefresh();
         res.json({ stats, sampleFavoriteEntries: sampleEntries, refreshQueryResult: refreshData });
       } catch (error) {
-        res.json({ error: error.message, stack: error.stack });
+        logger.error('debug-favorites failed', { error: error.message, requestId: req.id });
+        res.status(500).json({ error: error.message });
       }
     });
 

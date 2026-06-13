@@ -440,6 +440,19 @@ class MongoCachedLinkRepository extends MongoBase {
 class MongoFavoriteRepository extends MongoBase {
   constructor(mongo) { super(mongo, 'favorite_entries'); }
 
+  _userFilter(userId) {
+    const ids = Array.isArray(userId)
+      ? userId
+      : userId !== undefined && userId !== null
+        ? [userId]
+        : [null];
+    const normalized = [...new Set(ids)];
+    if (normalized.length === 1) {
+      return { user_id: normalized[0] };
+    }
+    return { user_id: { $in: normalized } };
+  }
+
   _map(row) {
     return {
       id: row.id,
@@ -475,7 +488,10 @@ class MongoFavoriteRepository extends MongoBase {
   }
 
   async getFavoriteEntry(torrent, userId = null) {
-    const row = await this.coll().findOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
+    const row = await this.coll().findOne({
+      torrent_key: this.generateTorrentKey(torrent),
+      ...this._userFilter(userId),
+    });
     return row ? this._map(row) : null;
   }
 
@@ -497,7 +513,7 @@ class MongoFavoriteRepository extends MongoBase {
 
   // De-duplicate by COALESCE(magnet_link, id), keep most recent (created_at desc).
   async getMergedFavorites(limit, offset, userId = null) {
-    const filter = userId ? { user_id: userId } : { user_id: null };
+    const filter = this._userFilter(userId);
     const rows = await this.coll().find(filter).sort({ created_at: -1 }).toArray();
     const seen = new Set();
     const deduped = [];
@@ -526,13 +542,16 @@ class MongoFavoriteRepository extends MongoBase {
   }
 
   async getMergedFavoritesCount(userId = null) {
-    const filter = userId ? { user_id: userId } : { user_id: null };
+    const filter = this._userFilter(userId);
     const rows = await this.coll().find(filter).project({ magnet_link: 1, id: 1 }).toArray();
     return new Set(rows.map((r) => r.magnet_link || r.id)).size;
   }
 
   async isFavorite(torrent, userId = null) {
-    const row = await this.coll().findOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
+    const row = await this.coll().findOne({
+      torrent_key: this.generateTorrentKey(torrent),
+      ...this._userFilter(userId),
+    });
     return !!row;
   }
 
@@ -616,7 +635,10 @@ class MongoFavoriteRepository extends MongoBase {
   }
 
   async removeFavorite(torrent, userId = null) {
-    const res = await this.coll().deleteOne({ torrent_key: this.generateTorrentKey(torrent), user_id: userId });
+    const res = await this.coll().deleteOne({
+      torrent_key: this.generateTorrentKey(torrent),
+      ...this._userFilter(userId),
+    });
     return res.deletedCount > 0;
   }
 }

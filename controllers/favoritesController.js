@@ -2,16 +2,23 @@ const express = require('express');
 const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 
+async function resolveFavoriteUserIds(cache, userId) {
+  const ids = new Set([userId, null]);
+  try {
+    const user = await cache.authStore?.getUserById(userId);
+    if (user?.google_id) {
+      ids.add(user.google_id);
+    }
+  } catch (_) {
+    // ignore lookup errors and fall back to the current user id
+  }
+  return [...ids];
+}
+
 // Favorites controller for all favorites-related endpoints
 const favoritesController = {
   // Add favorite
   addFavorite: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -79,12 +86,6 @@ const favoritesController = {
 
   // Get favorites
   getFavorites: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -97,11 +98,12 @@ const favoritesController = {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const offset = (page - 1) * limit;
+      const favoriteUserIds = await resolveFavoriteUserIds(cache, req.userId);
 
       // Use optimized database-level pagination and merging
       const [favorites, totalCount] = await Promise.all([
-        cache.getMergedFavoritesPaginated(limit, offset, req.userId),
-        cache.getMergedFavoritesCount(req.userId),
+        cache.getMergedFavoritesPaginated(limit, offset, favoriteUserIds),
+        cache.getMergedFavoritesCount(favoriteUserIds),
       ]);
 
       // Enrich favorites with cover images using a single batched lookup
@@ -167,12 +169,6 @@ const favoritesController = {
 
   // Remove favorite
   removeFavorite: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -191,7 +187,10 @@ const favoritesController = {
         });
       }
 
-      const success = await cache.removeFavorite(torrent, req.userId);
+      const success = await cache.removeFavorite(
+        torrent,
+        await resolveFavoriteUserIds(cache, req.userId)
+      );
 
       if (success) {
         res.json({
@@ -226,12 +225,6 @@ const favoritesController = {
 
   // Get favorite details
   getFavoriteDetails: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -285,12 +278,6 @@ const favoritesController = {
 
   // Store favorite details
   storeFavoriteDetails: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -345,12 +332,6 @@ const favoritesController = {
 
   // Check if torrent is in favorites
   checkFavorite: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({
@@ -369,11 +350,16 @@ const favoritesController = {
         });
       }
 
-      const isFavorite = await cache.isFavorite(torrent, req.userId);
+      const favoriteUserIds = await resolveFavoriteUserIds(cache, req.userId);
+      const isFavorite = await cache.isFavorite(torrent, favoriteUserIds);
+      const favoriteEntry = isFavorite
+        ? await cache.getFavoriteEntry(torrent, favoriteUserIds)
+        : null;
 
       res.json({
         success: true,
         isFavorite,
+        favoriteEntry,
       });
     } catch (error) {
       // Check if error is due to database not being available
@@ -397,12 +383,6 @@ const favoritesController = {
 
   // Store favorite entry with additional metadata
   storeFavoriteEntry: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
-
     const cache = req.app.locals.cache;
     if (!cache || !cache.isInitialized) {
       return res.status(503).json({

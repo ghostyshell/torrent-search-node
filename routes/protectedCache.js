@@ -40,7 +40,6 @@ function registerProtectedCacheAndProxyRoutes(app, authMiddleware) {
   app.get('/api/storage/get/:key', requireAuth, cacheController.getCacheValue);
   app.delete('/api/storage/delete/:key', requireAuth, cacheController.deleteCacheValue);
 
-  app.options('/api/proxy/real-debrid/*', proxyController.handleCorsOptions);
   app.all('/api/proxy/real-debrid/*', ...realDebridProxyChain);
 }
 

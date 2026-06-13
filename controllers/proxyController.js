@@ -22,7 +22,7 @@ const realDebridProxy = async (req, res) => {
     const headers = {
       'Content-Type':
         req.headers['content-type'] || 'application/x-www-form-urlencoded',
-      'User-Agent': req.headers['user-agent'] || 'TorrentSearch-Proxy/1.0',
+      'User-Agent': req.headers['user-agent'] || 'torrent-search-node/1.0',
       Authorization: `Bearer ${req.realDebridApiKey}`,
     };
 
@@ -62,11 +62,6 @@ const realDebridProxy = async (req, res) => {
       statusText: response.statusText,
       originalUrl: req.originalUrl,
     });
-
-    // Set CORS headers
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
 
     // Set response status
     res.status(response.status);
@@ -146,18 +141,7 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
         proxyReq.setHeader('User-Agent', req.headers['user-agent']);
       }
     },
-    onProxyRes: (proxyRes, req, res) => {
-      // Add CORS headers
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header(
-        'Access-Control-Allow-Methods',
-        'GET, POST, PUT, DELETE, OPTIONS'
-      );
-      res.header(
-        'Access-Control-Allow-Headers',
-        'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
-      );
-    },
+    onProxyRes: () => {},
     onError: (err, req, res) => {
       logger.error('Generic proxy error', {
         error: err.message,
@@ -175,26 +159,7 @@ const createGenericProxy = (targetUrl, pathRewrite = {}) => {
   });
 };
 
-// Handle OPTIONS requests for CORS preflight
-const handleCorsOptions = (req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'GET, POST, PUT, DELETE, OPTIONS'
-    );
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range'
-    );
-    res.status(200).end();
-    return;
-  }
-  next();
-};
-
 module.exports = {
   realDebridProxy,
   createGenericProxy,
-  handleCorsOptions,
 };

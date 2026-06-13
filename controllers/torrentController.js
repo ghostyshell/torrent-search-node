@@ -6,11 +6,6 @@ const torrentScraperService = require('../services/torrentScraperService');
 const torrentController = {
   // Get torrent details
   getTorrentDetails: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const website = req.params.website.toLowerCase();
     const torrentUrl = decodeURIComponent(req.params.torrentUrl);
@@ -29,11 +24,6 @@ const torrentController = {
 
   // Search torrents
   searchTorrents: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     let website = req.params.website.toLowerCase();
     let query = req.params.query;
@@ -85,11 +75,6 @@ const torrentController = {
 
   // Browse a torrent site by category (no search query)
   browseTorrents: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const category   = req.params.category || '507';
     const page       = req.params.page || 1;
@@ -129,11 +114,6 @@ const torrentController = {
 
   // Single torrent search endpoint for specific websites
   searchSingleWebsite: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const { website, query } = req.params;
     const page = req.params.page || 1;
@@ -183,11 +163,6 @@ const torrentController = {
 
   // Advanced search with multiple filters
   advancedSearch: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     try {
       const {

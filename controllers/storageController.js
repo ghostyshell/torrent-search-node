@@ -32,11 +32,6 @@ const storageController = {
 
   // Store cover image
   storeCoverImage: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -88,11 +83,6 @@ const storageController = {
 
   // Get cover image
   getCoverImage: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -132,11 +122,6 @@ const storageController = {
 
   // Store stream URL
   storeStreamUrl: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -180,11 +165,6 @@ const storageController = {
 
   // Get stream URL
   getStreamUrl: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -228,11 +208,6 @@ const storageController = {
   // Used by the frontend regen path so a single bad RD torrent can self-heal
   // instead of falling into a loop of fresh-but-still-dead /unrestrict URLs.
   refreshStreamUrl: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -305,11 +280,6 @@ const storageController = {
 
   // Add stored link
   addStoredLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage || !storage.isInitialized) {
@@ -377,11 +347,6 @@ const storageController = {
 
   // Get stored links
   getStoredLinks: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage || !storage.isInitialized) {
@@ -438,11 +403,6 @@ const storageController = {
 
   // Remove stored link
   removeStoredLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -489,11 +449,6 @@ const storageController = {
 
   // Update stored link
   updateStoredLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -541,11 +496,6 @@ const storageController = {
 
   // Set generic cache value
   setCacheValue: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage || !storage.isInitialized) {
@@ -593,11 +543,6 @@ const storageController = {
 
   // Get generic cache value
   getCacheValue: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -634,11 +579,6 @@ const storageController = {
 
   // Delete generic cache value
   deleteCacheValue: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -668,11 +608,6 @@ const storageController = {
 
   // Update cover image for favorite entry
   updateFavoriteEntryCoverImage: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -720,11 +655,6 @@ const storageController = {
 
   // Update magnet link for favorite entry
   updateFavoriteEntryMagnetLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -772,11 +702,6 @@ const storageController = {
 
   // Update cover image for torrent details
   updateTorrentDetailsCoverImage: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -826,11 +751,6 @@ const storageController = {
 
   // Update cover image for cached link
   updateCachedLinkCoverImage: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -878,11 +798,6 @@ const storageController = {
 
   // Get cover image for any torrent
   getCoverImageForTorrent: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -931,11 +846,6 @@ const storageController = {
 
   // Store magnet link
   storeMagnetLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {
@@ -985,11 +895,6 @@ const storageController = {
 
   // Get magnet link
   getMagnetLink: async (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-    );
 
     const storage = req.app.locals.cache;
     if (!storage) {

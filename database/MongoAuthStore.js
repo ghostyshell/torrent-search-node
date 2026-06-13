@@ -136,17 +136,22 @@ class MongoAuthStore {
   async consumeExchangeCode(code) {
     if (!code || typeof code !== 'string') return null;
 
-    const result = await this.exchangeCodes().findOneAndUpdate(
-      {
-        _id: code,
-        used: false,
-        expires_at: { $gt: nowSec() },
-      },
-      { $set: { used: true } },
-      { returnDocument: 'after' }
+    const doc = await this.exchangeCodes().findOne({ _id: code });
+    if (!doc || doc.expires_at <= nowSec()) return null;
+
+    if (doc.used) {
+      // Allow brief reuse (React StrictMode double-mount, tab refresh during exchange)
+      const usedAt = doc.used_at || 0;
+      if (nowSec() - usedAt > 60) return null;
+      return doc.session_token;
+    }
+
+    await this.exchangeCodes().updateOne(
+      { _id: code, used: false },
+      { $set: { used: true, used_at: nowSec() } }
     );
 
-    return result?.session_token || null;
+    return doc.session_token;
   }
 
   async cleanupExpiredExchangeCodes() {

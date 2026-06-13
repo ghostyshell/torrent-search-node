@@ -65,7 +65,6 @@ class AuthService {
           async (accessToken, refreshToken, profile, done) => {
             try {
               const userData = {
-                id: profile.id,
                 google_id: profile.id,
                 email: profile.emails[0].value,
                 name: profile.displayName,
@@ -126,7 +125,14 @@ class AuthService {
             updateError.message
           );
         }
-        return { ...existingUser, ...userData };
+        return {
+          ...existingUser,
+          name: userData.name,
+          picture: userData.picture,
+          google_id: userData.google_id || existingUser.google_id,
+          last_login_at: userData.last_login_at ?? existingUser.last_login_at,
+          id: existingUser.id,
+        };
       }
 
       const userId = uuidv4();

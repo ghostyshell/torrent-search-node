@@ -35,7 +35,6 @@ const setupAuthRoutes = (cache) => {
         }
 
         const user = await authService.findOrCreateUser({
-          id: req.user.id,
           google_id: req.user.google_id || req.user.id,
           email: req.user.email,
           name: req.user.name,

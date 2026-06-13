@@ -157,3 +157,10 @@ Landing page: [akshatsinghkaushik.github.io/torrent-search-node](https://akshats
 This project is released under the [GNU General Public License v3.0 or later](LICENSE) (GPL-3.0-or-later).
 
 You are free to use, modify, and distribute this software under the terms of the GPL. Derivative works must be distributed under the same license.
+
+---
+
+## Support
+
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/EbHcTNAqca)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/ghosty99)

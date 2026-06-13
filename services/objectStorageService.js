@@ -1,5 +1,5 @@
 /**
- * Object Storage Service (Sliplane / S3-compatible bucket)
+ * Object Storage Service (S3-compatible bucket)
  *
  * Cover images are stored in the bucket and served to the frontend via
  * **presigned GET URLs** (the bucket is private — anonymous GETs are rejected).

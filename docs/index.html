@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="color-scheme" content="dark" />
+
+  <title>Torrent Search API — Open-source multi-source torrent search backend</title>
+  <meta name="description" content="Torrent Search API is a free, open-source Node.js/Express REST API for searching torrents across 8 sources, resolving magnet links via Real-Debrid, and caching cover images. Self-hostable with MongoDB, Redis, and S3-compatible storage." />
+  <meta name="keywords" content="torrent search API, Node.js torrent API, piratebay API, 1337x API, YTS API, Real-Debrid integration, torrent scraper, open source torrent backend, magnet link resolver" />
+  <meta name="author" content="akshatsinghkaushik" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+  <link rel="canonical" href="https://akshatsinghkaushik.github.io/stream-backend/" />
+  <link rel="icon" href="/stream-backend/site/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/stream-backend/site/favicon.svg" />
+  <link rel="manifest" href="/stream-backend/site/site.webmanifest" />
+  <link rel="sitemap" type="application/xml" href="/stream-backend/site/sitemap.xml" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Torrent Search API" />
+  <meta property="og:title" content="Torrent Search API — Multi-source torrent search backend" />
+  <meta property="og:description" content="Free, open-source Node.js/Express REST API for searching torrents across 8 sources, resolving magnet links, and caching cover images. Self-hostable." />
+  <meta property="og:url" content="https://akshatsinghkaushik.github.io/stream-backend/" />
+  <meta property="og:image" content="https://akshatsinghkaushik.github.io/stream-backend/site/og-image.svg" />
+  <meta property="og:image:alt" content="Torrent Search API — terminal showing a sample curl search request and JSON response" />
+  <meta property="og:image:type" content="image/svg+xml" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Torrent Search API — Multi-source torrent search backend" />
+  <meta name="twitter:description" content="Free, open-source Node.js/Express REST API for searching torrents across 8 sources with Real-Debrid streaming support." />
+  <meta name="twitter:image" content="https://akshatsinghkaushik.github.io/stream-backend/site/og-image.svg" />
+  <meta name="twitter:image:alt" content="Torrent Search API terminal demo" />
+
+  <!-- Performance hints -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="dns-prefetch" href="https://github.com" />
+  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com" />
+
+  <!-- Fonts -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+
+  <!-- Tailwind config MUST precede the CDN script -->
+  <script>
+    window.tailwind = {
+      config: {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                950: '#0F172A',
+                900: '#1E293B',
+                800: '#334155',
+                700: '#475569',
+                600: '#64748B',
+                500: '#94A3B8',
+                400: '#CBD5E1',
+                300: '#E2E8F0',
+              },
+              muted: '#272F42',
+              green: {
+                400: '#4ADE80',
+                500: '#22C55E',
+              },
+              fg: '#F8FAFC',
+            },
+            fontFamily: {
+              mono:  ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+              sans:  ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+            },
+            boxShadow: {
+              'glow-green': '0 0 0 1px rgba(34,197,94,0.3), 0 0 32px rgba(34,197,94,0.2)',
+              'glow-sm':    '0 0 12px rgba(34,197,94,0.15)',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+
+  <!-- JSON-LD: SoftwareApplication -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Torrent Search API",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "REST API",
+    "operatingSystem": "Linux, macOS, Windows (Docker)",
+    "url": "https://akshatsinghkaushik.github.io/stream-backend/",
+    "downloadUrl": "https://github.com/akshatsinghkaushik/stream-backend",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "akshatsinghkaushik", "url": "https://github.com/akshatsinghkaushik" },
+    "description": "An open-source Node.js/Express REST API for searching torrents across 8 sources (Pirate Bay, 1337x, YTS, Nyaa, and more), resolving magnet links via Real-Debrid, and serving cached cover images from MongoDB and S3-compatible storage.",
+    "image": "https://akshatsinghkaushik.github.io/stream-backend/site/og-image.svg",
+    "featureList": [
+      "Search across 8 torrent sources simultaneously",
+      "Real-Debrid magnet link resolution and stream URL caching",
+      "Cloudflare bypass via FlareSolverr (1337x)",
+      "Cover image extraction and S3-compatible object storage",
+      "Google OAuth authentication with per-user favorites",
+      "Redis catalog pre-cache for Stremio addon integration",
+      "Eight autonomous background cache-warming jobs",
+      "Docker-ready with health checks and graceful shutdown"
+    ],
+    "programmingLanguage": "JavaScript",
+    "runtimePlatform": "Node.js 22"
+  }
+  </script>
+
+  <!-- JSON-LD: FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What torrent sources does the API support?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The API supports 8 sources: The Pirate Bay, 1337x (via FlareSolverr), YTS, Nyaa.si, LimeTorrents, TorrentProject, TheHiddenBay, and Pornrips."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is required to self-host?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "You need Node.js 22+, a MongoDB instance, and Google OAuth credentials. Redis, an S3-compatible bucket, and FlareSolverr are optional but unlock additional features."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does Real-Debrid integration work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Each authenticated user can store their own Real-Debrid API key (encrypted with AES-256-GCM). The API resolves magnet links to direct stream URLs and caches results in MongoDB for 20 hours. A background job proactively refreshes cached URLs for all favorited magnets every 24 hours."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is FlareSolverr and why is it needed?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "FlareSolverr is a self-hosted proxy that uses a headless browser to bypass Cloudflare bot protection. It is required only if you want to use the 1337x scraper. Set FLARESOLVERR_URL to your instance URL. All other scrapers work without it."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is authentication required to search?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. The search, browse, and details endpoints are unauthenticated. Authentication (Google OAuth) is only required for personal features: favorites, stored links, and Real-Debrid key management."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What license is this project under?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The project is released under the GNU General Public License v3.0 or later (GPL-3.0-or-later)."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- JSON-LD: WebSite (sitelinks searchbox) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Torrent Search API",
+    "url": "https://akshatsinghkaushik.github.io/stream-backend/"
+  }
+  </script>
+
+  <style>
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+    /* Green text glow */
+    .text-glow { text-shadow: 0 0 16px rgba(34,197,94,0.55), 0 0 36px rgba(34,197,94,0.25); }
+    /* Terminal cursor blink */
+    @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+    .cursor { display: inline-block; width: 0.55em; height: 1.1em; background: #22C55E; vertical-align: text-bottom; animation: blink 1.1s step-end infinite; }
+    /* Code panel scroll bar */
+    .term-scroll::-webkit-scrollbar { width: 5px; }
+    .term-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    /* Skip link */
+    .skip-link { position: absolute; left: -9999px; }
+    .skip-link:focus { left: 1rem; top: 1rem; z-index: 9999; padding: 0.5rem 1rem; background: #22C55E; color: #0F172A; border-radius: 6px; font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; outline: 2px solid #22C55E; outline-offset: 2px; }
+    /* Focus styles */
+    :focus-visible { outline: 2px solid #22C55E; outline-offset: 3px; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-fg font-sans antialiased">
+
+  <!-- Skip navigation -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- ================================================================
+       NAVIGATION
+  ================================================================ -->
+  <header role="banner">
+    <nav class="fixed top-0 inset-x-0 z-50 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md" aria-label="Primary navigation">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded" aria-label="Torrent Search API home">
+          <!-- Terminal arrow SVG icon -->
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <rect width="26" height="26" rx="6" fill="#1E293B"/>
+            <path d="M5 13 L13 7 L13 19 Z" fill="#22C55E"/>
+            <rect x="15" y="17" width="8" height="2.5" rx="1.25" fill="#22C55E" opacity="0.8"/>
+          </svg>
+          <span class="font-mono font-bold text-sm text-fg hidden sm:block">Torrent<span class="text-green-500">Search</span>API</span>
+        </a>
+        <!-- Nav links -->
+        <ul class="flex items-center gap-1 text-sm font-mono text-slate-500 list-none" role="list">
+          <li><a href="#features" class="px-3 py-1.5 rounded hover:text-fg hover:bg-slate-900 transition-colors">Features</a></li>
+          <li><a href="#endpoints" class="px-3 py-1.5 rounded hover:text-fg hover:bg-slate-900 transition-colors">Endpoints</a></li>
+          <li><a href="#quickstart" class="px-3 py-1.5 rounded hover:text-fg hover:bg-slate-900 transition-colors">Quickstart</a></li>
+          <li><a href="#faq" class="px-3 py-1.5 rounded hover:text-fg hover:bg-slate-900 transition-colors">FAQ</a></li>
+          <li>
+            <a href="https://github.com/akshatsinghkaushik/stream-backend"
+               class="ml-2 px-3 py-1.5 rounded border border-slate-700 hover:border-green-500 hover:text-green-500 transition-colors flex items-center gap-1.5"
+               target="_blank" rel="noopener noreferrer" aria-label="View on GitHub (opens in new tab)">
+              <!-- GitHub icon -->
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              GitHub
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+
+    <!-- ================================================================
+         HERO
+    ================================================================ -->
+    <section class="pt-28 pb-20 px-4 sm:px-6" aria-labelledby="hero-heading">
+      <div class="max-w-6xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+
+          <!-- Left: copy -->
+          <div>
+            <!-- Pill badge -->
+            <div class="inline-flex items-center gap-2 px-3 py-1 mb-6 rounded-full border border-green-500/30 bg-green-500/5 text-green-500 text-xs font-mono">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-glow-sm" aria-hidden="true"></span>
+              Open Source · GPL-3.0
+            </div>
+
+            <h1 id="hero-heading" class="font-mono text-4xl sm:text-5xl font-bold leading-tight mb-5">
+              Torrent Search
+              <span class="text-green-500 text-glow block">API</span>
+            </h1>
+
+            <p class="font-sans text-slate-400 text-lg leading-relaxed mb-8 max-w-lg">
+              A self-hostable Node.js/Express REST backend for searching torrents across 8 sources,
+              resolving magnet links via Real-Debrid, and caching cover images — all in one process.
+            </p>
+
+            <!-- CTA buttons -->
+            <div class="flex flex-wrap gap-3">
+              <a href="https://github.com/akshatsinghkaushik/stream-backend"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-green-500 text-slate-950 font-mono font-bold text-sm hover:bg-green-400 transition-colors shadow-glow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                 target="_blank" rel="noopener noreferrer" aria-label="View source code on GitHub (opens in new tab)">
+                <!-- GitHub icon -->
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                View on GitHub
+              </a>
+              <a href="#quickstart"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-700 text-slate-300 font-mono text-sm hover:border-slate-500 hover:text-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
+                <!-- Terminal icon -->
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="1" y="2" width="14" height="12" rx="2"/>
+                  <path d="M4 6l3 3-3 3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M8 12h4" stroke-linecap="round"/>
+                </svg>
+                Quickstart
+              </a>
+              <a href="api-reference.md"
+                 class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-700 text-slate-300 font-mono text-sm hover:border-slate-500 hover:text-fg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
+                <!-- Docs icon -->
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <path d="M3 2h7l3 3v9H3z" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M10 2v3h3" stroke-linecap="round"/>
+                  <path d="M5 7h6M5 10h4" stroke-linecap="round"/>
+                </svg>
+                API Docs
+              </a>
+            </div>
+
+            <!-- Stack badges -->
+            <div class="mt-8 flex flex-wrap gap-2" aria-label="Technology stack">
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">Node.js 22</span>
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">Express 4</span>
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">MongoDB</span>
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">Redis</span>
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">S3 storage</span>
+              <span class="px-2.5 py-1 rounded border border-slate-800 text-slate-500 text-xs font-mono">Docker</span>
+            </div>
+          </div>
+
+          <!-- Right: terminal panel -->
+          <div class="rounded-xl border border-slate-800 bg-slate-950 shadow-2xl overflow-hidden" role="img" aria-label="Terminal showing a sample API request">
+            <!-- Titlebar -->
+            <div class="flex items-center gap-2 px-4 py-3 bg-slate-900 border-b border-slate-800">
+              <span class="w-3 h-3 rounded-full bg-red-500/80" aria-hidden="true"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/80" aria-hidden="true"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/80" aria-hidden="true"></span>
+              <span class="ml-3 text-slate-600 font-mono text-xs">api-demo — bash</span>
+            </div>
+            <!-- Code -->
+            <div class="p-5 font-mono text-sm leading-relaxed text-slate-300 term-scroll overflow-x-auto" aria-hidden="true">
+              <p class="text-slate-600"># Search the Pirate Bay for Ubuntu torrents</p>
+              <p class="mt-1"><span class="text-green-500">$</span> curl <span class="text-slate-400">\</span></p>
+              <p class="pl-4 text-slate-400">"http://localhost:3001/api/torrents/</p>
+              <p class="pl-5 text-green-400">search/piratebay/ubuntu/1"</p>
+              <p class="mt-4 text-fg">[</p>
+              <p class="pl-4 text-fg">{</p>
+              <p class="pl-6"><span class="text-green-500">"Name"</span><span class="text-slate-500">:</span> <span class="text-slate-200">"Ubuntu 24.04 LTS"</span><span class="text-slate-500">,</span></p>
+              <p class="pl-6"><span class="text-green-500">"Seeders"</span><span class="text-slate-500">:</span> <span class="text-yellow-400">"4291"</span><span class="text-slate-500">,</span></p>
+              <p class="pl-6"><span class="text-green-500">"Size"</span><span class="text-slate-500">:</span> <span class="text-slate-200">"4.7 GB"</span><span class="text-slate-500">,</span></p>
+              <p class="pl-6"><span class="text-green-500">"MagnetLink"</span><span class="text-slate-500">:</span> <span class="text-slate-200">"magnet:?xt=..."</span><span class="text-slate-500">,</span></p>
+              <p class="pl-6"><span class="text-green-500">"Source"</span><span class="text-slate-500">:</span> <span class="text-slate-200">"piratebay"</span></p>
+              <p class="pl-4 text-fg">}</p>
+              <p class="text-fg">]</p>
+              <p class="mt-3"><span class="text-green-500">$</span> <span class="cursor" aria-hidden="true"></span></p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         FEATURES
+    ================================================================ -->
+    <section id="features" class="py-20 px-4 sm:px-6 border-t border-slate-900" aria-labelledby="features-heading">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-12 text-center">
+          <h2 id="features-heading" class="font-mono text-3xl font-bold text-fg mb-3">Features</h2>
+          <p class="font-sans text-slate-500 max-w-xl mx-auto">Everything you need in a single self-hostable process.</p>
+        </div>
+
+        <ul class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 list-none" role="list">
+          <!-- Feature card -->
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <circle cx="10" cy="10" r="8"/>
+                <path d="M10 6v4l3 3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">8 Torrent Sources</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Search Pirate Bay, 1337x, YTS, Nyaa.si, LimeTorrents, TorrentProject, TheHiddenBay, and Pornrips — simultaneously or individually.</p>
+          </li>
+
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <path d="M3 10h14M10 3l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">Real-Debrid Integration</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Resolve magnet links to direct stream URLs. Per-user encrypted API keys, 20-hour TTL caching, and a 24-hour background refresh job for favorites.</p>
+          </li>
+
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <path d="M4 4h12v12H4z" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 4v12M12 4v12M4 8h12M4 12h12" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">Cloudflare Bypass</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Integrates with an upstream FlareSolverr instance for Cloudflare-protected sources. Gracefully skips if not configured.</p>
+          </li>
+
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <rect x="2" y="5" width="16" height="12" rx="2"/>
+                <path d="M6 5V3h8v2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="10" cy="11" r="2"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">Cover Image Caching</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Extract cover art from torrent descriptions. Store in MongoDB or an S3-compatible bucket with presigned URL auto-refresh.</p>
+          </li>
+
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <path d="M10 2a8 8 0 100 16A8 8 0 0010 2z"/>
+                <path d="M10 6v4h4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">8 Background Jobs</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Autonomous cache-warming jobs run on configurable schedules: stream URL refresh, cover image pre-cache, Redis catalog pre-cache, log maintenance, and more.</p>
+          </li>
+
+          <li class="rounded-xl border border-slate-800 bg-slate-900 p-6 hover:border-green-500/30 transition-colors">
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-4" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#22C55E" stroke-width="1.5">
+                <rect x="2" y="3" width="16" height="14" rx="2"/>
+                <path d="M7 7h6M7 10h6M7 13h3" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="font-mono font-bold text-fg mb-2">Google OAuth + Favorites</h3>
+            <p class="font-sans text-slate-500 text-sm leading-relaxed">Session-based auth via Google OAuth. Per-user favorites, stored links, and torrent detail snapshots persisted in MongoDB.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         ENDPOINTS OVERVIEW
+    ================================================================ -->
+    <section id="endpoints" class="py-20 px-4 sm:px-6 border-t border-slate-900" aria-labelledby="endpoints-heading">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-12 text-center">
+          <h2 id="endpoints-heading" class="font-mono text-3xl font-bold text-fg mb-3">Endpoints</h2>
+          <p class="font-sans text-slate-500 max-w-xl mx-auto">Key REST endpoints. Full reference in <a href="api-reference.md" class="text-green-500 hover:underline">api-reference.md</a>.</p>
+        </div>
+
+        <div class="rounded-xl border border-slate-800 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm font-mono" aria-label="API endpoints overview">
+              <thead>
+                <tr class="bg-slate-900 border-b border-slate-800">
+                  <th class="px-5 py-3 text-left text-slate-500 font-medium text-xs uppercase tracking-wide">Method</th>
+                  <th class="px-5 py-3 text-left text-slate-500 font-medium text-xs uppercase tracking-wide">Path</th>
+                  <th class="px-5 py-3 text-left text-slate-500 font-medium text-xs uppercase tracking-wide">Auth</th>
+                  <th class="px-5 py-3 text-left text-slate-500 font-medium text-xs uppercase tracking-wide hidden lg:table-cell">Description</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-900">
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/health</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Liveness check</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/torrents/search/:site/:query</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Search a single source</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-yellow-400">POST</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/torrents/advanced-search</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Multi-source search with filters</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/torrents/browse/:category</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Browse by category (no query)</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/torrents/details/:site/:url</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Fetch magnet + description + files</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/auth/google</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Initiate Google OAuth</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-yellow-400">POST</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/auth/exchange</td>
+                  <td class="px-5 py-3 text-slate-600">—</td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Exchange one-time code for session</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/storage/favorites</td>
+                  <td class="px-5 py-3"><span class="text-green-500/60">required</span></td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">List user favorites</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-yellow-400">POST</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/auth/realdebrid/api-key</td>
+                  <td class="px-5 py-3"><span class="text-green-500/60">required</span></td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Store Real-Debrid API key</td>
+                </tr>
+                <tr class="hover:bg-slate-900/50 transition-colors">
+                  <td class="px-5 py-3"><span class="text-green-500">GET</span></td>
+                  <td class="px-5 py-3 text-slate-300">/api/monitoring/dashboard</td>
+                  <td class="px-5 py-3"><span class="text-yellow-400/70">password</span></td>
+                  <td class="px-5 py-3 text-slate-500 hidden lg:table-cell font-sans">Monitoring dashboard data</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         QUICKSTART
+    ================================================================ -->
+    <section id="quickstart" class="py-20 px-4 sm:px-6 border-t border-slate-900" aria-labelledby="quickstart-heading">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-12 text-center">
+          <h2 id="quickstart-heading" class="font-mono text-3xl font-bold text-fg mb-3">Quickstart</h2>
+          <p class="font-sans text-slate-500 max-w-xl mx-auto">Up and running in under five minutes with Docker or Node.js directly.</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6">
+
+          <!-- Docker quickstart -->
+          <div class="rounded-xl border border-slate-800 overflow-hidden">
+            <div class="flex items-center justify-between bg-slate-900 px-5 py-3 border-b border-slate-800">
+              <span class="font-mono text-sm font-medium text-slate-300">Docker</span>
+              <button class="copy-btn font-mono text-xs text-slate-600 hover:text-green-500 transition-colors flex items-center gap-1"
+                      data-target="code-docker" aria-label="Copy Docker command">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="4" y="4" width="8" height="8" rx="1.5"/>
+                  <path d="M2 10V2h8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+            <pre id="code-docker" class="p-5 text-sm font-mono text-slate-300 overflow-x-auto bg-slate-950 leading-relaxed"><code><span class="text-slate-600"># Pull and run</span>
+<span class="text-green-500">docker</span> build -t torrent-search-api .
+<span class="text-green-500">docker</span> run -p 3001:3001 <span class="text-slate-500">\</span>
+  -e <span class="text-yellow-400">MONGODB_URI</span>=mongodb://host:27017 <span class="text-slate-500">\</span>
+  -e <span class="text-yellow-400">GOOGLE_SERVICE_ACCOUNT_JSON</span>=<span class="text-slate-400">'...'</span> <span class="text-slate-500">\</span>
+  -e <span class="text-yellow-400">GOOGLE_CUSTOM_SEARCH_ENGINE_ID</span>=<span class="text-slate-400">'...'</span> <span class="text-slate-500">\</span>
+  -e <span class="text-yellow-400">SESSION_SECRET</span>=<span class="text-slate-400">'change-me'</span> <span class="text-slate-500">\</span>
+  -e <span class="text-yellow-400">FRONTEND_URL</span>=<span class="text-slate-400">'http://localhost:3000'</span> <span class="text-slate-500">\</span>
+  torrent-search-api</code></pre>
+          </div>
+
+          <!-- Node quickstart -->
+          <div class="rounded-xl border border-slate-800 overflow-hidden">
+            <div class="flex items-center justify-between bg-slate-900 px-5 py-3 border-b border-slate-800">
+              <span class="font-mono text-sm font-medium text-slate-300">Node.js</span>
+              <button class="copy-btn font-mono text-xs text-slate-600 hover:text-green-500 transition-colors flex items-center gap-1"
+                      data-target="code-node" aria-label="Copy Node.js setup commands">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="4" y="4" width="8" height="8" rx="1.5"/>
+                  <path d="M2 10V2h8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+            <pre id="code-node" class="p-5 text-sm font-mono text-slate-300 overflow-x-auto bg-slate-950 leading-relaxed"><code><span class="text-slate-600"># Clone and install</span>
+<span class="text-green-500">git</span> clone https://github.com/akshatsinghkaushik/stream-backend.git
+<span class="text-green-500">cd</span> stream-backend
+<span class="text-green-500">npm</span> install
+
+<span class="text-slate-600"># Configure</span>
+<span class="text-green-500">cp</span> .env.example .env
+<span class="text-slate-400"># Edit .env with your MongoDB URI, Google creds, SESSION_SECRET</span>
+
+<span class="text-slate-600"># Start</span>
+<span class="text-green-500">npm</span> start</code></pre>
+          </div>
+
+        </div>
+
+        <!-- Sample curl commands -->
+        <div class="mt-6 rounded-xl border border-slate-800 overflow-hidden">
+          <div class="flex items-center justify-between bg-slate-900 px-5 py-3 border-b border-slate-800">
+            <span class="font-mono text-sm font-medium text-slate-300">Sample requests</span>
+          </div>
+          <div class="p-5 bg-slate-950 font-mono text-sm leading-loose text-slate-400 overflow-x-auto">
+            <p><span class="text-slate-600"># Search Pirate Bay</span></p>
+            <p><span class="text-green-500">curl</span> "http://localhost:3001/api/torrents/search/piratebay/ubuntu/1"</p>
+            <p class="mt-3"><span class="text-slate-600"># Search all sources simultaneously</span></p>
+            <p><span class="text-green-500">curl</span> -X POST "http://localhost:3001/api/torrents/advanced-search" <span class="text-slate-600">\</span></p>
+            <p class="pl-5">-H "Content-Type: application/json" <span class="text-slate-600">\</span></p>
+            <p class="pl-5">-d '{"query":"ubuntu","websites":["all"],"maxResults":20}'</p>
+            <p class="mt-3"><span class="text-slate-600"># Get torrent details (magnet link, files, images)</span></p>
+            <p><span class="text-green-500">curl</span> "http://localhost:3001/api/torrents/details/yts/$(python3 -c "import urllib.parse; print(urllib.parse.quote('https://yts.mx/movies/...'))")"</p>
+            <p class="mt-3"><span class="text-slate-600"># Health check</span></p>
+            <p><span class="text-green-500">curl</span> "http://localhost:3001/health"</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         CONFIGURATION HIGHLIGHTS
+    ================================================================ -->
+    <section class="py-20 px-4 sm:px-6 border-t border-slate-900" aria-labelledby="config-heading">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-12 text-center">
+          <h2 id="config-heading" class="font-mono text-3xl font-bold text-fg mb-3">Configuration</h2>
+          <p class="font-sans text-slate-500 max-w-xl mx-auto">
+            Everything is controlled via environment variables.
+            Full reference in <a href="configuration.md" class="text-green-500 hover:underline">configuration.md</a>.
+          </p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Config card -->
+          <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+            <p class="font-mono text-green-500 text-xs mb-2">REQUIRED</p>
+            <ul class="font-mono text-sm text-slate-300 space-y-1 list-none">
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                MONGODB_URI
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                GOOGLE_SERVICE_ACCOUNT_JSON
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                GOOGLE_CUSTOM_SEARCH_ENGINE_ID
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                SESSION_SECRET
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                FRONTEND_URL
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+            <p class="font-mono text-yellow-400/70 text-xs mb-2">OPTIONAL — STREAMING</p>
+            <ul class="font-mono text-sm text-slate-300 space-y-1 list-none">
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                FLARESOLVERR_URL
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                REDIS_URL
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                REDIS_PASSWORD
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                BASE_URL
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+            <p class="font-mono text-slate-500 text-xs mb-2">OPTIONAL — STORAGE</p>
+            <ul class="font-mono text-sm text-slate-300 space-y-1 list-none">
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                S3_ENDPOINT
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                S3_BUCKET
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                S3_ACCESS_KEY_ID
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                S3_SECRET_ACCESS_KEY
+              </li>
+              <li class="flex items-center gap-2">
+                <span class="text-slate-700" aria-hidden="true">▸</span>
+                DASHBOARD_PASSWORD
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         FAQ
+    ================================================================ -->
+    <section id="faq" class="py-20 px-4 sm:px-6 border-t border-slate-900" aria-labelledby="faq-heading">
+      <div class="max-w-3xl mx-auto">
+        <div class="mb-12 text-center">
+          <h2 id="faq-heading" class="font-mono text-3xl font-bold text-fg mb-3">FAQ</h2>
+        </div>
+
+        <dl class="space-y-3">
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                What torrent sources are supported?
+                <!-- chevron -->
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                Eight sources: <strong class="text-slate-300">The Pirate Bay</strong>, <strong class="text-slate-300">1337x</strong> (via FlareSolverr), <strong class="text-slate-300">YTS</strong>, <strong class="text-slate-300">Nyaa.si</strong>, <strong class="text-slate-300">LimeTorrents</strong>, <strong class="text-slate-300">TorrentProject</strong>, <strong class="text-slate-300">TheHiddenBay</strong>, and <strong class="text-slate-300">Pornrips</strong>. Adding new sources requires a scraper module and a one-line registration in the service registry.
+              </div>
+            </details>
+          </div>
+
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                What do I need to self-host?
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                <strong class="text-slate-300">Required:</strong> Node.js 22+, a MongoDB instance, Google Cloud credentials (service account + OAuth client). <br/>
+                <strong class="text-slate-300">Optional:</strong> Redis (catalog pre-cache), an S3-compatible bucket (cover images), and a FlareSolverr instance (1337x scraper).
+              </div>
+            </details>
+          </div>
+
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                How does Real-Debrid integration work?
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                Each authenticated user can store their own Real-Debrid API key (encrypted with AES-256-GCM, key derived from your <code class="text-green-500">SESSION_SECRET</code>). The API resolves magnet links to direct HTTP stream URLs and caches them for 20 hours. A background job runs every 24 hours to proactively refresh URLs for all favorited magnets across all users.
+              </div>
+            </details>
+          </div>
+
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                Does the search API require authentication?
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                No. The search, browse, and detail endpoints are open. Authentication is only required for personal data: favorites, stored links, and Real-Debrid key management. You can also restrict access to these public endpoints using rate limiting and CORS configuration.
+              </div>
+            </details>
+          </div>
+
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                What is FlareSolverr and is it required?
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                FlareSolverr is a self-hosted proxy that solves Cloudflare challenges using a headless browser. It is only needed for the 1337x scraper. If <code class="text-green-500">FLARESOLVERR_URL</code> is not set, the 1337x scraper returns an error while all other scrapers continue to function normally.
+              </div>
+            </details>
+          </div>
+
+          <div>
+            <details class="rounded-xl border border-slate-800 bg-slate-900/40 group">
+              <summary class="flex items-center justify-between px-6 py-4 cursor-pointer font-mono font-medium text-fg list-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-xl">
+                What license is this project under?
+                <svg class="shrink-0 w-4 h-4 text-slate-600 group-open:rotate-180 transition-transform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </summary>
+              <div class="px-6 pb-5 font-sans text-slate-400 text-sm leading-relaxed">
+                GPL-3.0-or-later. You are free to use, modify, and distribute this software under the terms of the GNU General Public License version 3 or any later version. See the <a href="https://github.com/akshatsinghkaushik/stream-backend/blob/master/LICENSE" class="text-green-500 hover:underline" target="_blank" rel="noopener noreferrer" aria-label="View LICENSE file on GitHub (opens in new tab)">LICENSE</a> file for the full text.
+              </div>
+            </details>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================================================================
+       FOOTER
+  ================================================================ -->
+  <footer class="border-t border-slate-900 py-12 px-4 sm:px-6" role="contentinfo">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+
+        <!-- Brand -->
+        <div>
+          <p class="font-mono font-bold text-fg mb-2">
+            Torrent<span class="text-green-500">Search</span>API
+          </p>
+          <p class="font-sans text-slate-600 text-sm">
+            Open-source Node.js/Express REST backend for multi-source torrent search and streaming.
+          </p>
+          <p class="font-mono text-xs text-slate-700 mt-3">GPL-3.0-or-later</p>
+        </div>
+
+        <!-- Documentation -->
+        <nav aria-label="Documentation links">
+          <p class="font-mono font-medium text-slate-400 text-xs uppercase tracking-wide mb-3">Documentation</p>
+          <ul class="space-y-2 list-none font-sans text-sm">
+            <li><a href="architecture.md" class="text-slate-500 hover:text-green-500 transition-colors">Architecture</a></li>
+            <li><a href="code-structure.md" class="text-slate-500 hover:text-green-500 transition-colors">Code Structure</a></li>
+            <li><a href="api-reference.md" class="text-slate-500 hover:text-green-500 transition-colors">API Reference</a></li>
+            <li><a href="scrapers.md" class="text-slate-500 hover:text-green-500 transition-colors">Scrapers</a></li>
+          </ul>
+        </nav>
+
+        <!-- More docs -->
+        <nav aria-label="Additional documentation links">
+          <p class="font-mono font-medium text-slate-400 text-xs uppercase tracking-wide mb-3">More Docs</p>
+          <ul class="space-y-2 list-none font-sans text-sm">
+            <li><a href="caching-and-storage.md" class="text-slate-500 hover:text-green-500 transition-colors">Caching &amp; Storage</a></li>
+            <li><a href="configuration.md" class="text-slate-500 hover:text-green-500 transition-colors">Configuration</a></li>
+            <li><a href="development.md" class="text-slate-500 hover:text-green-500 transition-colors">Development</a></li>
+          </ul>
+        </nav>
+
+        <!-- Links -->
+        <nav aria-label="External links">
+          <p class="font-mono font-medium text-slate-400 text-xs uppercase tracking-wide mb-3">Links</p>
+          <ul class="space-y-2 list-none font-sans text-sm">
+            <li>
+              <a href="https://github.com/akshatsinghkaushik/stream-backend"
+                 class="text-slate-500 hover:text-green-500 transition-colors flex items-center gap-1.5"
+                 target="_blank" rel="noopener noreferrer" aria-label="GitHub repository (opens in new tab)">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/akshatsinghkaushik/stream-backend/blob/master/LICENSE"
+                 class="text-slate-500 hover:text-green-500 transition-colors"
+                 target="_blank" rel="noopener noreferrer" aria-label="LICENSE file (opens in new tab)">
+                License
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/akshatsinghkaushik/stream-backend/blob/master/README.md"
+                 class="text-slate-500 hover:text-green-500 transition-colors"
+                 target="_blank" rel="noopener noreferrer" aria-label="README (opens in new tab)">
+                README
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+      </div>
+
+      <div class="pt-6 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="font-mono text-xs text-slate-700">
+          &copy; 2025 akshatsinghkaushik — released under GPL-3.0-or-later
+        </p>
+        <p class="font-mono text-xs text-slate-800">
+          Built with Node.js · MongoDB · Redis · Docker
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Copy-to-clipboard for code blocks
+    document.querySelectorAll('.copy-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var targetId = btn.getAttribute('data-target');
+        var pre = document.getElementById(targetId);
+        if (!pre) return;
+        var text = pre.innerText || pre.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+          var orig = btn.innerHTML;
+          btn.textContent = 'Copied!';
+          btn.classList.add('text-green-500');
+          setTimeout(function() {
+            btn.innerHTML = orig;
+            btn.classList.remove('text-green-500');
+          }, 2000);
+        }).catch(function() {
+          // fallback: select text
+          var range = document.createRange();
+          range.selectNodeContents(pre);
+          var sel = window.getSelection();
+          if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+        });
+      });
+    });
+
+    // Smooth-scroll for in-page links (respects prefers-reduced-motion via CSS)
+    document.querySelectorAll('a[href^="#"]').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        var target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target.setAttribute('tabindex', '-1');
+          target.focus({ preventScroll: true });
+        }
+      });
+    });
+  </script>
+</body>
+</html>

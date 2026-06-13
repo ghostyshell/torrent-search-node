@@ -15,9 +15,8 @@ const axios = require('axios');
 const { extractImageLinks } = require('../imageExtractorService');
 
 // FlareSolverr configuration
-// Hosted FlareSolverr instance: https://flaresolver.sliplane.app/
-const FLARESOLVERR_URL =
-  process.env.FLARESOLVERR_URL || 'https://flaresolver.sliplane.app/v1';
+// Upstream FlareSolverr instance (set FLARESOLVERR_URL env var)
+const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL || '';
 const FLARESOLVERR_MAX_TIMEOUT = 55000; // 55 seconds - keep under platform timeouts (usually 60s)
 
 // 1337x base URL - using original domain as mirrors have incomplete search results
@@ -69,6 +68,12 @@ const log = {
  * @returns {Promise<{html: string, cookies: Array}>} The HTML content and cookies
  */
 async function flareSolverrRequest(url, sessionId = null) {
+  if (!FLARESOLVERR_URL) {
+    throw new Error(
+      'FLARESOLVERR_URL is not set. Configure this environment variable to point to your FlareSolverr instance before using the 1337x scraper.'
+    );
+  }
+
   const startTime = Date.now();
   log.info(`FlareSolverr request starting`, {
     url,

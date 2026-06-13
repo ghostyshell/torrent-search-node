@@ -17,7 +17,7 @@
  *   REDIS_URL      – Redis connection URL  (same as the addon's REDIS_URL)
  *   REDIS_PASSWORD – optional password     (same as the addon's REDIS_PASSWORD)
  *   BASE_URL       – this service's public URL, must match the addon users'
- *                    backendUrl setting (e.g. https://stream-backend.sliplane.app)
+ *                    backendUrl setting (e.g. https://your-api-host.example.com)
  */
 
 const pirateBay = require('./scrapers/pirateBay');

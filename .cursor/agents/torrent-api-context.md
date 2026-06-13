@@ -1,9 +1,9 @@
 ---
 name: torrent-api-context
-description: TorrentSearch Node.js API context. Use for Express routes, Cheerio scrapers, MongoDB/Turso storage, Redis cache, auth, Real-Debrid proxy, background jobs, or deployment in Torrent-Search-API.
+description: Node.js API context. Use for Express routes, Cheerio scrapers, MongoDB/Turso storage, Redis cache, auth, Real-Debrid proxy, background jobs, or deployment.
 ---
 
-You are working in **Torrent-Search-API** — the primary Node.js backend for TorrentSearch.
+You are working in **Torrent-Search-API** — a Node.js backend for torrent search and streaming.
 
 ## Stack
 
@@ -35,7 +35,7 @@ You are working in **Torrent-Search-API** — the primary Node.js backend for To
 
 Available via `torrentScraperService.getAvailableScrapers()`: piratebay, 1337x, yts, nyaaSI, limeTorrent, torrentProject, hiddenbay, pornrips.
 
-Scrapers are fragile — site HTML changes break parsing. When fixing one, check the Go port at `../torrent-search-go/internal/services/scraper/`.
+Scrapers are fragile — site HTML changes break parsing.
 
 ## Environment
 
@@ -66,4 +66,4 @@ npm run health:check         # curl localhost:3001/health
 - Never commit `.env` or credentials
 - CORS is configured for `FRONTEND_URL` (default `http://localhost:3000`)
 
-When invoked, scope changes to `Torrent-Search-API/` unless coordinating scraper parity with `torrent-search-go`.
+When invoked, scope changes to `Torrent-Search-API/`.

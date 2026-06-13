@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://akshatsinghkaushik.github.io/stream-backend/site/sitemap.xml

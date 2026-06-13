@@ -1,6 +1,6 @@
 /**
  * Studio names for background jobs: ../config/studioSearchTerms.json (JSON array).
- * Keep in sync with torrent-browse-ui/src/data/studioSearchTerms.json (same order).
+ * Keep in sync with the frontend's studio search terms (same order).
  *
  * Order is manual. Omitted (thin Porn-HD first pages): Evil Angel, Bang PrettyAndRaw, BangBros.
  *

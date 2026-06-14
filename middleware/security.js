@@ -24,7 +24,7 @@ function createRateLimiters() {
 
   const authLimiter = rateLimit({
     windowMs,
-    max: 100,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many auth requests, please try again later.' },
@@ -32,7 +32,7 @@ function createRateLimiters() {
 
   const apiLimiter = rateLimit({
     windowMs,
-    max: Math.max(config.security.rateLimiting.max, 1000),
+    max: Math.max(config.security.rateLimiting.max, 3000),
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many requests, please try again later.' },

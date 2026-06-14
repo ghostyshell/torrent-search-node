@@ -112,7 +112,7 @@ const config = {
     rateLimiting: {
       enabled: isProduction,
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: isProduction ? 1000 : 1000, // requests per window
+      max: isProduction ? 3000 : 3000, // requests per window
     },
     // IP allowlist for monitoring/debug endpoints
     monitoringIpAllowlist: getMonitoringIpAllowlist(),

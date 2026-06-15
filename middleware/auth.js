@@ -12,6 +12,21 @@ class AuthMiddleware {
           req.headers.authorization?.replace('Bearer ', '') ||
           req.cookies?.sessionToken;
 
+        // Addon-to-backend service token: ADDON_API_TOKEN, sent as
+        // Authorization: Bearer <token> or X-Addon-Token: <token>.
+        // This lets the Stremio addon authenticate internal cache/storage
+        // requests without a user session. It does NOT identify a user.
+        const addonToken = process.env.ADDON_API_TOKEN;
+        const authHeader = req.headers.authorization || '';
+        const bearerToken = authHeader.startsWith('Bearer ')
+          ? authHeader.slice(7)
+          : '';
+        const xAddonToken = req.headers['x-addon-token'];
+        if (addonToken && (bearerToken === addonToken || xAddonToken === addonToken)) {
+          req.isAddonServiceRequest = true;
+          return next();
+        }
+
         if (!sessionToken) {
           return res.status(401).json({
             success: false,

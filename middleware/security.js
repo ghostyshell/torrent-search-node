@@ -2,6 +2,16 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { config } = require('../config/environment');
 
+function matchesAddonToken(req) {
+  const expected = process.env.ADDON_API_TOKEN;
+  if (!expected) return false;
+  const authHeader = req.get('Authorization') || '';
+  const bearerToken = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : '';
+  return bearerToken === expected || req.get('X-Addon-Token') === expected;
+}
+
 /**
  * Security headers. CSP disabled so the monitoring dashboard inline scripts keep working.
  */
@@ -38,15 +48,10 @@ function createRateLimiters() {
     message: { success: false, error: 'Too many requests, please try again later.' },
     skip: (req) => {
       if (req.path === '/health' || req.path.startsWith('/health/')) return true;
-      // Trust authenticated addon traffic. ADDON_API_TOKEN, when set, is the
-      // shared secret the addon sends in X-Addon-Token. If it matches, skip
-      // the limiter — the addon is bounded by its own internal throttles and
-      // is not the threat model (the IP-based limiter is). Without this, the
-      // addon's pod-to-pod calls all share one IP, which exhausts the bucket
-      // fast (the public URL gets fresh IPs per Stremio client, the internal
-      // URL does not).
-      const expected = process.env.ADDON_API_TOKEN;
-      if (expected && req.get('X-Addon-Token') === expected) return true;
+      // Trust authenticated addon traffic (Bearer or X-Addon-Token). Without
+      // this, the addon's pod-to-pod calls all share one IP and exhaust the
+      // rate-limit bucket quickly.
+      if (matchesAddonToken(req)) return true;
       return false;
     },
   });

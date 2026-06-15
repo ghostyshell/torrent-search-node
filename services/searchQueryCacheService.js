@@ -29,13 +29,9 @@
 
 const pirateBay = require('./scrapers/pirateBay');
 const logger    = require('../middleware/logger');
+const { config } = require('../config/environment');
 
-const REDIS_TTL           = 2 * 60 * 60;  // 2 hours
-const QUERY_RETENTION_DAYS = 2;
 const SORT_SEEDERS        = '7';
-const SLEEP_BETWEEN_COVERS = 300;          // ms between cover fetches per torrent
-const SLEEP_BETWEEN_QUERIES = 1500;        // ms between queries (rate-limit scraper)
-const SLEEP_BETWEEN_PAGES   = 500;
 
 // Process both quality tiers for every query.
 const CATEGORIES = [
@@ -106,6 +102,13 @@ class SearchQueryCacheService {
       cleanedUp:        0,
       errors:           [],
     };
+
+    const jobCfg = config.backgroundJobs.searchQueryCache;
+    const REDIS_TTL = jobCfg.redisTtlSeconds;
+    const QUERY_RETENTION_DAYS = jobCfg.queryRetentionDays;
+    const SLEEP_BETWEEN_COVERS = jobCfg.sleepBetweenCoversMs;
+    const SLEEP_BETWEEN_QUERIES = jobCfg.sleepBetweenQueriesMs;
+    const SLEEP_BETWEEN_PAGES = jobCfg.sleepBetweenPagesMs;
 
     logger.info('[searchQueryCache] Job started');
 

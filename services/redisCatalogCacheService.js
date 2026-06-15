@@ -23,6 +23,7 @@
 const pirateBay = require('./scrapers/pirateBay');
 const { STUDIOS } = require('./studioSearchTerms');
 const logger = require('../middleware/logger');
+const { config } = require('../config/environment');
 
 // ── Redis client ──────────────────────────────────────────────────────────────
 

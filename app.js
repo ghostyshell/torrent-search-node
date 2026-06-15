@@ -748,17 +748,19 @@ const startPeriodicStreamUrlRefresh = () => {
   const authService = new AuthService(storageProvider);
   const refreshService = new StreamUrlRefreshService(storageProvider, authService);
 
-  const refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
-  const initialDelay = 70 * 1000; // 70 seconds
+  const jobCfg = config.backgroundJobs.streamUrlRefresh;
+  const refreshInterval = jobCfg.intervalMs;
+  const initialDelay = jobCfg.initialDelayMs;
   logger.info('Starting periodic stream URL refresh for favorites', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
+    initialDelayMinutes: initialDelay / (60 * 1000),
     note: 'Refreshes Real-Debrid stream URLs for all favorites with magnet links',
   });
 
   // Align monitoring nextRun with the initial setTimeout below (same initialDelay)
   monitoringController.backgroundTaskStats.streamUrlRefresh.nextRun = new Date(Date.now() + initialDelay).toISOString();
 
-  // Run initial refresh after 70 seconds to let server fully initialize
+  // Run initial refresh after the configured delay to let server fully initialize
   setTimeout(async () => {
     await runWithJobFileLogging('streamUrlRefresh', async () => {
       try {
@@ -797,7 +799,7 @@ const startPeriodicStreamUrlRefresh = () => {
     });
   }, initialDelay);
 
-  // Then run every 24 hours
+  // Then run on the configured interval
   setInterval(async () => {
     await runWithJobFileLogging('streamUrlRefresh', async () => {
       try {
@@ -843,12 +845,14 @@ const startPeriodicDescriptionImageCache = () => {
   const DescriptionImageCacheService = require('./services/descriptionImageCacheService');
   const cacheService = new DescriptionImageCacheService(storageProvider);
 
-  const intervalMs = 6 * 60 * 60 * 1000; // 6 hours
-  const initialDelay = 2 * 60 * 1000;     // 2 minutes after startup
+  const jobCfg = config.backgroundJobs.descriptionImageCache;
+  const intervalMs = jobCfg.intervalMs;
+  const initialDelay = jobCfg.initialDelayMs;
 
   logger.info('Starting periodic description/image cache job', {
     intervalHours: intervalMs / (60 * 60 * 1000),
-    note: 'Caches cover images for piratebay Porn HD: browse (6 pages) + xxx (5 pages) + trans (2 pages) + studios',
+    initialDelayMinutes: initialDelay / (60 * 1000),
+    note: 'Caches cover images for piratebay Porn HD: browse + xxx + trans + studios (page counts configurable)',
   });
 
   monitoringController.backgroundTaskStats.descriptionImageCache.nextRun =
@@ -912,12 +916,14 @@ const startPeriodicSearchResultsCache = () => {
   const authService = new AuthService(storageProvider);
   const refreshService = new StreamUrlRefreshService(storageProvider, authService);
 
-  const refreshInterval = 6 * 60 * 60 * 1000; // 6 hours — browse + trans (2) + studio filters
-  const initialDelay = 3 * 60 * 1000;           // 3 minutes after startup
+  const jobCfg = config.backgroundJobs.searchResultsCache;
+  const refreshInterval = jobCfg.intervalMs;
+  const initialDelay = jobCfg.initialDelayMs;
 
   logger.info('Starting periodic filter stream URL cache job', {
     intervalHours: refreshInterval / (60 * 60 * 1000),
-    note: 'Refreshes RD stream URLs for browse (507, 6 pages) + trans (2 pages) + 2 pages per studio — always re-fetches (expired URLs replaced)',
+    initialDelayMinutes: initialDelay / (60 * 1000),
+    note: 'Refreshes RD stream URLs for browse + trans + studios (page counts configurable)',
   });
 
   monitoringController.backgroundTaskStats.searchResultsCache.nextRun =
@@ -1020,8 +1026,13 @@ const startPeriodicRedisCatalogCache = () => {
   const RedisCatalogCacheService = require('./services/redisCatalogCacheService');
   const cacheService = new RedisCatalogCacheService();
 
-  // Returns a random delay between 25 and 35 minutes in ms
-  const nextDelay = () => (25 + Math.floor(Math.random() * 10)) * 60 * 1000;
+  const jobCfg = config.backgroundJobs.redisCatalogCache;
+  // Returns a random delay between the configured min/max (default 25–35 min)
+  const nextDelay = () => {
+    const min = jobCfg.intervalMinMs;
+    const max = Math.max(min, jobCfg.intervalMaxMs);
+    return min + Math.floor(Math.random() * (max - min + 1));
+  };
 
   const runJob = async () => {
     try {
@@ -1043,22 +1054,22 @@ const startPeriodicRedisCatalogCache = () => {
     setTimeout(runJob, delay);
   };
 
-  // Initial run after 3 minutes to let the server warm up
+  // Initial run after a short delay to let the server warm up
   const initialDelay = 3 * 60 * 1000;
   monitoringController.backgroundTaskStats.redisCatalogCache.nextRun =
     new Date(Date.now() + initialDelay).toISOString();
 
   logger.info('[redisCatalog] Catalog cache job scheduled', {
-    initialDelayMinutes: 3,
-    intervalMinutes: '25–35 (jittered)',
+    initialDelayMinutes: initialDelay / (60 * 1000),
+    intervalMinutes: `${jobCfg.intervalMinMs / (60 * 1000)}–${jobCfg.intervalMaxMs / (60 * 1000)} (jittered, configurable)`,
   });
 
   setTimeout(runJob, initialDelay);
 };
 
 // Periodic search-query cache job — refreshes Redis results and cover images
-// for every distinct query recorded in the last 2 days. Also cleans up
-// search_queries rows older than 2 days at the end of each run.
+// for every distinct query recorded in the retention window. Also cleans up
+// search_queries rows older than the retention window at the end of each run.
 const startPeriodicSearchQueryCache = () => {
   if (!storageProvider) {
     logger.warn('[searchQueryCache] Storage not available — skipping search query cache job');
@@ -1068,10 +1079,16 @@ const startPeriodicSearchQueryCache = () => {
   const SearchQueryCacheService = require('./services/searchQueryCacheService');
   const cacheService = new SearchQueryCacheService(storageProvider);
 
-  const intervalMs    = 2 * 60 * 60 * 1000; // 2 hours
-  const initialDelay  = 5 * 60 * 1000;       // 5 minutes after startup
+  const jobCfg = config.backgroundJobs.searchQueryCache;
+  const intervalMs    = jobCfg.intervalMs;
+  const initialDelay  = jobCfg.initialDelayMs;
 
-  logger.info('[searchQueryCache] Scheduled (initial delay: 5 min, interval: 2 h)');
+  logger.info('[searchQueryCache] Scheduled', {
+    initialDelayMinutes: initialDelay / (60 * 1000),
+    intervalHours: intervalMs / (60 * 60 * 1000),
+    retentionDays: jobCfg.queryRetentionDays,
+    redisTtlMinutes: jobCfg.redisTtlSeconds / 60,
+  });
 
   monitoringController.backgroundTaskStats.searchQueryCache.nextRun =
     new Date(Date.now() + initialDelay).toISOString();

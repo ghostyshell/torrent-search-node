@@ -3,6 +3,7 @@ const objectStorageService = require('./objectStorageService');
 const logger = require('../middleware/logger');
 const fetch = require('node-fetch');
 const { STUDIOS } = require('./studioSearchTerms');
+const { config } = require('../config/environment');
 
 // Both quality tiers are processed each run.
 const CATEGORIES = [
@@ -11,11 +12,6 @@ const CATEGORIES = [
 ];
 const PIRATEBAY_SORT = '7';  // Seeders desc (search)
 const BROWSE_SORT = '3';     // Date desc — /browse/{category}/{page}/3
-const PAGES_BROWSE_HOME = 6;
-const HOME_QUERY = 'xxx';
-const PAGES_TO_CACHE = 5;
-const TRANS_QUERY = 'trans';
-const PAGES_TRANS_CACHE = 2;
 const MAX_ERRORS = 30;
 
 class DescriptionImageCacheService {
@@ -30,6 +26,12 @@ class DescriptionImageCacheService {
    */
   async runCacheJob(options = {}) {
     this.forceRefresh = options.forceRefresh || false;
+    const jobCfg = config.backgroundJobs.descriptionImageCache;
+    const PAGES_BROWSE_HOME = jobCfg.pagesBrowseHome;
+    const PAGES_HOME_QUERY = jobCfg.pagesHomeQuery;
+    const PAGES_TRANS_CACHE = jobCfg.pagesTrans;
+    const PAGES_PER_STUDIO = jobCfg.pagesPerStudio;
+
     const startTime = Date.now();
     const results = {
       totalSearches: 0,
@@ -55,22 +57,22 @@ class DescriptionImageCacheService {
         await this.processBrowsePage(page, results, category);
       }
 
-      // 2. Home page "xxx" query — pages 1-5
-      logger.info(`🔍 [DescImageCache] Home query "${HOME_QUERY}" cat ${category} (${PAGES_TO_CACHE} pages)`);
-      for (let page = 1; page <= PAGES_TO_CACHE; page++) {
+      // 2. Home page "xxx" query
+      logger.info(`🔍 [DescImageCache] Home query "${HOME_QUERY}" cat ${category} (${PAGES_HOME_QUERY} pages)`);
+      for (let page = 1; page <= PAGES_HOME_QUERY; page++) {
         await this.processSearchPage(HOME_QUERY, page, results, category);
       }
 
-      // 3. "trans" — first 2 pages
+      // 3. "trans"
       logger.info(`🔍 [DescImageCache] "${TRANS_QUERY}" cat ${category} (${PAGES_TRANS_CACHE} pages)`);
       for (let page = 1; page <= PAGES_TRANS_CACHE; page++) {
         await this.processSearchPage(TRANS_QUERY, page, results, category);
       }
 
-      // 4. Each studio — pages 1-5
+      // 4. Each studio
       for (const studio of STUDIOS) {
-        logger.info(`🎬 [DescImageCache] Studio "${studio}" cat ${category} (${PAGES_TO_CACHE} pages)`);
-        for (let page = 1; page <= PAGES_TO_CACHE; page++) {
+        logger.info(`🎬 [DescImageCache] Studio "${studio}" cat ${category} (${PAGES_PER_STUDIO} pages)`);
+        for (let page = 1; page <= PAGES_PER_STUDIO; page++) {
           await this.processSearchPage(studio, page, results, category);
         }
       }

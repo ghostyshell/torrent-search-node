@@ -127,12 +127,137 @@ const config = {
     // How long a cached Real-Debrid stream URL is considered fresh.
     // Read path treats anything older than this as a miss so the frontend
     // regenerates instead of handing the player a stale token. The favorites
-    // refresh job runs every 24h, so default this to 20h to leave a 4h buffer.
+    // refresh job runs every 24h, so default this to 12h to leave a buffer
+    // without keeping stale tokens in Redis/Mongo for too long.
     streamUrlTtlSeconds: Math.max(
       60,
-      parseInt(process.env.STREAM_URL_TTL_SECONDS || String(20 * 60 * 60), 10) ||
-        20 * 60 * 60
+      parseInt(process.env.STREAM_URL_TTL_SECONDS || String(12 * 60 * 60), 10) ||
+        12 * 60 * 60
     ),
+  },
+
+  // Background job tuning. These knobs control the steady-state CPU/Redis/Mongo
+  // load. Defaults are deliberately conservative for small VPS/Sliplane boxes.
+  // All values can be overridden with environment variables without a redeploy.
+  backgroundJobs: {
+    // Description/image cache: how often to warm cover images.
+    descriptionImageCache: {
+      intervalMs: Math.max(
+        60 * 60 * 1000,
+        parseInt(process.env.DESC_IMAGE_CACHE_INTERVAL_MS || String(8 * 60 * 60 * 1000), 10) ||
+          8 * 60 * 60 * 1000
+      ),
+      initialDelayMs: Math.max(
+        0,
+        parseInt(process.env.DESC_IMAGE_CACHE_INITIAL_DELAY_MS || String(10 * 60 * 1000), 10) ||
+          10 * 60 * 1000
+      ),
+      pagesBrowseHome: Math.max(
+        1,
+        parseInt(process.env.DESC_IMAGE_CACHE_PAGES_BROWSE_HOME || '3', 10) || 3
+      ),
+      pagesHomeQuery: Math.max(
+        1,
+        parseInt(process.env.DESC_IMAGE_CACHE_PAGES_HOME_QUERY || '2', 10) || 2
+      ),
+      pagesTrans: Math.max(
+        0,
+        parseInt(process.env.DESC_IMAGE_CACHE_PAGES_TRANS || '1', 10) || 1
+      ),
+      pagesPerStudio: Math.max(
+        1,
+        parseInt(process.env.DESC_IMAGE_CACHE_PAGES_PER_STUDIO || '2', 10) || 2
+      ),
+    },
+
+    // Search-results (filter stream) cache: pre-warms Real-Debrid links.
+    searchResultsCache: {
+      intervalMs: Math.max(
+        60 * 60 * 1000,
+        parseInt(process.env.SEARCH_RESULTS_CACHE_INTERVAL_MS || String(8 * 60 * 60 * 1000), 10) ||
+          8 * 60 * 60 * 1000
+      ),
+      initialDelayMs: Math.max(
+        0,
+        parseInt(process.env.SEARCH_RESULTS_CACHE_INITIAL_DELAY_MS || String(10 * 60 * 1000), 10) ||
+          10 * 60 * 1000
+      ),
+      pagesBrowseHome: Math.max(
+        1,
+        parseInt(process.env.SEARCH_RESULTS_CACHE_PAGES_BROWSE_HOME || '3', 10) || 3
+      ),
+      pagesTrans: Math.max(
+        0,
+        parseInt(process.env.SEARCH_RESULTS_CACHE_PAGES_TRANS || '1', 10) || 1
+      ),
+      pagesPerStudio: Math.max(
+        1,
+        parseInt(process.env.SEARCH_RESULTS_CACHE_PAGES_PER_STUDIO || '2', 10) || 2
+      ),
+    },
+
+    // Redis catalog cache: keeps catalog JSON warm for the Stremio addon.
+    redisCatalogCache: {
+      intervalMinMs: Math.max(
+        5 * 60 * 1000,
+        parseInt(process.env.REDIS_CATALOG_CACHE_INTERVAL_MIN_MS || String(25 * 60 * 1000), 10) ||
+          25 * 60 * 1000
+      ),
+      intervalMaxMs: Math.max(
+        5 * 60 * 1000,
+        parseInt(process.env.REDIS_CATALOG_CACHE_INTERVAL_MAX_MS || String(35 * 60 * 1000), 10) ||
+          35 * 60 * 1000
+      ),
+    },
+
+    // Search-query cache: warms recent user searches + their cover images.
+    searchQueryCache: {
+      intervalMs: Math.max(
+        60 * 60 * 1000,
+        parseInt(process.env.SEARCH_QUERY_CACHE_INTERVAL_MS || String(3 * 60 * 60 * 1000), 10) ||
+          3 * 60 * 60 * 1000
+      ),
+      initialDelayMs: Math.max(
+        0,
+        parseInt(process.env.SEARCH_QUERY_CACHE_INITIAL_DELAY_MS || String(10 * 60 * 1000), 10) ||
+          10 * 60 * 1000
+      ),
+      queryRetentionDays: Math.max(
+        1,
+        parseInt(process.env.SEARCH_QUERY_CACHE_RETENTION_DAYS || '1', 10) || 1
+      ),
+      redisTtlSeconds: Math.max(
+        60,
+        parseInt(process.env.SEARCH_QUERY_CACHE_REDIS_TTL_SECONDS || String(1 * 60 * 60), 10) ||
+          1 * 60 * 60
+      ),
+      sleepBetweenCoversMs: Math.max(
+        0,
+        parseInt(process.env.SEARCH_QUERY_CACHE_SLEEP_BETWEEN_COVERS_MS || '300', 10) || 300
+      ),
+      sleepBetweenQueriesMs: Math.max(
+        0,
+        parseInt(process.env.SEARCH_QUERY_CACHE_SLEEP_BETWEEN_QUERIES_MS || '1500', 10) || 1500
+      ),
+      sleepBetweenPagesMs: Math.max(
+        0,
+        parseInt(process.env.SEARCH_QUERY_CACHE_SLEEP_BETWEEN_PAGES_MS || '500', 10) || 500
+      ),
+    },
+
+    // Stream URL refresh: refreshes Real-Debrid links for favorites.
+    streamUrlRefresh: {
+      intervalMs: Math.max(
+        60 * 60 * 1000,
+        parseInt(process.env.STREAM_URL_REFRESH_INTERVAL_MS || String(24 * 60 * 60 * 1000), 10) ||
+          24 * 60 * 60 * 1000
+      ),
+      initialDelayMs: Math.max(
+        0,
+        parseInt(process.env.STREAM_URL_REFRESH_INITIAL_DELAY_MS || String(5 * 60 * 1000), 10) ||
+          5 * 60 * 1000
+      ),
+    },
   },
 
   // Railway-specific configuration

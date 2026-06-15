@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 
-// Storage controller for all Turso database storage endpoints
+// Storage controller for all MongoDB storage endpoints
 const storageController = {
   // Get storage statistics
   getStats: async (req, res) => {

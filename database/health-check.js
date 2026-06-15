@@ -2,7 +2,7 @@
 
 /**
  * Database Health Check Script
- * Verifies Turso cloud database connectivity and basic operations
+ * Verifies MongoDB connectivity and basic operations
  */
 
 const StorageProvider = require('./StorageProvider');

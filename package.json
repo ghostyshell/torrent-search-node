@@ -62,7 +62,6 @@
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
     "test:db": "node database/test.js",
-    "db:verify": "node database/migrations/importToTurso.js verify",
     "db:health": "node database/health-check.js",
     "deploy:aws": "serverless deploy --stage prod",
     "deploy:aws-dev": "serverless deploy --stage dev",
